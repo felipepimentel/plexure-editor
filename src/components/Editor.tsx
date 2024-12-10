@@ -1,10 +1,10 @@
-import React, { useRef, useEffect } from 'react';
 import * as monaco from 'monaco-editor';
-import { useMonacoYamlValidation } from '../hooks/useMonacoYamlValidation';
+import { useEffect, useRef } from 'react';
 import { useMonacoCompletion } from '../hooks/useMonacoCompletion';
 import { useMonacoSnippets } from '../hooks/useMonacoSnippets';
-import { EditorToolbar } from './EditorToolbar';
+import { useMonacoYamlValidation } from '../hooks/useMonacoYamlValidation';
 import { ValidationResult } from '../types/styleGuide';
+import { EditorToolbar } from './EditorToolbar';
 
 interface EditorProps {
   value: string;
@@ -15,6 +15,10 @@ interface EditorProps {
 }
 
 export function Editor({ value, onChange, darkMode, onShowShortcuts, validationResults }: EditorProps) {
+  console.log("CodeEditor: ", value);
+  console.log("CodeEditor: ", language);
+  console.log("CodeEditor: ", darkMode);
+  
   const editorRef = useRef<HTMLDivElement>(null);
   const monacoEditorRef = useRef<monaco.editor.IStandaloneCodeEditor | null>(null);
 

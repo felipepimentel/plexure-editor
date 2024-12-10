@@ -1,20 +1,20 @@
-import React, { useState, useEffect } from 'react';
-import { MainLayout } from './components/layout/MainLayout';
+import { useEffect, useState } from 'react';
 import { Editor } from './components/Editor';
 import { ShortcutsPanel } from './components/ShortcutsPanel';
-import { ProjectList } from './components/projects/ProjectList';
-import { ProjectDetails } from './components/projects/ProjectDetails';
-import { parseSpecification } from './utils/swagger';
-import { storage } from './utils/storage';
-import { DEFAULT_SPEC } from './constants';
-import { useStyleGuideValidation } from './hooks/useStyleGuideValidation';
-import { useKeyboardShortcuts } from './hooks/useKeyboardShortcuts';
-import { useAuth } from './hooks/useAuth';
-import { useProfile } from './hooks/useProfile';
-import { usePreferences } from './hooks/usePreferences';
-import { useProjects } from './hooks/useProjects';
 import { LoginForm } from './components/auth/LoginForm';
-import type { Project, ApiContract } from './types/project';
+import { MainLayout } from './components/layout/MainLayout';
+import { ProjectDetails } from './components/projects/ProjectDetails';
+import { ProjectList } from './components/projects/ProjectList';
+import { DEFAULT_SPEC } from './constants';
+import { useAuth } from './hooks/useAuth';
+import { useKeyboardShortcuts } from './hooks/useKeyboardShortcuts';
+import { usePreferences } from './hooks/usePreferences';
+import { useProfile } from './hooks/useProfile';
+import { useProjects } from './hooks/useProjects';
+import { useStyleGuideValidation } from './hooks/useStyleGuideValidation';
+import type { ApiContract, Project } from './types/project';
+import { storage } from './utils/storage';
+import { parseSpecification } from './utils/swagger';
 
 type AppView = 'projects' | 'project-details' | 'editor';
 

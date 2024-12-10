@@ -1,5 +1,5 @@
-import React, { useRef, useEffect } from 'react';
 import * as monaco from 'monaco-editor';
+import { useEffect, useRef } from 'react';
 
 interface CodeEditorProps {
   value: string;
@@ -9,6 +9,9 @@ interface CodeEditorProps {
 }
 
 export function CodeEditor({ value, onChange, language, darkMode }: CodeEditorProps) {
+  console.log("CodeEditor: ", value);
+  console.log("CodeEditor: ", language);
+  console.log("CodeEditor: ", darkMode);
   const editorRef = useRef<HTMLDivElement>(null);
   const monacoEditorRef = useRef<monaco.editor.IStandaloneCodeEditor | null>(null);
 
