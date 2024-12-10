@@ -17,19 +17,25 @@ export function useProfile() {
           return;
         }
 
-        const { data, error: err } = await supabase
-          .from('user_profiles')
-          .select(`
-            *,
-            team:teams (
-              id,
-              name
-            )
-          `)
+        // First try to get from user_profiles_with_teams
+        let { data, error: err } = await supabase
+          .from('user_profiles_with_teams')
+          .select('*')
           .eq('id', user.id)
-          .single();
+          .maybeSingle();
 
-        if (err) throw err;
+        if (err) {
+          // If view fails, fallback to direct table
+          const { data: profileData, error: profileErr } = await supabase
+            .from('user_profiles')
+            .select('*')
+            .eq('id', user.id)
+            .single();
+
+          if (profileErr) throw profileErr;
+          data = profileData;
+        }
+
         setProfile(data);
         setError(null);
       } catch (err) {
