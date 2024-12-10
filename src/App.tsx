@@ -8,16 +8,19 @@ import { DEFAULT_SPEC } from './constants';
 import { useStyleGuideValidation } from './hooks/useStyleGuideValidation';
 import { useKeyboardShortcuts } from './hooks/useKeyboardShortcuts';
 import { useAuth } from './hooks/useAuth';
+import { useProfile } from './hooks/useProfile';
+import { usePreferences } from './hooks/usePreferences';
+import { LoginForm } from './components/auth/LoginForm';
 
 function App() {
   const [spec, setSpec] = useState(storage.loadSpec() || DEFAULT_SPEC);
   const [parsedSpec, setParsedSpec] = useState<any>(null);
   const [error, setError] = useState<string | null>(null);
-  const [darkMode, setDarkMode] = useState(true);
   const [showShortcuts, setShowShortcuts] = useState(false);
-  const [currentPath, setCurrentPath] = useState<string[]>(['root']);
 
-  const { loading: authLoading, error: authError, retry: retryAuth } = useAuth();
+  const { user, loading: authLoading, error: authError, retry: retryAuth } = useAuth();
+  const { profile, loading: profileLoading } = useProfile();
+  const { preferences, loading: prefsLoading, updatePreference } = usePreferences();
   const validationResults = useStyleGuideValidation(spec);
 
   // Event handlers
@@ -39,13 +42,35 @@ function App() {
   };
 
   const handleNavigate = (path: string[]) => {
-    setCurrentPath(path);
+    updatePreference('last_opened_path', path);
+  };
+
+  const handleViewChange = (view: string) => {
+    updatePreference('current_view', view);
+  };
+
+  const handlePanelCollapse = (side: 'left' | 'right', collapsed: boolean) => {
+    updatePreference(
+      side === 'left' ? 'left_panel_collapsed' : 'right_panel_collapsed',
+      collapsed
+    );
+  };
+
+  const handlePanelResize = (side: 'left' | 'right', width: number) => {
+    updatePreference(
+      side === 'left' ? 'left_panel_width' : 'right_panel_width',
+      width
+    );
+  };
+
+  const handleThemeToggle = () => {
+    updatePreference('theme', preferences?.theme === 'dark' ? 'light' : 'dark');
   };
 
   // Keyboard shortcuts
   useKeyboardShortcuts({
     onSave: handleSave,
-    onToggleDarkMode: () => setDarkMode(prev => !prev),
+    onToggleDarkMode: handleThemeToggle,
     onToggleShortcuts: () => setShowShortcuts(prev => !prev)
   });
 
@@ -59,7 +84,7 @@ function App() {
     parseSpec();
   }, [spec]);
 
-  if (authLoading) {
+  if (authLoading || profileLoading || prefsLoading) {
     return (
       <div className="h-screen flex items-center justify-center bg-gray-900">
         <div className="text-center">
@@ -86,19 +111,40 @@ function App() {
     );
   }
 
+  if (!user) {
+    return (
+      <div className="min-h-screen flex items-center justify-center bg-gray-900">
+        <LoginForm darkMode={preferences?.theme === 'dark'} />
+      </div>
+    );
+  }
+
+  const darkMode = preferences?.theme === 'dark';
+
   return (
     <MainLayout
       darkMode={darkMode}
-      breadcrumbs={currentPath}
+      breadcrumbs={preferences?.last_opened_path || ['root']}
       onBreadcrumbClick={handleNavigate}
       errorCount={validationResults.filter(r => r.rule.severity === 'error').length}
       warningCount={validationResults.filter(r => r.rule.severity === 'warning').length}
-      onDarkModeToggle={() => setDarkMode(prev => !prev)}
+      onDarkModeToggle={handleThemeToggle}
       onSave={handleSave}
       onImport={handleImport}
       onExport={handleExport}
       spec={parsedSpec}
       validationResults={validationResults}
+      userName={profile?.full_name || undefined}
+      teamName={profile?.team?.name || undefined}
+      userImage={profile?.avatar_url || undefined}
+      currentView={preferences?.current_view || 'navigator'}
+      onViewChange={handleViewChange}
+      leftPanelWidth={preferences?.left_panel_width}
+      rightPanelWidth={preferences?.right_panel_width}
+      leftPanelCollapsed={preferences?.left_panel_collapsed}
+      rightPanelCollapsed={preferences?.right_panel_collapsed}
+      onPanelCollapse={handlePanelCollapse}
+      onPanelResize={handlePanelResize}
     >
       <Editor
         value={spec}

@@ -20,7 +20,13 @@ export function TeamSelector({ darkMode }: TeamSelectorProps) {
   const { fetchSpecifications } = useSpecificationStore();
 
   useEffect(() => {
-    fetchTeams();
+    fetchTeams().then(() => {
+      // Se não houver time selecionado e houver times disponíveis,
+      // seleciona o primeiro time
+      if (!currentTeam && teams.length > 0) {
+        handleTeamChange(teams[0].id);
+      }
+    });
   }, [fetchTeams]);
 
   const handleTeamChange = async (teamId: string) => {
@@ -44,6 +50,14 @@ export function TeamSelector({ darkMode }: TeamSelectorProps) {
     return (
       <div className="text-red-500 px-3 py-2">
         Failed to load teams
+      </div>
+    );
+  }
+
+  if (teams.length === 0) {
+    return (
+      <div className="text-gray-500 px-3 py-2">
+        No teams available
       </div>
     );
   }

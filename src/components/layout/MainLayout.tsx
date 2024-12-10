@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React from 'react';
 import { Header } from '../Header';
 import { Breadcrumbs } from '../navigation/Breadcrumbs';
 import { ErrorBoundary } from '../error/ErrorBoundary';
@@ -24,6 +24,17 @@ interface MainLayoutProps {
   onExport: () => void;
   spec: any;
   validationResults: any[];
+  userName?: string;
+  teamName?: string;
+  userImage?: string;
+  currentView: string;
+  onViewChange: (view: string) => void;
+  leftPanelWidth?: number;
+  rightPanelWidth?: number;
+  leftPanelCollapsed?: boolean;
+  rightPanelCollapsed?: boolean;
+  onPanelCollapse: (side: 'left' | 'right', collapsed: boolean) => void;
+  onPanelResize: (side: 'left' | 'right', width: number) => void;
 }
 
 export function MainLayout({
@@ -38,12 +49,19 @@ export function MainLayout({
   onImport,
   onExport,
   spec,
-  validationResults
+  validationResults,
+  userName,
+  teamName,
+  userImage,
+  currentView,
+  onViewChange,
+  leftPanelWidth = 320,
+  rightPanelWidth = 480,
+  leftPanelCollapsed = false,
+  rightPanelCollapsed = false,
+  onPanelCollapse,
+  onPanelResize
 }: MainLayoutProps) {
-  const [currentView, setCurrentView] = useState('navigator');
-  const [leftPanelCollapsed, setLeftPanelCollapsed] = useState(false);
-  const [rightPanelCollapsed, setRightPanelCollapsed] = useState(false);
-
   const renderSidePanel = () => {
     switch (currentView) {
       case 'navigator':
@@ -55,7 +73,7 @@ export function MainLayout({
           <StyleGuideWidget
             validationResults={validationResults}
             darkMode={darkMode}
-            onClose={() => setCurrentView('navigator')}
+            onClose={() => onViewChange('navigator')}
           />
         );
       case 'specifications':
@@ -74,23 +92,26 @@ export function MainLayout({
         onImport={onImport}
         onExport={onExport}
         className="h-12 px-4"
+        userName={userName}
+        teamName={teamName}
+        userImage={userImage}
       />
       <div className="flex flex-1 min-h-0">
         <Sidebar 
           darkMode={darkMode} 
-          onViewChange={setCurrentView}
+          onViewChange={onViewChange}
           currentView={currentView}
         />
         <div className="flex-1 flex min-w-0">
           <ResizablePanel 
             side="left" 
             darkMode={darkMode} 
-            defaultWidth={320}
+            defaultWidth={leftPanelWidth}
             minWidth={240}
             maxWidth={480}
             isCollapsed={leftPanelCollapsed}
-            onCollapse={() => setLeftPanelCollapsed(true)}
-            onExpand={() => setLeftPanelCollapsed(false)}
+            onCollapse={(collapsed) => onPanelCollapse('left', collapsed)}
+            onResize={(width) => onPanelResize('left', width)}
           >
             {renderSidePanel()}
           </ResizablePanel>
@@ -109,12 +130,12 @@ export function MainLayout({
                   <ResizablePanel 
                     side="right" 
                     darkMode={darkMode} 
-                    defaultWidth={480}
+                    defaultWidth={rightPanelWidth}
                     minWidth={320}
                     maxWidth={720}
                     isCollapsed={rightPanelCollapsed}
-                    onCollapse={() => setRightPanelCollapsed(true)}
-                    onExpand={() => setRightPanelCollapsed(false)}
+                    onCollapse={(collapsed) => onPanelCollapse('right', collapsed)}
+                    onResize={(width) => onPanelResize('right', width)}
                   >
                     <PreviewWidget spec={spec} error={null} darkMode={darkMode} />
                   </ResizablePanel>

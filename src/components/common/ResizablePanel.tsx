@@ -1,70 +1,94 @@
-import React, { useState, useCallback } from 'react';
+import React, { useState, useCallback, useRef, useEffect } from 'react';
 import { ChevronLeft, ChevronRight } from 'lucide-react';
 
 interface ResizablePanelProps {
   children: React.ReactNode;
   side: 'left' | 'right';
-  defaultWidth?: number;
-  minWidth?: number;
-  maxWidth?: number;
   darkMode: boolean;
-  isCollapsed?: boolean;
-  onCollapse?: () => void;
-  onExpand?: () => void;
+  defaultWidth: number;
+  minWidth: number;
+  maxWidth: number;
+  isCollapsed: boolean;
+  onCollapse: (collapsed: boolean) => void;
+  onResize: (width: number) => void;
 }
 
 export function ResizablePanel({
   children,
   side,
-  defaultWidth = 320,
-  minWidth = 200,
-  maxWidth = 600,
   darkMode,
-  isCollapsed = false,
+  defaultWidth,
+  minWidth,
+  maxWidth,
+  isCollapsed,
   onCollapse,
-  onExpand
+  onResize
 }: ResizablePanelProps) {
   const [width, setWidth] = useState(defaultWidth);
+  const [isResizing, setIsResizing] = useState(false);
+  const resizeRef = useRef<HTMLDivElement>(null);
+  const startXRef = useRef<number>(0);
+  const startWidthRef = useRef<number>(0);
 
-  const handleMouseDown = useCallback((e: React.MouseEvent) => {
-    e.preventDefault();
-    const startX = e.clientX;
-    const startWidth = width;
+  useEffect(() => {
+    setWidth(defaultWidth);
+  }, [defaultWidth]);
 
-    const handleMouseMove = (e: MouseEvent) => {
-      const delta = side === 'left' ? e.clientX - startX : startX - e.clientX;
-      const newWidth = Math.min(Math.max(startWidth + delta, minWidth), maxWidth);
+  const startResize = useCallback((e: React.MouseEvent) => {
+    setIsResizing(true);
+    startXRef.current = e.pageX;
+    startWidthRef.current = width;
+  }, [width]);
+
+  const stopResize = useCallback(() => {
+    if (isResizing) {
+      setIsResizing(false);
+      onResize(width);
+    }
+  }, [isResizing, width, onResize]);
+
+  const resize = useCallback((e: MouseEvent) => {
+    if (isResizing) {
+      e.preventDefault();
+      const diff = side === 'left'
+        ? e.pageX - startXRef.current
+        : startXRef.current - e.pageX;
+      
+      const newWidth = Math.min(
+        Math.max(startWidthRef.current + diff, minWidth),
+        maxWidth
+      );
+      
       setWidth(newWidth);
-    };
+    }
+  }, [isResizing, side, minWidth, maxWidth]);
 
-    const handleMouseUp = () => {
-      document.removeEventListener('mousemove', handleMouseMove);
-      document.removeEventListener('mouseup', handleMouseUp);
-      document.body.style.cursor = '';
-      document.body.style.userSelect = '';
+  useEffect(() => {
+    document.addEventListener('mousemove', resize);
+    document.addEventListener('mouseup', stopResize);
+    return () => {
+      document.removeEventListener('mousemove', resize);
+      document.removeEventListener('mouseup', stopResize);
     };
-
-    document.addEventListener('mousemove', handleMouseMove);
-    document.addEventListener('mouseup', handleMouseUp);
-    document.body.style.cursor = 'col-resize';
-    document.body.style.userSelect = 'none';
-  }, [width, side, minWidth, maxWidth]);
+  }, [resize, stopResize]);
 
   if (isCollapsed) {
     return (
-      <div className={`flex-none w-8 ${side === 'left' ? 'border-r' : 'border-l'} ${
-        darkMode ? 'border-gray-700 bg-gray-800' : 'border-gray-200 bg-white'
-      }`}>
+      <div className="relative">
         <button
-          onClick={onExpand}
-          className={`w-full h-8 flex items-center justify-center hover:bg-opacity-80 ${
-            darkMode ? 'hover:bg-gray-700' : 'hover:bg-gray-100'
+          onClick={() => onCollapse(false)}
+          className={`absolute top-4 ${
+            side === 'left' ? '-right-3' : '-left-3'
+          } z-10 p-0.5 rounded-full ${
+            darkMode
+              ? 'bg-gray-700 hover:bg-gray-600 text-gray-300'
+              : 'bg-white hover:bg-gray-100 text-gray-600 shadow-sm'
           }`}
         >
           {side === 'left' ? (
-            <ChevronRight className={`w-4 h-4 ${darkMode ? 'text-gray-400' : 'text-gray-600'}`} />
+            <ChevronRight className="w-4 h-4" />
           ) : (
-            <ChevronLeft className={`w-4 h-4 ${darkMode ? 'text-gray-400' : 'text-gray-600'}`} />
+            <ChevronLeft className="w-4 h-4" />
           )}
         </button>
       </div>
@@ -72,33 +96,48 @@ export function ResizablePanel({
   }
 
   return (
-    <div 
-      className="relative flex-none"
-      style={{ width }}
+    <div
+      className="relative flex-shrink-0"
+      style={{ width: `${width}px` }}
     >
-      {children}
-      
       <div
-        className={`absolute ${side === 'left' ? '-right-1' : '-left-1'} top-0 bottom-0 w-2 cursor-col-resize group`}
-        onMouseDown={handleMouseDown}
+        ref={resizeRef}
+        onMouseDown={startResize}
+        className={`absolute ${
+          side === 'left' ? 'right-0' : 'left-0'
+        } top-0 bottom-0 w-1 cursor-col-resize group ${
+          darkMode ? 'hover:bg-gray-600' : 'hover:bg-gray-300'
+        }`}
       >
-        <div className={`absolute ${side === 'left' ? 'right-0' : 'left-0'} top-0 bottom-0 w-px transition-colors ${
-          darkMode ? 'bg-gray-700 group-hover:bg-blue-500' : 'bg-gray-200 group-hover:bg-blue-400'
+        <div className={`absolute top-0 bottom-0 ${
+          side === 'left' ? '-right-0.5' : '-left-0.5'
+        } w-px transition-colors ${
+          isResizing
+            ? darkMode ? 'bg-blue-500' : 'bg-blue-500'
+            : darkMode ? 'bg-gray-700' : 'bg-gray-200'
         }`} />
       </div>
 
-      <button
-        onClick={onCollapse}
-        className={`absolute ${side === 'left' ? 'right-2' : 'left-2'} top-2 p-1 rounded hover:bg-opacity-80 ${
-          darkMode ? 'hover:bg-gray-700' : 'hover:bg-gray-100'
-        }`}
-      >
-        {side === 'left' ? (
-          <ChevronLeft className={`w-4 h-4 ${darkMode ? 'text-gray-400' : 'text-gray-600'}`} />
-        ) : (
-          <ChevronRight className={`w-4 h-4 ${darkMode ? 'text-gray-400' : 'text-gray-600'}`} />
-        )}
-      </button>
+      <div className="h-full relative">
+        <button
+          onClick={() => onCollapse(true)}
+          className={`absolute top-4 ${
+            side === 'left' ? '-right-3' : '-left-3'
+          } z-10 p-0.5 rounded-full ${
+            darkMode
+              ? 'bg-gray-700 hover:bg-gray-600 text-gray-300'
+              : 'bg-white hover:bg-gray-100 text-gray-600 shadow-sm'
+          }`}
+        >
+          {side === 'left' ? (
+            <ChevronLeft className="w-4 h-4" />
+          ) : (
+            <ChevronRight className="w-4 h-4" />
+          )}
+        </button>
+
+        {children}
+      </div>
     </div>
   );
 }

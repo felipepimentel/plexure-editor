@@ -19,23 +19,22 @@ export interface TeamMember {
 }
 
 export const teamService = {
-  async list(): Promise<Team[]> {
+  async getTeams(): Promise<Team[]> {
     const { data, error } = await supabase
       .from('teams')
       .select('*')
-      .order('name');
+      .order('updated_at', { ascending: false });
 
     if (error) throw error;
-    return data || [];
+    return data;
   },
 
-  async create(team: Pick<Team, 'name' | 'slug' | 'description'>): Promise<Team> {
+  async createTeam(team: Pick<Team, 'name' | 'slug' | 'description'>): Promise<Team> {
     const { data, error } = await supabase
-      .rpc('create_team_with_owner', {
-        team_name: team.name,
-        team_slug: team.slug,
-        team_description: team.description
-      });
+      .from('teams')
+      .insert(team)
+      .select()
+      .single();
 
     if (error) throw error;
     return data;
@@ -44,27 +43,23 @@ export const teamService = {
   async getMembers(teamId: string): Promise<TeamMember[]> {
     const { data, error } = await supabase
       .from('team_members')
-      .select(`
-        *,
-        users:user_id (
-          email,
-          user_metadata
-        )
-      `)
+      .select('*')
       .eq('team_id', teamId);
 
     if (error) throw error;
-    return data || [];
+    return data;
   },
 
   async addMember(teamId: string, email: string, role: TeamMember['role']): Promise<void> {
+    // Primeiro busca o usuário pelo email
     const { data: userData, error: userError } = await supabase
-      .from('users')
+      .from('auth.users')
       .select('id')
       .eq('email', email)
       .single();
 
     if (userError) throw userError;
+    if (!userData) throw new Error('User not found');
 
     const { error } = await supabase
       .from('team_members')

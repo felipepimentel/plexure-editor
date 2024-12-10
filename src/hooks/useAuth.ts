@@ -1,33 +1,69 @@
-import { useState, useEffect, useCallback } from 'react';
-import { authProvider } from '../providers/authProvider';
-import { AUTH_ERRORS } from '../config/auth.constants';
+import { useEffect, useState } from 'react';
+import { User, AuthError } from '@supabase/supabase-js';
+import { supabase } from '../lib/supabaseClient';
 
 export function useAuth() {
+  const [user, setUser] = useState<User | null>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
 
-  const initialize = useCallback(async () => {
-    try {
-      setLoading(true);
-      setError(null);
-      await authProvider.initialize();
-    } catch (error) {
-      setError(error instanceof Error ? error.message : AUTH_ERRORS.UNKNOWN);
-    } finally {
+  useEffect(() => {
+    // Check active session
+    const checkSession = async () => {
+      try {
+        const { data: { session }, error: sessionError } = await supabase.auth.getSession();
+        if (sessionError) throw sessionError;
+        setUser(session?.user ?? null);
+      } catch (err) {
+        console.error('Error checking session:', err);
+        setError(err instanceof Error ? err.message : 'Session check failed');
+      } finally {
+        setLoading(false);
+      }
+    };
+
+    checkSession();
+
+    // Listen for auth changes
+    const { data: { subscription } } = supabase.auth.onAuthStateChange((_event, session) => {
+      setUser(session?.user ?? null);
       setLoading(false);
-    }
+    });
+
+    return () => {
+      subscription.unsubscribe();
+    };
   }, []);
 
-  useEffect(() => {
-    initialize().catch(console.error);
-    return () => {
-      authProvider.cleanup().catch(console.error);
-    };
-  }, [initialize]);
+  const signOut = async () => {
+    try {
+      const { error: signOutError } = await supabase.auth.signOut();
+      if (signOutError) throw signOutError;
+    } catch (err) {
+      console.error('Error signing out:', err);
+      setError(err instanceof Error ? err.message : 'Sign out failed');
+    }
+  };
 
-  const retry = useCallback(() => {
-    return initialize();
-  }, [initialize]);
+  const retry = () => {
+    setError(null);
+    setLoading(true);
+    // Re-check session
+    supabase.auth.getSession().then(({ data: { session }, error: sessionError }) => {
+      if (sessionError) {
+        setError(sessionError.message);
+      } else {
+        setUser(session?.user ?? null);
+      }
+      setLoading(false);
+    });
+  };
 
-  return { loading, error, retry };
+  return {
+    user,
+    loading,
+    error,
+    signOut,
+    retry,
+  };
 }

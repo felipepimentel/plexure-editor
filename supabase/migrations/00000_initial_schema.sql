@@ -81,4 +81,13 @@ BEGIN
         }',
         demo_team_id
     );
+
+    -- Create additional user profiles
+    INSERT INTO public.user_profiles (id, full_name, avatar_url, team_id)
+    VALUES (
+        demo_user_id,
+        'Demo User',
+        'https://api.dicebear.com/7.x/initials/svg?seed=Demo User',
+        demo_team_id
+    );
 END $$;

@@ -11,7 +11,7 @@ export interface Specification {
 }
 
 export const specificationService = {
-  async list(teamId: string): Promise<Specification[]> {
+  async getSpecifications(teamId: string): Promise<Specification[]> {
     const { data, error } = await supabase
       .from('specifications')
       .select('*')
@@ -19,16 +19,13 @@ export const specificationService = {
       .order('updated_at', { ascending: false });
 
     if (error) throw error;
-    return data || [];
+    return data;
   },
 
-  async create(teamId: string, spec: Omit<Specification, 'id' | 'created_at' | 'updated_at' | 'team_id'>): Promise<Specification> {
+  async create(spec: Omit<Specification, 'id' | 'created_at' | 'updated_at'>): Promise<Specification> {
     const { data, error } = await supabase
       .from('specifications')
-      .insert([{
-        ...spec,
-        team_id: teamId
-      }])
+      .insert(spec)
       .select()
       .single();
 
@@ -37,36 +34,23 @@ export const specificationService = {
   },
 
   async update(id: string, updates: Partial<Specification>): Promise<Specification> {
-    try {
-      const { data, error } = await supabase
-        .from('specifications')
-        .update({
-          ...updates,
-          updated_at: new Date().toISOString()
-        })
-        .eq('id', id)
-        .select()
-        .single();
+    const { data, error } = await supabase
+      .from('specifications')
+      .update(updates)
+      .eq('id', id)
+      .select()
+      .single();
 
-      if (error) throw error;
-      return data;
-    } catch (error) {
-      console.error('Failed to update specification:', error);
-      throw error;
-    }
+    if (error) throw error;
+    return data;
   },
 
   async delete(id: string): Promise<void> {
-    try {
-      const { error } = await supabase
-        .from('specifications')
-        .delete()
-        .eq('id', id);
+    const { error } = await supabase
+      .from('specifications')
+      .delete()
+      .eq('id', id);
 
-      if (error) throw error;
-    } catch (error) {
-      console.error('Failed to delete specification:', error);
-      throw error;
-    }
+    if (error) throw error;
   }
 };

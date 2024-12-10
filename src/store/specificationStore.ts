@@ -9,7 +9,7 @@ interface SpecificationStore {
   error: string | null;
   
   fetchSpecifications: () => Promise<void>;
-  createSpecification: (spec: Omit<Specification, 'id' | 'created_at' | 'updated_at' | 'team_id'>) => Promise<void>;
+  createSpecification: (spec: Omit<Specification, 'id' | 'created_at' | 'updated_at'>) => Promise<void>;
   updateSpecification: (id: string, updates: Partial<Specification>) => Promise<void>;
   deleteSpecification: (id: string) => Promise<void>;
   setCurrentSpec: (spec: Specification | null) => void;
@@ -29,7 +29,7 @@ export const useSpecificationStore = create<SpecificationStore>((set) => ({
         throw new Error('No team selected');
       }
       
-      const specs = await specificationService.list(currentTeam.id);
+      const specs = await specificationService.getSpecifications(currentTeam.id);
       set({ specifications: specs, loading: false });
     } catch (error) {
       set({ error: 'Failed to fetch specifications', loading: false });
@@ -44,7 +44,11 @@ export const useSpecificationStore = create<SpecificationStore>((set) => ({
         throw new Error('No team selected');
       }
 
-      const newSpec = await specificationService.create(currentTeam.id, spec);
+      const newSpec = await specificationService.create({
+        ...spec,
+        team_id: currentTeam.id
+      });
+      
       set(state => ({
         specifications: [...state.specifications, newSpec],
         loading: false

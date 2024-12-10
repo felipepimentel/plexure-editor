@@ -1,5 +1,7 @@
 import React from 'react';
-import { FileCode, Save, Upload, Download, Moon, Sun } from 'lucide-react';
+import { FileCode, Save, Upload, Download, Moon, Sun, LogOut } from 'lucide-react';
+import { UserProfile } from './UserProfile';
+import { useAuth } from '../hooks/useAuth';
 
 interface HeaderProps {
   darkMode: boolean;
@@ -8,6 +10,9 @@ interface HeaderProps {
   onExport: () => void;
   onSave: () => void;
   className?: string;
+  userName?: string;
+  teamName?: string;
+  userImage?: string;
 }
 
 export function Header({
@@ -16,8 +21,13 @@ export function Header({
   onImport,
   onExport,
   onSave,
-  className = ''
+  className = '',
+  userName,
+  teamName,
+  userImage
 }: HeaderProps) {
+  const { signOut } = useAuth();
+
   return (
     <div className={`flex items-center justify-between border-b ${
       darkMode ? 'bg-gray-900 border-gray-700' : 'bg-white border-gray-200'
@@ -29,49 +39,70 @@ export function Header({
         </h1>
       </div>
 
-      <div className="flex items-center gap-2">
-        <button
-          onClick={onSave}
-          className={`px-3 py-1.5 rounded-lg flex items-center gap-1.5 ${
-            darkMode 
-              ? 'bg-blue-600 hover:bg-blue-700 text-white' 
-              : 'bg-blue-100 hover:bg-blue-200 text-blue-700'
-          }`}
-        >
-          <Save className="w-4 h-4" />
-          <span className="text-sm">Save</span>
-        </button>
-
-        <div className="flex items-center gap-1">
+      <div className="flex items-center gap-4">
+        <div className="flex items-center gap-2">
           <button
-            onClick={onImport}
-            className={`p-2 rounded-lg ${darkMode ? 'hover:bg-gray-800' : 'hover:bg-gray-100'}`}
-            title="Import specification"
+            onClick={onSave}
+            className={`px-3 py-1.5 rounded-lg flex items-center gap-1.5 ${
+              darkMode 
+                ? 'bg-blue-600 hover:bg-blue-700 text-white' 
+                : 'bg-blue-100 hover:bg-blue-200 text-blue-700'
+            }`}
           >
-            <Upload className={`w-4 h-4 ${darkMode ? 'text-gray-300' : 'text-gray-600'}`} />
+            <Save className="w-4 h-4" />
+            <span className="text-sm">Save</span>
           </button>
+
+          <div className="flex items-center gap-1">
+            <button
+              onClick={onImport}
+              className={`p-2 rounded-lg ${darkMode ? 'hover:bg-gray-800' : 'hover:bg-gray-100'}`}
+              title="Import specification"
+            >
+              <Upload className={`w-4 h-4 ${darkMode ? 'text-gray-300' : 'text-gray-600'}`} />
+            </button>
+            <button
+              onClick={onExport}
+              className={`p-2 rounded-lg ${darkMode ? 'hover:bg-gray-800' : 'hover:bg-gray-100'}`}
+              title="Export specification"
+            >
+              <Download className={`w-4 h-4 ${darkMode ? 'text-gray-300' : 'text-gray-600'}`} />
+            </button>
+          </div>
+
+          <div className="w-px h-6 bg-gray-300 dark:bg-gray-700 mx-1" />
+
           <button
-            onClick={onExport}
+            onClick={onDarkModeToggle}
             className={`p-2 rounded-lg ${darkMode ? 'hover:bg-gray-800' : 'hover:bg-gray-100'}`}
-            title="Export specification"
+            title="Toggle dark mode"
           >
-            <Download className={`w-4 h-4 ${darkMode ? 'text-gray-300' : 'text-gray-600'}`} />
+            {darkMode ? (
+              <Sun className="w-4 h-4 text-gray-300" />
+            ) : (
+              <Moon className="w-4 h-4 text-gray-600" />
+            )}
           </button>
         </div>
 
-        <div className="w-px h-6 bg-gray-300 dark:bg-gray-700 mx-1" />
-
-        <button
-          onClick={onDarkModeToggle}
-          className={`p-2 rounded-lg ${darkMode ? 'hover:bg-gray-800' : 'hover:bg-gray-100'}`}
-          title="Toggle dark mode"
-        >
-          {darkMode ? (
-            <Sun className="w-4 h-4 text-gray-300" />
-          ) : (
-            <Moon className="w-4 h-4 text-gray-600" />
-          )}
-        </button>
+        <div className="w-px h-6 bg-gray-300 dark:bg-gray-700" />
+        
+        <div className="flex items-center gap-3">
+          <UserProfile
+            darkMode={darkMode}
+            userName={userName}
+            teamName={teamName}
+            userImage={userImage}
+          />
+          
+          <button
+            onClick={signOut}
+            className={`p-2 rounded-lg ${darkMode ? 'hover:bg-gray-800' : 'hover:bg-gray-100'}`}
+            title="Sign out"
+          >
+            <LogOut className={`w-4 h-4 ${darkMode ? 'text-gray-300' : 'text-gray-600'}`} />
+          </button>
+        </div>
       </div>
     </div>
   );
