@@ -13,6 +13,7 @@ import { EditorLayout } from './components/layout/EditorLayout';
 import { UserPreferences, EditorPreferences } from './types/preferences';
 import { Header } from './components/layout/Header';
 import { NavigationMenu } from './components/navigation/NavigationMenu';
+import { useTheme } from './hooks/useTheme';
 
 const DEFAULT_SPEC = `openapi: 3.0.0
 info:
@@ -75,6 +76,8 @@ export default function App() {
   const [activeNavigationItem, setActiveNavigationItem] = useState('spec');
   const [navigationCollapsed, setNavigationCollapsed] = useState(true);
 
+  const { darkMode, toggleDarkMode } = useTheme();
+
   // Loading state
   if (authLoading || profileLoading || prefsLoading) {
     return (
@@ -101,7 +104,6 @@ export default function App() {
     );
   }
 
-  const darkMode = preferences?.theme === 'dark';
   const errorCount = validationResults.filter(r => r.rule.severity === 'error').length;
 
   // Event handlers
@@ -220,7 +222,7 @@ export default function App() {
   return (
     <MainLayout
       darkMode={darkMode}
-      onDarkModeToggle={handleDarkModeToggle}
+      onDarkModeToggle={toggleDarkMode}
       errorCount={errorCount}
       projectName={selectedProject?.name}
       userName={user?.email}

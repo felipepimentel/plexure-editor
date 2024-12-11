@@ -2,6 +2,7 @@ import React, { useState } from 'react';
 import { Search, Filter } from 'lucide-react';
 import { NavigationTree } from '../navigation/NavigationTree';
 import { OpenAPI } from 'openapi-types';
+import { PanelHeader } from '../common/PanelHeader';
 
 interface NavigatorPanelProps {
   darkMode: boolean;
@@ -40,11 +41,7 @@ export function NavigatorPanel({
 
   return (
     <div className="h-full flex flex-col">
-      {/* Navigator Header */}
-      <div className="h-12 border-b border-gray-800 flex items-center justify-between px-4">
-        <h2 className={`font-medium ${darkMode ? 'text-gray-200' : 'text-gray-800'}`}>
-          Navigator
-        </h2>
+      <PanelHeader title="Navigator" darkMode={darkMode}>
         <button
           onClick={() => setShowFilters(!showFilters)}
           className={`p-1.5 rounded-lg transition-colors ${
@@ -59,7 +56,7 @@ export function NavigatorPanel({
                 : 'text-gray-500'
           }`} />
         </button>
-      </div>
+      </PanelHeader>
 
       {/* Search Bar */}
       <div className="p-2">

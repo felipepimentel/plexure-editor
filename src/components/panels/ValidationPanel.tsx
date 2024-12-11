@@ -1,5 +1,6 @@
 import React from 'react';
 import { AlertTriangle, AlertCircle, Info } from 'lucide-react';
+import { PanelHeader } from '../common/PanelHeader';
 
 interface ValidationError {
   path: string;
@@ -41,23 +42,15 @@ export function ValidationPanel({
 
   return (
     <div className="h-full flex flex-col">
-      {/* Validation Header */}
-      <div className="h-12 border-b border-gray-800 flex items-center justify-between px-4">
-        <h2 className={`font-medium ${
-          darkMode ? 'text-gray-200' : 'text-gray-800'
-        }`}>
-          Validation
-        </h2>
-        <div className="flex items-center gap-2">
-          {errors.length > 0 && (
-            <span className={`text-sm ${
-              darkMode ? 'text-gray-400' : 'text-gray-600'
-            }`}>
-              {errors.length} issue{errors.length !== 1 ? 's' : ''}
-            </span>
-          )}
-        </div>
-      </div>
+      <PanelHeader title="Validation" darkMode={darkMode}>
+        {errors.length > 0 && (
+          <span className={`text-sm ${
+            darkMode ? 'text-gray-400' : 'text-gray-600'
+          }`}>
+            {errors.length} issue{errors.length !== 1 ? 's' : ''}
+          </span>
+        )}
+      </PanelHeader>
 
       {/* Validation Content */}
       <div className="flex-1 overflow-auto">

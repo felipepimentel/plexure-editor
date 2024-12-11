@@ -19,6 +19,7 @@ import {
   AlertOctagon,
   Eye
 } from 'lucide-react';
+import { PanelHeader } from '../common/PanelHeader';
 
 interface ValidationError {
   path: string;
@@ -51,14 +52,7 @@ export function PreviewPanel({
 
   return (
     <div className="h-full flex flex-col">
-      {/* Preview Header */}
-      <div className="h-12 border-b border-gray-800 flex items-center justify-between px-4">
-        <h2 className={`font-medium ${
-          darkMode ? 'text-gray-200' : 'text-gray-800'
-        }`}>
-          Preview
-        </h2>
-      </div>
+      <PanelHeader title="Preview" darkMode={darkMode} />
 
       {/* Preview Content */}
       <div className="flex-1 overflow-auto">

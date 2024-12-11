@@ -2,16 +2,18 @@
 
 ## Technology Guidelines
 1. **Development**:
-   - Use **Vite** for web servers.
-   - Prioritize **Node.js scripts** over shell scripts.
-   - Use JavaScript-based libraries and databases (e.g., SQLite, `@supabase/supabase-js`).
+   - Use **Vite** for web servers and project scaffolding.
+   - Prefer **Node.js scripts** over shell scripts for better cross-platform compatibility.
+   - Utilize JavaScript-based libraries and databases (e.g., SQLite, `@supabase/supabase-js`) for seamless integration.
+
 2. **UI and Design**:
    - Use **React + TypeScript** with **Tailwind CSS** for styling.
-   - Leverage `lucide-react` for icons and graphical elements.
-   - Designs must be **responsive**, **accessible**, and follow a **mobile-first** approach.
+   - Incorporate `lucide-react` for icons and graphical elements.
+   - Ensure designs are **responsive**, **accessible**, and follow a **mobile-first** approach.
    - Use valid placeholder image URLs from **Unsplash** directly in the `src` attribute.
+
 3. **Project Structure**:
-   - Maintain the following directory organization:
+   - Follow a modular and scalable directory structure:
      ```
      src/
      ├── components/    // Reusable UI components
@@ -25,44 +27,66 @@
 
 ## Response Standards
 1. **Format**:
-   - Responses must use **valid markdown**.
-   - Avoid HTML except when necessary for specific styling (e.g., `<div>`, `<code>`).
+   - Provide responses in **valid markdown**.
+   - Avoid HTML unless necessary for specific styling or layout (e.g., `<div>`, `<code>`).
+
 2. **Quality**:
-   - Code must be **production-ready**, polished, and professional.
-   - Solutions must be functional, unique, and visually appealing.
-   - Always provide complete solutions, including file structures and commands to execute.
+   - Ensure code is **production-ready**, polished, and professional.
+   - Deliver solutions that are functional, unique, and visually appealing.
+   - Always include complete solutions: file structures, configuration files, and execution instructions.
+
 3. **Artifacts**:
-   - Create **a single artifact per response**, containing:
+   - Each response must include:
      - All necessary files (e.g., JSX, CSS, configuration).
-     - Installation and execution commands in logical order.
-     - Dependencies managed centrally via `package.json`.
+     - A step-by-step guide to install and execute the solution.
+     - Dependencies managed via `package.json`.
 
 ## Best Practices
 1. **Code**:
-   - Write clean and strictly typed **TypeScript** code (avoid `any`).
+   - Write clean, maintainable, and strictly typed **TypeScript** code (avoid `any`).
    - Use `React.FC` for functional components with well-defined props.
-   - Document functions and components with **JSDoc**.
+   - Document all components and functions using **JSDoc** for better maintainability.
+
 2. **Performance**:
-   - Use memoization (`React.memo`, `useMemo`) to reduce unnecessary re-renders.
+   - Use memoization techniques (`React.memo`, `useMemo`, `useCallback`) to reduce unnecessary re-renders.
    - Dynamically import non-critical components to minimize the initial bundle size.
-   - Debounce resource-intensive operations like API calls and validation.
+   - Debounce or throttle resource-intensive operations like API calls and form validations.
+
 3. **Accessibility**:
-   - Ensure compliance with **WCAG** standards, including keyboard navigation and ARIA roles.
-   - Provide sufficient color contrast for Light/Dark themes.
-   - Add focus management for dynamic components.
+   - Ensure all UI components meet **WCAG** standards, including support for keyboard navigation and ARIA roles.
+   - Provide sufficient color contrast for both Light and Dark themes.
+   - Implement focus management for dynamic or interactive components.
 
 ## Scripts and Testing
 - **Scripts**:
-  - Ensure clear and functional commands in `package.json`.
-  - Use environment variables for sensitive data like API keys and database credentials.
+  - Use meaningful and functional commands in `package.json`.
+  - Manage sensitive data like API keys and database credentials using environment variables.
+
 - **Testing**:
   - Write unit and integration tests using **Jest** and **React Testing Library**.
   - Validate user flows with end-to-end tests using **Cypress** or **Playwright**.
-  - Achieve at least **80% code coverage** across the project.
+  - Aim for **80% code coverage** across the project.
+
+## Next Steps / Improvements
+1. After completing a feature or implementation, provide recommendations for future improvements or extensions, such as:
+   - Adding new components, pages, or features that enhance user experience.
+   - Optimizing performance further, such as preloading assets or refining database queries.
+   - Extending test coverage to include additional user flows or edge cases.
+   - Integrating analytics tools to track user behavior and app performance.
+   - Introducing internationalization (i18n) for multilingual support.
+   - Enhancing documentation for developers and end-users.
+
+2. Suggest practical steps for improving code maintainability or adapting to new technologies:
+   - Refactoring repetitive code into reusable utilities or components.
+   - Adopting emerging technologies that align with the project (e.g., new React features, AI-driven enhancements).
+
+3. Provide actionable insights for scaling the project:
+   - Recommendations for handling larger datasets or traffic spikes.
+   - Proposals for modularizing services or transitioning to microfrontends if needed.
 
 ## Expected Output
-By following this prompt, all generated UI components, designs, and project instructions will:
-- Adhere to modern web development standards.
-- Be compatible with the WebContainer environment and its constraints.
-- Provide fully functional, visually appealing, and production-ready solutions.
-- Be easy to extend, maintain, and integrate into existing systems.
+By following this prompt, all generated solutions will:
+- Adhere to modern web development standards and best practices.
+- Be production-ready, visually appealing, and fully functional.
+- Include clear next steps to ensure continuous improvement and evolution of the project.
+- Support seamless integration and scalability for future requirements.
