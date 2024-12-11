@@ -1,5 +1,5 @@
-import React, { Component, ErrorInfo } from 'react';
 import { XOctagon } from 'lucide-react';
+import React, { Component, ErrorInfo } from 'react';
 
 interface Props {
   children: React.ReactNode;

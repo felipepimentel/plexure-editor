@@ -1,7 +1,7 @@
-import React, { useState } from 'react';
 import { Save, X } from 'lucide-react';
+import { useState } from 'react';
 import { StyleRule } from '../../types/styleGuide';
-import { CodeEditor } from '../editor/CodeEditor';
+import { Editor } from '../Editor';
 
 interface RuleEditorProps {
   rule?: StyleRule;
@@ -134,7 +134,7 @@ export function RuleEditor({ rule, darkMode, onSave, onCancel }: RuleEditorProps
           Validator Function
         </label>
         <div className="h-64 rounded-lg overflow-hidden">
-          <CodeEditor
+          <Editor
             value={validatorCode}
             onChange={setValidatorCode}
             language="javascript"

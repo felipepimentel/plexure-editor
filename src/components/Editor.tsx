@@ -1,111 +1,62 @@
-import * as monaco from 'monaco-editor';
-import { useEffect, useRef } from 'react';
-import { useMonacoCompletion } from '../hooks/useMonacoCompletion';
-import { useMonacoSnippets } from '../hooks/useMonacoSnippets';
-import { useMonacoYamlValidation } from '../hooks/useMonacoYamlValidation';
+import { Editor as MonacoEditor } from '@monaco-editor/react';
+import { useCallback, useEffect, useRef } from 'react';
 import { ValidationResult } from '../types/styleGuide';
 import { EditorToolbar } from './EditorToolbar';
 
 interface EditorProps {
-  value: string;
+  value: string | undefined;
   onChange: (value: string) => void;
   darkMode: boolean;
   onShowShortcuts: () => void;
   validationResults: ValidationResult[];
+  language?: string;
 }
 
-export function Editor({ value, onChange, darkMode, onShowShortcuts, validationResults }: EditorProps) {
-  console.log("CodeEditor: ", value);
-  console.log("CodeEditor: ", language);
-  console.log("CodeEditor: ", darkMode);
-  
-  const editorRef = useRef<HTMLDivElement>(null);
-  const monacoEditorRef = useRef<monaco.editor.IStandaloneCodeEditor | null>(null);
+export function Editor({ 
+  value, 
+  onChange, 
+  darkMode, 
+  onShowShortcuts, 
+  validationResults,
+  language = 'yaml' 
+}: EditorProps) {
+  const isEditorReady = useRef(false);
 
-  useMonacoYamlValidation(monacoEditorRef.current);
-  useMonacoCompletion(monacoEditorRef.current);
-  useMonacoSnippets(monacoEditorRef.current);
-
+  // Reset editor readiness on component unmount
   useEffect(() => {
-    if (editorRef.current) {
-      monacoEditorRef.current = monaco.editor.create(editorRef.current, {
-        value,
-        language: 'yaml',
-        theme: darkMode ? 'vs-dark' : 'vs-light',
-        automaticLayout: true,
-        minimap: { enabled: true },
-        fontSize: 14,
-        lineNumbers: 'on',
-        roundedSelection: true,
-        scrollBeyondLastLine: false,
-        readOnly: false,
-        cursorStyle: 'line',
-        wordWrap: 'on',
-        renderWhitespace: 'selection',
-        rulers: [80],
-        bracketPairColorization: { enabled: true },
-        formatOnPaste: true,
-        formatOnType: true,
-        tabSize: 2,
-        autoIndent: 'full',
-        snippetSuggestions: 'inline',
-        quickSuggestions: { other: true, comments: true, strings: true },
-        suggest: {
-          showWords: false,
-          showSnippets: true,
-          showProperties: true
-        }
-      });
-
-      monacoEditorRef.current.onDidChangeModelContent(() => {
-        onChange(monacoEditorRef.current?.getValue() || '');
-      });
-    }
-
     return () => {
-      monacoEditorRef.current?.dispose();
+      isEditorReady.current = false;
     };
   }, []);
 
-  useEffect(() => {
-    if (monacoEditorRef.current) {
-      monacoEditorRef.current.updateOptions({
-        theme: darkMode ? 'vs-dark' : 'vs-light'
-      });
-    }
-  }, [darkMode]);
+  const handleEditorDidMount = useCallback((editor, monaco) => {
+    isEditorReady.current = true;
+  }, []);
 
-  useEffect(() => {
-    if (monacoEditorRef.current && value !== monacoEditorRef.current.getValue()) {
-      monacoEditorRef.current.setValue(value);
-    }
+  const handleSearch = useCallback(() => {
+    if (!isEditorReady.current) return;
+    console.log('Search functionality to be implemented');
+  }, []);
+
+  const handleCopy = useCallback(() => {
+    if (!isEditorReady.current) return;
+    const contentToCopy = value ?? '';
+    navigator.clipboard.writeText(contentToCopy).catch((err) => {
+      console.error('Failed to copy text:', err);
+    });
   }, [value]);
 
-  useEffect(() => {
-    if (!monacoEditorRef.current) return;
+  const handleClear = useCallback(() => {
+    if (!isEditorReady.current) return;
+    onChange('');
+  }, [onChange]);
 
-    const model = monacoEditorRef.current.getModel();
-    if (!model) return;
+  const handleFormat = useCallback(() => {
+    if (!isEditorReady.current) return;
+    console.log('Format functionality to be implemented');
+  }, []);
 
-    const markers = validationResults.map(result => {
-      const position = model.getPositionAt(0);
-      return {
-        severity: result.rule.severity === 'error' 
-          ? monaco.MarkerSeverity.Error 
-          : result.rule.severity === 'warning'
-          ? monaco.MarkerSeverity.Warning
-          : monaco.MarkerSeverity.Info,
-        message: `${result.rule.name}: ${result.message}`,
-        startLineNumber: position.lineNumber,
-        startColumn: position.column,
-        endLineNumber: position.lineNumber,
-        endColumn: position.column + 1,
-        source: 'Style Guide'
-      };
-    });
-
-    monaco.editor.setModelMarkers(model, 'style-guide', markers);
-  }, [validationResults]);
+  const validatedValue = typeof value === 'string' ? value : JSON.stringify(value, null, 2);
 
   return (
     <div className="h-full flex flex-col">
@@ -115,8 +66,33 @@ export function Editor({ value, onChange, darkMode, onShowShortcuts, validationR
         errorCount={validationResults.filter(r => r.rule.severity === 'error').length}
         warningCount={validationResults.filter(r => r.rule.severity === 'warning').length}
         darkMode={darkMode}
+        onSearch={handleSearch}
+        onCopy={handleCopy}
+        onClear={handleClear}
+        onFormat={handleFormat}
+        onConvertFormat={() => console.log('Convert format functionality to be implemented')}
       />
-      <div ref={editorRef} className="flex-1" />
+      <div className="flex-1 overflow-hidden rounded-b-lg border-0">
+        <MonacoEditor
+          height="100%"
+          defaultLanguage={language}
+          defaultValue={validatedValue}
+          theme={darkMode ? 'vs-dark' : 'vs-light'}
+          onChange={(newValue) => onChange(newValue ?? '')}
+          onMount={handleEditorDidMount}
+          loading={<div className="flex items-center justify-center h-full">Loading editor...</div>}
+          options={{
+            automaticLayout: true,
+            minimap: { enabled: false },
+            fontSize: 14,
+            lineNumbers: 'on',
+            wordWrap: 'on',
+            formatOnPaste: true,
+            formatOnType: true,
+            scrollBeyondLastLine: false,
+          }}
+        />
+      </div>
     </div>
   );
 }
