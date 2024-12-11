@@ -1,97 +1,116 @@
-import { Editor as MonacoEditor } from '@monaco-editor/react';
-import { useCallback, useEffect, useRef } from 'react';
-import { ValidationResult } from '../types/styleGuide';
-import { EditorToolbar } from './EditorToolbar';
+import React, { useRef, useEffect } from 'react';
+import * as monaco from 'monaco-editor';
+import { ValidationResult } from '../types/project';
+import '../monaco-config'; // Importar a configuração do Monaco
 
 interface EditorProps {
-  value: string | undefined;
+  value: string;
   onChange: (value: string) => void;
   darkMode: boolean;
+  validationResults: any[];
   onShowShortcuts: () => void;
-  validationResults: ValidationResult[];
-  language?: string;
+  onCursorPositionChange?: (position: { line: number; column: number }) => void;
 }
 
-export function Editor({ 
-  value, 
-  onChange, 
-  darkMode, 
-  onShowShortcuts, 
+export function Editor({
+  value,
+  onChange,
+  darkMode,
   validationResults,
-  language = 'yaml' 
+  onShowShortcuts,
+  onCursorPositionChange
 }: EditorProps) {
-  const isEditorReady = useRef(false);
+  const editorRef = useRef<monaco.editor.IStandaloneCodeEditor | null>(null);
+  const containerRef = useRef<HTMLDivElement>(null);
 
-  // Reset editor readiness on component unmount
   useEffect(() => {
+    if (!containerRef.current) return;
+
+    // Initialize Monaco Editor
+    editorRef.current = monaco.editor.create(containerRef.current, {
+      value,
+      language: 'yaml',
+      theme: darkMode ? 'vs-dark' : 'vs',
+      automaticLayout: true,
+      minimap: {
+        enabled: false
+      },
+      scrollBeyondLastLine: false,
+      fontSize: 14,
+      lineNumbers: 'on',
+      renderLineHighlight: 'all',
+      renderWhitespace: 'selection',
+      tabSize: 2,
+      wordWrap: 'on'
+    });
+
+    // Add change listener
+    editorRef.current.onDidChangeModelContent(() => {
+      const newValue = editorRef.current?.getValue();
+      if (newValue !== undefined) {
+        onChange(newValue);
+      }
+    });
+
+    // Add keyboard shortcut for help
+    editorRef.current.addCommand(
+      monaco.KeyMod.CtrlCmd | monaco.KeyCode.KeyH,
+      () => {
+        onShowShortcuts?.();
+      }
+    );
+
+    editorRef.current.onDidChangeCursorPosition((e: any) => {
+      onCursorPositionChange?.({
+        line: e.position.lineNumber,
+        column: e.position.column
+      });
+    });
+
     return () => {
-      isEditorReady.current = false;
+      editorRef.current?.dispose();
     };
   }, []);
 
-  const handleEditorDidMount = useCallback((editor, monaco) => {
-    isEditorReady.current = true;
-  }, []);
+  // Update theme when darkMode changes
+  useEffect(() => {
+    monaco.editor.setTheme(darkMode ? 'vs-dark' : 'vs');
+  }, [darkMode]);
 
-  const handleSearch = useCallback(() => {
-    if (!isEditorReady.current) return;
-    console.log('Search functionality to be implemented');
-  }, []);
+  // Update validation markers
+  useEffect(() => {
+    if (!editorRef.current) return;
 
-  const handleCopy = useCallback(() => {
-    if (!isEditorReady.current) return;
-    const contentToCopy = value ?? '';
-    navigator.clipboard.writeText(contentToCopy).catch((err) => {
-      console.error('Failed to copy text:', err);
-    });
-  }, [value]);
+    const markers = validationResults.map(result => ({
+      severity: result.rule.severity === 'error'
+        ? monaco.MarkerSeverity.Error
+        : monaco.MarkerSeverity.Warning,
+      message: result.message || 'Validation error',
+      startLineNumber: result.line || 1,
+      startColumn: result.column || 1,
+      endLineNumber: result.line || 1,
+      endColumn: (result.column || 1) + 1,
+      source: result.rule.name
+    }));
 
-  const handleClear = useCallback(() => {
-    if (!isEditorReady.current) return;
-    onChange('');
-  }, [onChange]);
-
-  const handleFormat = useCallback(() => {
-    if (!isEditorReady.current) return;
-    console.log('Format functionality to be implemented');
-  }, []);
-
-  const validatedValue = typeof value === 'string' ? value : JSON.stringify(value, null, 2);
+    monaco.editor.setModelMarkers(
+      editorRef.current.getModel()!,
+      'swagger-validation',
+      markers
+    );
+  }, [validationResults]);
 
   return (
-    <div className="h-full flex flex-col">
-      <EditorToolbar
-        onShowShortcuts={onShowShortcuts}
-        isValid={validationResults.length === 0}
-        errorCount={validationResults.filter(r => r.rule.severity === 'error').length}
-        warningCount={validationResults.filter(r => r.rule.severity === 'warning').length}
-        darkMode={darkMode}
-        onSearch={handleSearch}
-        onCopy={handleCopy}
-        onClear={handleClear}
-        onFormat={handleFormat}
-        onConvertFormat={() => console.log('Convert format functionality to be implemented')}
+    <div className="h-full w-full relative">
+      <div
+        ref={containerRef}
+        className="absolute inset-0 overflow-hidden"
       />
-      <div className="flex-1 overflow-hidden rounded-b-lg border-0">
-        <MonacoEditor
-          height="100%"
-          defaultLanguage={language}
-          defaultValue={validatedValue}
-          theme={darkMode ? 'vs-dark' : 'vs-light'}
-          onChange={(newValue) => onChange(newValue ?? '')}
-          onMount={handleEditorDidMount}
-          loading={<div className="flex items-center justify-center h-full">Loading editor...</div>}
-          options={{
-            automaticLayout: true,
-            minimap: { enabled: false },
-            fontSize: 14,
-            lineNumbers: 'on',
-            wordWrap: 'on',
-            formatOnPaste: true,
-            formatOnType: true,
-            scrollBeyondLastLine: false,
-          }}
-        />
+      {/* Keyboard shortcuts hint */}
+      <div className={`absolute bottom-4 right-4 text-sm ${
+        darkMode ? 'text-gray-400' : 'text-gray-600'
+      }`}>
+        Press <kbd className="px-2 py-1 rounded bg-opacity-10 bg-current">⌘H</kbd> for keyboard shortcuts
       </div>
     </div>
   );

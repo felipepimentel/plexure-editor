@@ -1,75 +1,66 @@
 export interface Project {
   id: string;
   name: string;
-  description: string | null;
-  owner_id: string;
-  team_id: string | null;
+  description: string;
   is_public: boolean;
   created_at: string;
   updated_at: string;
+  owner_id: string;
+  team_id?: string;
 }
 
 export interface ApiContract {
   id: string;
-  project_id: string;
   name: string;
-  description: string | null;
+  description: string;
   version: string;
-  spec: any; // OpenAPI/Swagger specification
   status: 'draft' | 'review' | 'published';
-  created_by: string;
-  updated_by: string;
+  spec: string;
+  project_id: string;
   created_at: string;
   updated_at: string;
-}
-
-export interface ProjectMember {
-  project_id: string;
-  user_id: string;
-  role: 'owner' | 'editor' | 'viewer';
-  created_at: string;
 }
 
 export interface StyleGuide {
   id: string;
-  project_id: string;
   name: string;
-  description: string | null;
-  rules: {
-    id: string;
-    name: string;
-    description: string;
-    severity: 'error' | 'warning' | 'info';
-    rule: any; // Rule configuration
-  }[];
-  is_active: boolean;
-  created_by: string;
-  updated_by: string;
+  description: string;
+  rules: StyleGuideRule[];
+  project_id: string;
   created_at: string;
   updated_at: string;
 }
 
-export interface Comment {
+export interface StyleGuideRule {
   id: string;
-  contract_id: string;
-  user_id: string;
-  parent_id: string | null;
-  content: string;
-  path: string[]; // JSON path to the specific part of the contract
-  resolved: boolean;
-  created_at: string;
-  updated_at: string;
+  name: string;
+  description: string;
+  severity: 'error' | 'warning' | 'info';
+  pattern: string;
+  message: string;
+  style_guide_id: string;
 }
 
-export type ContractValidationResult = {
-  contractId: string;
-  styleGuideId: string;
-  results: {
-    ruleId: string;
+export interface ValidationResult {
+  path?: string;
+  message?: string;
+  rule: {
     severity: 'error' | 'warning' | 'info';
-    message: string;
-    path: string[];
-    line?: number;
-    column?: number;
-  }[];
-}; 
+    name: string;
+  };
+}
+
+export interface ValidationError {
+  path: string;
+  message: string;
+  severity: 'error' | 'warning';
+}
+
+export interface ValidationPanelResult {
+  path: string;
+  message: string;
+  rule: {
+    severity: 'error' | 'warning' | 'info';
+    name: string;
+  };
+} 

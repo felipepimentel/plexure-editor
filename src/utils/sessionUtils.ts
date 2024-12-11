@@ -1,34 +1,32 @@
-export const SESSION_CONSTANTS = {
-  SIGNOUT: {
-    TIMEOUT: 5000,
-    MAX_RETRIES: 3
-  },
-  RETRY: {
-    BASE_DELAY: 1000,
-    MAX_DELAY: 5000,
-    MAX_RETRIES: 3
-  }
-} as const;
+import { supabase } from '../lib/supabaseClient';
+import { Session } from '@supabase/supabase-js';
 
-export const clearSession = async () => {
+export async function getSession(): Promise<Session | null> {
   try {
-    if (!SESSION_CONSTANTS?.SIGNOUT?.TIMEOUT) {
-      throw new Error('SESSION_CONSTANTS.SIGNOUT não está definido');
-    }
-    
-    await new Promise(resolve => setTimeout(resolve, SESSION_CONSTANTS.SIGNOUT.TIMEOUT));
-    return true;
+    const { data: { session } } = await supabase.auth.getSession();
+    return session;
+  } catch (error) {
+    console.error('Error getting session:', error);
+    return null;
+  }
+}
+
+export async function refreshSession(): Promise<Session | null> {
+  try {
+    const { data: { session } } = await supabase.auth.refreshSession();
+    return session;
+  } catch (error) {
+    console.error('Error refreshing session:', error);
+    return null;
+  }
+}
+
+export async function clearSession(): Promise<void> {
+  try {
+    const { error } = await supabase.auth.signOut();
+    if (error) throw error;
   } catch (error) {
     console.error('Error clearing session:', error);
     throw error;
   }
-};
-
-export const getRetryDelay = (attempt: number): number => {
-  if (!SESSION_CONSTANTS?.RETRY?.BASE_DELAY || !SESSION_CONSTANTS?.RETRY?.MAX_DELAY) {
-    throw new Error('SESSION_CONSTANTS.RETRY não está definido');
-  }
-  
-  const { BASE_DELAY, MAX_DELAY } = SESSION_CONSTANTS.RETRY;
-  return Math.min(BASE_DELAY * Math.pow(2, attempt), MAX_DELAY);
-}; 
+} 

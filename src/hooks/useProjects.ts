@@ -13,7 +13,7 @@ export function useProjects() {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
 
-  // Load projects
+  // Load projects and select first one
   useEffect(() => {
     async function loadProjects() {
       try {
@@ -23,11 +23,19 @@ export function useProjects() {
         }
 
         const { data, error: err } = await supabase
-          .from('projects_with_users')
-          .select('*');
+          .from('projects')
+          .select('*')
+          .order('created_at', { ascending: false });
 
         if (err) throw err;
-        setProjects(data || []);
+        const projectsList = data as Project[] || [];
+        setProjects(projectsList);
+        
+        // Auto-select first project if none is selected
+        if (!selectedProject && projectsList.length > 0) {
+          setSelectedProject(projectsList[0]);
+        }
+        
         setError(null);
       } catch (err) {
         console.error('Error loading projects:', err);
@@ -38,7 +46,7 @@ export function useProjects() {
     }
 
     loadProjects();
-  }, [user?.id]);
+  }, [user?.id, selectedProject]);
 
   // Load project details when a project is selected
   useEffect(() => {
@@ -55,26 +63,27 @@ export function useProjects() {
           .order('created_at', { ascending: false });
 
         if (contractsErr) throw contractsErr;
-        setContracts(contractsData || []);
+        const contractsList = contractsData as ApiContract[] || [];
+        setContracts(contractsList);
 
         // Load members
         const { data: membersData, error: membersErr } = await supabase
-          .from('project_members_with_users')
+          .from('project_members')
           .select('*')
           .eq('project_id', selectedProject.id);
 
         if (membersErr) throw membersErr;
-        setMembers(membersData || []);
+        setMembers(membersData as ProjectMember[] || []);
 
         // Load style guides
         const { data: guidesData, error: guidesErr } = await supabase
-          .from('style_guides_with_details')
+          .from('style_guides')
           .select('*')
           .eq('project_id', selectedProject.id)
           .eq('is_active', true);
 
         if (guidesErr) throw guidesErr;
-        setStyleGuides(guidesData || []);
+        setStyleGuides(guidesData as StyleGuide[] || []);
 
         setError(null);
       } catch (err) {
@@ -93,7 +102,7 @@ export function useProjects() {
     name: string,
     description?: string,
     isPublic: boolean = false
-  ) => {
+  ): Promise<Project | null> => {
     if (!user?.id) return null;
 
     try {
@@ -128,8 +137,9 @@ export function useProjects() {
 
       if (memberErr) throw memberErr;
 
-      setProjects(prev => [...prev, data]);
-      return data;
+      const project = data as Project;
+      setProjects(prev => [...prev, project]);
+      return project;
     } catch (err) {
       console.error('Error creating project:', err);
       setError(err instanceof Error ? err.message : 'Error creating project');
@@ -142,9 +152,9 @@ export function useProjects() {
     projectId: string,
     name: string,
     version: string,
-    spec: any,
+    spec: string,
     description?: string
-  ) => {
+  ): Promise<ApiContract | null> => {
     if (!user?.id) return null;
 
     try {
@@ -156,6 +166,7 @@ export function useProjects() {
           version,
           spec,
           description,
+          status: 'draft',
           created_by: user.id,
           updated_by: user.id
         })
@@ -164,8 +175,9 @@ export function useProjects() {
 
       if (err) throw err;
 
-      setContracts(prev => [...prev, data]);
-      return data;
+      const contract = data as ApiContract;
+      setContracts(prev => [...prev, contract]);
+      return contract;
     } catch (err) {
       console.error('Error creating contract:', err);
       setError(err instanceof Error ? err.message : 'Error creating contract');
@@ -177,7 +189,7 @@ export function useProjects() {
   const updateContract = useCallback(async (
     contractId: string,
     updates: Partial<Omit<ApiContract, 'id' | 'created_at' | 'updated_at' | 'created_by'>>
-  ) => {
+  ): Promise<ApiContract | null> => {
     if (!user?.id) return null;
 
     try {
@@ -190,8 +202,9 @@ export function useProjects() {
 
       if (err) throw err;
 
-      setContracts(prev => prev.map(c => c.id === contractId ? data : c));
-      return data;
+      const contract = data as ApiContract;
+      setContracts(prev => prev.map(c => c.id === contractId ? contract : c));
+      return contract;
     } catch (err) {
       console.error('Error updating contract:', err);
       setError(err instanceof Error ? err.message : 'Error updating contract');
@@ -205,7 +218,7 @@ export function useProjects() {
     name: string,
     rules: StyleGuide['rules'],
     description?: string
-  ) => {
+  ): Promise<StyleGuide | null> => {
     if (!user?.id) return null;
 
     try {
@@ -216,6 +229,7 @@ export function useProjects() {
           name,
           description,
           rules,
+          is_active: true,
           created_by: user.id,
           updated_by: user.id
         })
@@ -224,8 +238,9 @@ export function useProjects() {
 
       if (err) throw err;
 
-      setStyleGuides(prev => [...prev, data]);
-      return data;
+      const guide = data as StyleGuide;
+      setStyleGuides(prev => [...prev, guide]);
+      return guide;
     } catch (err) {
       console.error('Error creating style guide:', err);
       setError(err instanceof Error ? err.message : 'Error creating style guide');

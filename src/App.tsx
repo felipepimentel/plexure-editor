@@ -1,134 +1,98 @@
-import { useEffect, useState } from 'react';
-import { Editor } from './components/Editor';
-import { ShortcutsPanel } from './components/ShortcutsPanel';
-import { LoginForm } from './components/auth/LoginForm';
-import { MainLayout } from './components/layout/MainLayout';
-import { ProjectDetails } from './components/projects/ProjectDetails';
-import { ProjectList } from './components/projects/ProjectList';
-import { DEFAULT_SPEC } from './constants';
+import React, { useState, useEffect } from 'react';
 import { useAuth } from './hooks/useAuth';
-import { useKeyboardShortcuts } from './hooks/useKeyboardShortcuts';
-import { usePreferences } from './hooks/usePreferences';
 import { useProfile } from './hooks/useProfile';
-import { useProjects } from './hooks/useProjects';
-import { useStyleGuideValidation } from './hooks/useStyleGuideValidation';
-import type { ApiContract, Project } from './types/project';
-import { storage } from './utils/storage';
-import { parseSpecification } from './utils/swagger';
+import { usePreferences } from './hooks/usePreferences';
+import { MainLayout } from './components/layout/MainLayout';
+import { NavigatorPanel, PreviewPanel, ValidationPanel } from './components/panels';
+import { OpenAPI } from 'openapi-types';
+import { Project, ApiContract } from './types/project';
+import { Editor } from './components/Editor';
+import { KeyboardShortcuts } from './components/KeyboardShortcuts';
+import { Search, FileText, Sun, Moon } from 'lucide-react';
+import { EditorLayout } from './components/layout/EditorLayout';
+import { UserPreferences, EditorPreferences } from './types/preferences';
+import { Header } from './components/layout/Header';
+import { NavigationMenu } from './components/navigation/NavigationMenu';
 
-type AppView = 'projects' | 'project-details' | 'editor';
+const DEFAULT_SPEC = `openapi: 3.0.0
+info:
+  title: Sample API
+  version: 1.0.0
+  description: A sample API to demonstrate Swagger/OpenAPI specification
+paths:
+  /users:
+    get:
+      summary: Get all users
+      description: Returns a list of users
+      responses:
+        '200':
+          description: A list of users
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  type: object
+                  properties:
+                    id:
+                      type: integer
+                    name:
+                      type: string`;
 
-function App() {
-  const [currentView, setCurrentView] = useState<AppView>('projects');
-  const [spec, setSpec] = useState(storage.loadSpec() || DEFAULT_SPEC);
-  const [parsedSpec, setParsedSpec] = useState<any>(null);
-  const [error, setError] = useState<string | null>(null);
+export default function App() {
+  // Core state
+  const [spec, setSpec] = useState<string>(DEFAULT_SPEC);
+  const [parsedSpec, setParsedSpec] = useState<OpenAPI.Document | null>(null);
+  const [validationResults, setValidationResults] = useState<any[]>([]);
+  const [activePanel, setActivePanel] = useState<string>('preview');
+  const [breadcrumbs, setBreadcrumbs] = useState<string[]>(['root']);
   const [showShortcuts, setShowShortcuts] = useState(false);
+  const [canUndo, setCanUndo] = useState(false);
+  const [canRedo, setCanRedo] = useState(false);
+  const [selectedPath, setSelectedPath] = useState<string>();
+
+  // Project and contract state
+  const [projects, setProjects] = useState<Project[]>([]);
+  const [selectedProject, setSelectedProject] = useState<Project | null>(null);
+  const [contracts, setContracts] = useState<ApiContract[]>([]);
   const [selectedContract, setSelectedContract] = useState<ApiContract | null>(null);
 
+  // Auth and preferences hooks
   const { user, loading: authLoading, error: authError, retry: retryAuth } = useAuth();
   const { profile, loading: profileLoading } = useProfile();
   const { preferences, loading: prefsLoading, updatePreference } = usePreferences();
-  const { 
-    projects,
-    selectedProject,
-    setSelectedProject,
-    contracts,
-    styleGuides,
-    loading: projectsLoading,
-    createContract
-  } = useProjects();
-  
-  const validationResults = useStyleGuideValidation(spec);
 
-  // Event handlers
-  const handleSave = () => {
-    storage.saveSpec(spec);
-  };
-
-  const handleImport = async () => {
-    try {
-      const importedSpec = await storage.importSpec();
-      setSpec(importedSpec);
-    } catch (error) {
-      console.error('Failed to import specification:', error);
-    }
-  };
-
-  const handleExport = () => {
-    storage.exportSpec(spec);
-  };
-
-  const handleSelectProject = (project: Project) => {
-    setSelectedProject(project);
-    setCurrentView('project-details');
-  };
-
-  const handleBackToProjects = () => {
-    setSelectedProject(null);
-    setCurrentView('projects');
-  };
-
-  const handleSelectContract = (contract: ApiContract) => {
-    setSelectedContract(contract);
-    setSpec(contract.spec);
-    setCurrentView('editor');
-  };
-
-  const handleCreateContract = async () => {
-    if (!selectedProject) return;
-
-    const contract = await createContract(
-      selectedProject.id,
-      'New API Contract',
-      '1.0.0',
-      DEFAULT_SPEC,
-      'A new API contract'
-    );
-
-    if (contract) {
-      setSelectedContract(contract);
-      setSpec(contract.spec);
-      setCurrentView('editor');
-    }
-  };
-
-  // Keyboard shortcuts
-  useKeyboardShortcuts({
-    onSave: handleSave,
-    onToggleDarkMode: () => updatePreference('theme', preferences?.theme === 'dark' ? 'light' : 'dark'),
-    onToggleShortcuts: () => setShowShortcuts(prev => !prev)
+  // Editor state
+  const [cursorPosition, setCursorPosition] = useState({ line: 1, column: 1 });
+  const [documentInfo, setDocumentInfo] = useState({
+    lineCount: spec.split('\n').length,
+    version: '1.0.0',
+    format: 'yaml' as const
   });
+  const warningCount = validationResults.filter(r => r.rule.severity === 'warning').length;
 
-  // Parse specification effect
-  useEffect(() => {
-    const parseSpec = async () => {
-      const result = await parseSpecification(spec);
-      setParsedSpec(result.spec);
-      setError(result.error);
-    };
-    parseSpec();
-  }, [spec]);
+  // Novo estado para navegação
+  const [activeNavigationItem, setActiveNavigationItem] = useState('spec');
+  const [navigationCollapsed, setNavigationCollapsed] = useState(true);
 
-  if (authLoading || profileLoading || prefsLoading || projectsLoading) {
+  // Loading state
+  if (authLoading || profileLoading || prefsLoading) {
     return (
-      <div className="h-screen flex items-center justify-center bg-gray-900">
-        <div className="text-center">
-          <div className="w-8 h-8 border-4 border-blue-500 border-t-transparent rounded-full animate-spin mx-auto mb-4"></div>
-          <p className="text-gray-400">Initializing application...</p>
-        </div>
+      <div className="h-screen flex items-center justify-center bg-[#1B1F2A]">
+        <div className="animate-spin rounded-full h-8 w-8 border-2 border-blue-500 border-t-transparent" />
       </div>
     );
   }
 
+  // Error state
   if (authError) {
     return (
-      <div className="h-screen flex items-center justify-center bg-gray-900">
+      <div className="h-screen flex items-center justify-center bg-[#1B1F2A]">
         <div className="text-center">
-          <p className="text-red-500 mb-4">{authError}</p>
-          <button 
+          <p className="text-red-500 mb-4">Failed to authenticate</p>
+          <button
             onClick={retryAuth}
-            className="px-4 py-2 bg-blue-500 text-white rounded hover:bg-blue-600 transition-colors"
+            className="px-4 py-2 bg-blue-500 text-white rounded hover:bg-blue-600"
           >
             Retry
           </button>
@@ -137,98 +101,170 @@ function App() {
     );
   }
 
-  if (!user) {
-    return (
-      <div className="min-h-screen flex items-center justify-center bg-gray-900">
-        <LoginForm darkMode={preferences?.theme === 'dark'} />
-      </div>
-    );
-  }
-
   const darkMode = preferences?.theme === 'dark';
+  const errorCount = validationResults.filter(r => r.rule.severity === 'error').length;
 
-  const renderContent = () => {
-    switch (currentView) {
-      case 'projects':
-        return (
-          <ProjectList
-            darkMode={darkMode}
-            onSelectProject={handleSelectProject}
-          />
-        );
-      case 'project-details':
-        return selectedProject ? (
-          <ProjectDetails
-            darkMode={darkMode}
-            project={selectedProject}
-            contracts={contracts}
-            styleGuides={styleGuides}
-            onBack={handleBackToProjects}
-            onCreateContract={handleCreateContract}
-            onSelectContract={handleSelectContract}
-          />
-        ) : null;
-      case 'editor':
-        return (
-          <MainLayout
-            darkMode={darkMode}
-            breadcrumbs={preferences?.last_opened_path || ['root']}
-            onBreadcrumbClick={path => updatePreference('last_opened_path', path)}
-            errorCount={validationResults.filter(r => r.rule.severity === 'error').length}
-            warningCount={validationResults.filter(r => r.rule.severity === 'warning').length}
-            onDarkModeToggle={() => updatePreference('theme', darkMode ? 'light' : 'dark')}
-            onSave={handleSave}
-            onImport={handleImport}
-            onExport={handleExport}
-            spec={parsedSpec}
-            validationResults={validationResults}
-            userName={profile?.full_name || undefined}
-            teamName={profile?.team?.name || undefined}
-            userImage={profile?.avatar_url || undefined}
-            currentView={preferences?.current_view || 'navigator'}
-            onViewChange={view => updatePreference('current_view', view)}
-            leftPanelWidth={preferences?.left_panel_width}
-            rightPanelWidth={preferences?.right_panel_width}
-            leftPanelCollapsed={preferences?.left_panel_collapsed}
-            rightPanelCollapsed={preferences?.right_panel_collapsed}
-            onPanelCollapse={(side, collapsed) => 
-              updatePreference(
-                side === 'left' ? 'left_panel_collapsed' : 'right_panel_collapsed',
-                collapsed
-              )
-            }
-            onPanelResize={(side, width) =>
-              updatePreference(
-                side === 'left' ? 'left_panel_width' : 'right_panel_width',
-                width
-              )
-            }
-          >
-            <Editor
-              value={spec}
-              onChange={setSpec}
-              darkMode={darkMode}
-              onShowShortcuts={() => setShowShortcuts(true)}
-              validationResults={validationResults}
-            />
+  // Event handlers
+  const handleDarkModeToggle = () => {
+    updatePreference('theme', darkMode ? 'light' : 'dark');
+  };
 
-            {showShortcuts && (
-              <ShortcutsPanel
-                isOpen={showShortcuts}
-                onClose={() => setShowShortcuts(false)}
-                darkMode={darkMode}
-              />
-            )}
-          </MainLayout>
-        );
-    }
+  const handleSave = async () => {
+    // TODO: Implement save functionality
+    console.log('Save clicked');
+  };
+
+  const handleImport = async () => {
+    // TODO: Implement import functionality
+    console.log('Import clicked');
+  };
+
+  const handleExport = async () => {
+    // TODO: Implement export functionality
+    console.log('Export clicked');
+  };
+
+  const handleCreateProject = (data: { name: string; description: string; isPublic: boolean }) => {
+    // TODO: Implement project creation
+    console.log('Create project:', data);
+  };
+
+  const handleCreateContract = () => {
+    // TODO: Implement contract creation
+    console.log('Create contract clicked');
+  };
+
+  const handleSelectProject = (project: Project) => {
+    setSelectedProject(project);
+  };
+
+  const handleSelectContract = (contract: ApiContract) => {
+    setSelectedContract(contract);
+  };
+
+  const handlePanelCollapse = (side: 'left' | 'right', collapsed: boolean) => {
+    updatePreference(
+      side === 'left' ? 'left_panel_collapsed' : 'right_panel_collapsed',
+      collapsed
+    );
+  };
+
+  const handlePanelResize = (side: 'left' | 'right', width: number) => {
+    updatePreference(
+      side === 'left' ? 'left_panel_width' : 'right_panel_width',
+      width
+    );
+  };
+
+  const handleBreadcrumbClick = (path: string[]) => {
+    setBreadcrumbs(path);
+  };
+
+  // Event handlers for editor actions
+  const handleUndo = () => {
+    // TODO: Implement undo functionality
+    console.log('Undo clicked');
+  };
+
+  const handleRedo = () => {
+    // TODO: Implement redo functionality
+    console.log('Redo clicked');
+  };
+
+  const handleFormat = () => {
+    // TODO: Implement format functionality
+    console.log('Format clicked');
+  };
+
+  const handlePathSelect = (path: string) => {
+    setSelectedPath(path);
+    // TODO: Implement path selection logic
+    console.log('Selected path:', path);
+  };
+
+  // Create a safe preferences object for the editor
+  const editorPreferences: EditorPreferences = {
+    left_panel_collapsed: preferences?.left_panel_collapsed || false,
+    right_panel_collapsed: preferences?.right_panel_collapsed || false
+  };
+
+  // Event handlers para as novas funcionalidades
+  const handleShare = () => {
+    // TODO: Implementar compartilhamento
+    console.log('Share clicked');
+  };
+
+  const handleHistory = () => {
+    setActiveNavigationItem('history');
+    // TODO: Implementar visualização do histórico
+    console.log('History clicked');
+  };
+
+  const handleSettings = () => {
+    setActiveNavigationItem('settings');
+    // TODO: Implementar configurações
+    console.log('Settings clicked');
+  };
+
+  const handleProfile = () => {
+    // TODO: Implementar perfil
+    console.log('Profile clicked');
+  };
+
+  const handleNavigationItemSelect = (item: string) => {
+    setActiveNavigationItem(item);
+    // TODO: Implementar lógica específica para cada item
+    console.log('Selected navigation item:', item);
   };
 
   return (
-    <div className="h-screen">
-      {renderContent()}
-    </div>
+    <MainLayout
+      darkMode={darkMode}
+      onDarkModeToggle={handleDarkModeToggle}
+      errorCount={errorCount}
+      projectName={selectedProject?.name}
+      userName={user?.email}
+      navigationCollapsed={navigationCollapsed}
+      activeNavigationItem={activeNavigationItem}
+      onNavigationItemSelect={handleNavigationItemSelect}
+      onNavigationCollapse={() => setNavigationCollapsed(!navigationCollapsed)}
+      onSave={handleSave}
+      onShare={handleShare}
+      onHistory={handleHistory}
+      onSettings={handleSettings}
+      onProfile={handleProfile}
+    >
+      <EditorLayout
+        darkMode={darkMode}
+        spec={spec}
+        parsedSpec={parsedSpec}
+        validationResults={validationResults}
+        preferences={editorPreferences}
+        onSpecChange={setSpec}
+        onShowShortcuts={() => setShowShortcuts(true)}
+        onSave={handleSave}
+        onImport={handleImport}
+        onExport={handleExport}
+        onFormat={handleFormat}
+        canUndo={canUndo}
+        canRedo={canRedo}
+        onUndo={handleUndo}
+        onRedo={handleRedo}
+        selectedPath={selectedPath}
+        onPathSelect={handlePathSelect}
+        cursorPosition={cursorPosition}
+        documentInfo={documentInfo}
+        errorCount={errorCount}
+        warningCount={warningCount}
+      />
+
+      {/* Keyboard Shortcuts Modal */}
+      {showShortcuts && (
+        <KeyboardShortcuts
+          darkMode={darkMode}
+          onClose={() => setShowShortcuts(false)}
+        />
+      )}
+    </MainLayout>
   );
 }
-
-export default App;

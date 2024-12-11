@@ -1,86 +1,134 @@
 import React from 'react';
-import { TreeItem } from './TreeItem';
-import { useNavigationStore } from '../../store/navigationStore';
+import { ChevronRight, ChevronDown, FileJson, Globe, Code2, Box, List, ArrowRight } from 'lucide-react';
 import { OpenAPI } from 'openapi-types';
+import { buildNavigationTree } from '../../utils/openApiUtils';
+
+interface NavigationNode {
+  id: string;
+  type: 'path' | 'method' | 'schema' | 'response' | 'parameter';
+  label: string;
+  children?: NavigationNode[];
+  method?: string;
+  path?: string;
+}
 
 interface NavigationTreeProps {
   spec: OpenAPI.Document | null;
   darkMode: boolean;
-  searchQuery?: string;
-  activeFilters?: string[];
+  selectedPath?: string;
+  onSelect: (path: string) => void;
 }
 
-export function NavigationTree({ spec, darkMode, searchQuery = '', activeFilters = [] }: NavigationTreeProps) {
-  const { expandedPaths, togglePath } = useNavigationStore();
+export function NavigationTree({
+  spec,
+  darkMode,
+  selectedPath,
+  onSelect
+}: NavigationTreeProps) {
+  const [expandedNodes, setExpandedNodes] = React.useState<Set<string>>(new Set(['paths']));
+  const nodes = React.useMemo(() => buildNavigationTree(spec), [spec]);
 
-  const buildTree = (obj: any, path: string[] = []): any[] => {
-    if (!obj || typeof obj !== 'object') {
-      return [];
+  const getNodeIcon = (type: string, method?: string) => {
+    switch (type) {
+      case 'path':
+        return Globe;
+      case 'method':
+        return method ? ArrowRight : FileJson;
+      case 'schema':
+        return Code2;
+      case 'parameter':
+        return List;
+      case 'response':
+        return Box;
+      default:
+        return FileJson;
     }
-
-    return Object.entries(obj).map(([key, value]: [string, any]) => {
-      const currentPath = [...path, key];
-      const isExpandable = typeof value === 'object' && value !== null;
-      
-      return {
-        id: currentPath.join('.'),
-        label: key,
-        children: isExpandable ? buildTree(value, currentPath) : undefined,
-        type: getNodeType(key, value),
-        data: value,
-        path: currentPath
-      };
-    });
   };
 
-  const getNodeType = (key: string, value: any): string => {
-    if (key === 'paths') return 'paths';
-    if (key === 'schemas') return 'schemas';
-    if (['get', 'post', 'put', 'delete', 'patch'].includes(key)) return 'method';
-    if (typeof value === 'object' && value?.type === 'object') return 'schema';
-    return 'default';
+  const getMethodColor = (method?: string) => {
+    switch (method?.toLowerCase()) {
+      case 'get': return 'text-blue-500';
+      case 'post': return 'text-green-500';
+      case 'put': return 'text-yellow-500';
+      case 'delete': return 'text-red-500';
+      case 'patch': return 'text-purple-500';
+      default: return darkMode ? 'text-gray-400' : 'text-gray-600';
+    }
   };
 
-  const filterTree = (nodes: any[], query: string): any[] => {
-    return nodes.map(node => {
-      const matches = node.label.toLowerCase().includes(query.toLowerCase());
-      const children = node.children ? filterTree(node.children, query) : undefined;
-      
-      if (matches || (children && children.length > 0)) {
-        return {
-          ...node,
-          children,
-          matches
-        };
-      }
-      return null;
-    }).filter(Boolean);
+  const renderNode = (node: NavigationNode) => {
+    const Icon = getNodeIcon(node.type, node.method);
+    const isExpanded = expandedNodes.has(node.id);
+    const isSelected = node.id === selectedPath;
+    const hasChildren = node.children?.length;
+
+    return (
+      <div key={node.id} className="select-none">
+        <div
+          onClick={() => {
+            if (hasChildren) {
+              const newExpanded = new Set(expandedNodes);
+              if (isExpanded) {
+                newExpanded.delete(node.id);
+              } else {
+                newExpanded.add(node.id);
+              }
+              setExpandedNodes(newExpanded);
+            }
+            onSelect(node.id);
+          }}
+          className={`
+            flex items-center px-2 py-1.5 rounded-md cursor-pointer
+            ${isSelected
+              ? darkMode
+                ? 'bg-gray-700 text-blue-400'
+                : 'bg-gray-200 text-blue-600'
+              : darkMode
+                ? 'hover:bg-gray-800 text-gray-300'
+                : 'hover:bg-gray-100 text-gray-700'
+            }
+          `}
+        >
+          {hasChildren ? (
+            <button className="p-0.5 rounded hover:bg-gray-700">
+              {isExpanded ? (
+                <ChevronDown className="w-4 h-4 text-gray-400" />
+              ) : (
+                <ChevronRight className="w-4 h-4 text-gray-400" />
+              )}
+            </button>
+          ) : (
+            <div className="w-5" />
+          )}
+          
+          <div className="flex items-center gap-2 ml-1">
+            <Icon className={`w-4 h-4 ${getMethodColor(node.method)}`} />
+            <span className="text-sm truncate">{node.label}</span>
+          </div>
+        </div>
+
+        {isExpanded && node.children && (
+          <div className="ml-4 mt-1 space-y-1">
+            {node.children.map(child => renderNode(child))}
+          </div>
+        )}
+      </div>
+    );
   };
 
   if (!spec) {
     return (
-      <div className={`p-4 text-center ${darkMode ? 'text-gray-400' : 'text-gray-600'}`}>
+      <div className={`p-4 text-sm ${
+        darkMode ? 'text-gray-400' : 'text-gray-500'
+      }`}>
         No specification loaded
       </div>
     );
   }
 
-  const tree = buildTree(spec);
-  const filteredTree = searchQuery ? filterTree(tree, searchQuery) : tree;
-
   return (
-    <div className="space-y-1 p-2">
-      {filteredTree.map(node => (
-        <TreeItem
-          key={node.id}
-          node={node}
-          expanded={expandedPaths.includes(node.id)}
-          onToggle={() => togglePath(node.id)}
-          darkMode={darkMode}
-          searchQuery={searchQuery}
-          activeFilters={activeFilters}
-        />
-      ))}
+    <div className="p-2 space-y-1">
+      {nodes.map(node => renderNode(node))}
     </div>
   );
 }

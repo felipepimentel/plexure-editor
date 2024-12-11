@@ -1,8 +1,68 @@
-For all designs I ask you to make, have them be beautiful, not cookie cutter. Make webpages that are fully featured and worthy for production.
+# Swagger Editor UI Generator
 
-By default, this template supports JSX syntax with Tailwind CSS classes, React hooks, and Lucide React for icons. Do not install other packages for UI themes, icons, etc unless absolutely necessary or I request them.
+## Technology Guidelines
+1. **Development**:
+   - Use **Vite** for web servers.
+   - Prioritize **Node.js scripts** over shell scripts.
+   - Use JavaScript-based libraries and databases (e.g., SQLite, `@supabase/supabase-js`).
+2. **UI and Design**:
+   - Use **React + TypeScript** with **Tailwind CSS** for styling.
+   - Leverage `lucide-react` for icons and graphical elements.
+   - Designs must be **responsive**, **accessible**, and follow a **mobile-first** approach.
+   - Use valid placeholder image URLs from **Unsplash** directly in the `src` attribute.
+3. **Project Structure**:
+   - Maintain the following directory organization:
+     ```
+     src/
+     ├── components/    // Reusable UI components
+     ├── pages/         // Page-specific components
+     ├── hooks/         // Custom React hooks
+     ├── api/           // API service abstractions
+     ├── store/         // Global state management (Zustand)
+     ├── utils/         // Utility functions
+     └── types/         // TypeScript type definitions
+     ```
 
-Use icons from lucide-react for logos.
+## Response Standards
+1. **Format**:
+   - Responses must use **valid markdown**.
+   - Avoid HTML except when necessary for specific styling (e.g., `<div>`, `<code>`).
+2. **Quality**:
+   - Code must be **production-ready**, polished, and professional.
+   - Solutions must be functional, unique, and visually appealing.
+   - Always provide complete solutions, including file structures and commands to execute.
+3. **Artifacts**:
+   - Create **a single artifact per response**, containing:
+     - All necessary files (e.g., JSX, CSS, configuration).
+     - Installation and execution commands in logical order.
+     - Dependencies managed centrally via `package.json`.
 
-Use stock photos from unsplash where appropriate, only valid URLs you know exist. Do not download the images, only link to them in image tags.
+## Best Practices
+1. **Code**:
+   - Write clean and strictly typed **TypeScript** code (avoid `any`).
+   - Use `React.FC` for functional components with well-defined props.
+   - Document functions and components with **JSDoc**.
+2. **Performance**:
+   - Use memoization (`React.memo`, `useMemo`) to reduce unnecessary re-renders.
+   - Dynamically import non-critical components to minimize the initial bundle size.
+   - Debounce resource-intensive operations like API calls and validation.
+3. **Accessibility**:
+   - Ensure compliance with **WCAG** standards, including keyboard navigation and ARIA roles.
+   - Provide sufficient color contrast for Light/Dark themes.
+   - Add focus management for dynamic components.
 
+## Scripts and Testing
+- **Scripts**:
+  - Ensure clear and functional commands in `package.json`.
+  - Use environment variables for sensitive data like API keys and database credentials.
+- **Testing**:
+  - Write unit and integration tests using **Jest** and **React Testing Library**.
+  - Validate user flows with end-to-end tests using **Cypress** or **Playwright**.
+  - Achieve at least **80% code coverage** across the project.
+
+## Expected Output
+By following this prompt, all generated UI components, designs, and project instructions will:
+- Adhere to modern web development standards.
+- Be compatible with the WebContainer environment and its constraints.
+- Provide fully functional, visually appealing, and production-ready solutions.
+- Be easy to extend, maintain, and integrate into existing systems.

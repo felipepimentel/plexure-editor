@@ -9,6 +9,20 @@ export default defineConfig({
     },
   },
   optimizeDeps: {
-    exclude: ["lucide-react"],
+    exclude: ["lucide-react", "monaco-yaml"],
   },
+  worker: {
+    format: 'es',
+    plugins: []
+  },
+  build: {
+    rollupOptions: {
+      output: {
+        manualChunks: {
+          monaco: ['monaco-editor'],
+          yaml: ['monaco-yaml']
+        }
+      }
+    }
+  }
 });
