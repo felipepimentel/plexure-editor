@@ -16,6 +16,7 @@ import { NavigationMenu } from './components/navigation/NavigationMenu';
 import { useTheme } from './hooks/useTheme';
 import { LoginForm } from './components/auth/LoginForm';
 import { useNavigation } from './hooks/useNavigation';
+import yaml from 'js-yaml';
 
 const DEFAULT_SPEC = `openapi: 3.0.0
 info:
@@ -86,6 +87,17 @@ export default function App() {
     activeItem,
     handleItemSelect
   } = useNavigation(parsedSpec);
+
+  // Atualizar o parsedSpec quando o spec mudar
+  useEffect(() => {
+    try {
+      const parsed = yaml.load(spec) as OpenAPI.Document;
+      setParsedSpec(parsed);
+    } catch (error) {
+      console.error('Error parsing spec:', error);
+      setParsedSpec(null);
+    }
+  }, [spec]);
 
   // Loading state
   if (authLoading || profileLoading || prefsLoading) {
