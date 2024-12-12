@@ -1,378 +1,358 @@
-## Meta Instructions [P0]
+# STRUCTURE.md
 
-### AI Processing Guidelines
-1. Process each request through all validation layers
-2. Maintain context throughout the conversation
-3. Track decision paths and validations
-4. Handle edge cases explicitly
-5. Implement feedback loops
+## File Information [P0]
 
-## Context Management System [P0]
+Location: `./STRUCTURE.md`
+Purpose: Central source of truth for project structure and code generation guidelines
+Priority: P0 (Critical)
+Project: Plexure Editor
 
-### State Tracking
-```typescript
-interface ContextState {
-  currentRequest: {
-    id: string;
-    timestamp: number;
-    priority: 'P0' | 'P1' | 'P2' | 'P3';
-  };
-  
-  componentTree: {
-    existing: Component[];
-    modified: Component[];
-    new: Component[];
-  };
-  
-  validationState: {
-    passed: boolean;
-    checkpoints: Checkpoint[];
-    lastValidated: number;
-  };
-}
-```
+### File Usage
+This file must be:
+- Named exactly as "STRUCTURE.md"
+- Located in the project root directory
+- Referenced as the single source of truth for project structure
+- Maintained with each project modification
 
-### Recovery Protocol
+## Component Registry [P0]
+
+### Current Registry
 ```yaml
-recovery_steps:
-  1: # State Assessment
-     - identify_last_valid_state
-     - validate_current_context
-     - check_integrity
-     
-  2: # Context Rebuild
-     - reconstruct_component_tree
-     - validate_dependencies
-     - verify_relationships
-     
-  3: # Validation
-     - run_integrity_checks
-     - verify_consistency
-     - confirm_recovery
+registered_components:
+  preview:
+    path: components/preview
+    purpose: "Editor preview component handling Monaco editor integration"
+    files:
+      - name: index.tsx
+        purpose: "Public exports and type definitions"
+      - name: preview.tsx
+        purpose: "Main preview component implementation"
+        dependencies:
+          - monaco-editor
+          - EditorToolbar
+          - ErrorPanel
+      - name: preview.test.tsx
+        purpose: "Test suite for preview component"
+    subcomponents:
+      - PreviewHeader
+      - PreviewContent
+      - PreviewFooter
+    related_components:
+      - EditorToolbar
+      - ErrorPanel
+    consumers:
+      - Editor.tsx
+      - ProjectView.tsx
+
+  projects:
+    path: components/projects
+    purpose: "Project management and visualization components"
+    files:
+      # [Add actual project files structure]
+
+  editor:
+    path: components/editor
+    purpose: "Main editor functionality"
+    files:
+      - name: Editor.tsx
+        purpose: "Core editor component"
+        dependencies:
+          - monaco-editor
+          - EditorToolbar
+      - name: EditorToolbar.tsx
+        purpose: "Editor controls and actions"
+    
+  # [Add all other existing components with similar detail]
 ```
 
-## Edge Case Management [P0]
+## Directory Structure [P0]
 
-### Identification Matrix
+### Root Structure
+```
+project-root/
+├── src/
+│   ├── components/        # React components
+│   │   ├── editor/       # Editor components
+│   │   │   ├── Editor.tsx
+│   │   │   └── EditorToolbar.tsx
+│   │   ├── preview/      # Preview components
+│   │   │   └── Preview.tsx
+│   │   └── ui/          # Shared UI
+│   ├── hooks/           # React hooks
+│   ├── utils/           # Utilities
+│   └── stores/          # State management
+├── STRUCTURE.md         # This file
+└── package.json
+```
+
+### Component Structure
 ```yaml
-edge_cases:
-  - type: component_conflict
-    detection:
-      - similar_names
-      - overlapping_functionality
-      - shared_dependencies
-    resolution:
-      - merge_strategy
-      - rename_protocol
-      - dependency_resolution
-
-  - type: context_loss
-    detection:
-      - state_mismatch
-      - invalid_references
-      - broken_dependencies
-    resolution:
-      - state_recovery
-      - reference_rebuild
-      - dependency_repair
-
-  - type: validation_failure
-    detection:
-      - type_mismatch
-      - structure_violation
-      - context_breach
-    resolution:
-      - type_correction
-      - structure_alignment
-      - context_restoration
+component_structure:
+  required_files:
+    - index.tsx          # Public API
+    - {Component}.tsx    # Implementation
+    - types.ts          # Type definitions
+    - test.tsx          # Tests
+  
+  optional_files:
+    - styles.ts         # Component styles
+    - utils.ts         # Component utilities
+    - constants.ts     # Component constants
 ```
 
-### Resolution Framework
+## Implementation Rules [P0]
+
+### Component Generation Steps
 ```typescript
-interface EdgeCaseResolver {
-  detect: () => EdgeCase[];
-  analyze: (cases: EdgeCase[]) => Resolution[];
-  implement: (resolutions: Resolution[]) => void;
-  validate: () => boolean;
-}
-```
-
-## Feedback Integration System [P0]
-
-### Feedback Loop
-```mermaid
-graph TD
-    A[Implementation] --> B{Validation}
-    B -->|Failed| C[Analyze Issues]
-    C --> D[Generate Solutions]
-    D --> E[Apply Changes]
-    E --> B
-    B -->|Passed| F[Finalize]
-```
-
-### Implementation Tracker
-```typescript
-interface ImplementationTracker {
-  /** @feedback_system
-   * @version: number
-   * @changes: Change[]
-   * @validations: ValidationResult[]
+interface ComponentGeneration {
+  /** @generation_steps
+   * @required: true
    */
-  trackChanges(): void;
-  analyzeImpact(): Impact[];
-  suggestImprovements(): Improvement[];
+  steps: {
+    1: "Check ComponentRegistry";
+    2: "Validate Location";
+    3: "Check Dependencies";
+    4: "Generate Files";
+    5: "Update Registry";
+  }
 }
 ```
 
-## Quality Assurance System [P0]
-
-### Automated Checks
+### Location Validation
 ```yaml
-quality_checks:
-  static:
-    - type_safety: boolean
-    - code_style: boolean
-    - structure_compliance: boolean
+location_validation:
+  steps:
+    - check_registry:
+        purpose: "Prevent duplicates"
+        action: "Compare with existing"
     
-  runtime:
-    - performance_metrics: boolean
-    - memory_usage: boolean
-    - render_efficiency: boolean
+    - validate_path:
+        purpose: "Ensure correct location"
+        action: "Verify directory structure"
     
-  context:
-    - state_preservation: boolean
-    - dependency_validity: boolean
-    - reference_integrity: boolean
+    - check_dependencies:
+        purpose: "Validate relationships"
+        action: "Verify imports"
 ```
 
-### Quality Metrics
+## Real-Time Validation [P0]
+
+### Integration Checks
+```yaml
+integration_checks:
+  dependencies:
+    - validate_imports:
+        check: "Import paths exist"
+        action: "Report invalid imports"
+    
+    - check_circular:
+        check: "Circular dependencies"
+        action: "Prevent cycles"
+  
+  components:
+    - validate_props:
+        check: "Prop types match"
+        action: "Report mismatches"
+    
+    - check_context:
+        check: "Context usage"
+        action: "Verify providers"
+```
+
+## Component Composition [P0]
+
+### Patterns
+```yaml
+composition_patterns:
+  atomic:
+    atoms:
+      path: "components/ui"
+      examples: ["Button", "Input"]
+    
+    molecules:
+      path: "components/ui"
+      examples: ["Form", "Card"]
+    
+    organisms:
+      path: "components/features"
+      examples: ["Header", "Sidebar"]
+```
+
+### Feature Integration
+```yaml
+feature_integration:
+  rules:
+    - validate_boundaries:
+        check: "Feature isolation"
+        action: "Prevent coupling"
+    
+    - check_dependencies:
+        check: "Feature dependencies"
+        action: "Manage relationships"
+```
+
+## State Management [P0]
+
+### Store Structure
 ```typescript
-interface QualityMetrics {
-  /** @quality_tracking
-   * @metrics: Metric[]
-   * @thresholds: Threshold[]
+interface StoreStructure {
+  /** @store_rules
+   * @framework: zustand
    */
-  measure(): MetricResult[];
-  analyze(): Analysis;
-  recommend(): Recommendation[];
+  stores: {
+    name: string;
+    state: StateDefinition;
+    actions: ActionDefinition[];
+  }
 }
 ```
 
-## Enhanced Decision System [P0]
-
-### Decision Matrix v2
-```typescript
-type DecisionMatrix = {
-  context: {
-    current_state: State;
-    requirements: Requirement[];
-    constraints: Constraint[];
-  };
-  
-  analysis: {
-    existing_solutions: Solution[];
-    potential_impacts: Impact[];
-    risk_factors: Risk[];
-  };
-  
-  decisions: {
-    approach: Approach;
-    validations: Validation[];
-    fallbacks: Fallback[];
-  };
-};
-```
-
-### Implementation Strategy
+### Context Management
 ```yaml
-strategy:
-  evaluation:
-    - analyze_context
-    - assess_requirements
-    - identify_constraints
+context_management:
+  rules:
+    - provider_location:
+        path: "src/providers"
+        naming: "{Feature}Provider"
     
-  planning:
-    - define_approach
-    - set_checkpoints
-    - prepare_fallbacks
-    
-  execution:
-    - implement_solution
-    - validate_results
-    - track_changes
+    - context_usage:
+        validation: "Check provider existence"
+        scope: "Verify context boundaries"
 ```
 
-## UI Component System [P0]
+## Version Control [P0]
 
-### Component Architecture
+### Component Versioning
+```yaml
+version_control:
+  tracking:
+    major:
+      - breaking_changes
+      - api_modifications
+    
+    minor:
+      - new_features
+      - enhancements
+    
+    patch:
+      - bug_fixes
+      - performance_improvements
+```
+
+### Change Management
+```yaml
+change_management:
+  documentation:
+    - location: "with_component"
+    - format: "changelog.md"
+    - required: true
+  
+  validation:
+    - check_breaking_changes
+    - update_consumers
+    - verify_integration
+```
+
+## Documentation Requirements [P0]
+
+### Component Documentation
 ```typescript
-type UIComponent = {
-  /** @ui_component
-   * @accessibility: 'AA' | 'AAA'
-   * @responsive: boolean
-   * @themeable: boolean
+interface Documentation {
+  /** @documentation_rules
+   * @required: true
    */
-  props: ComponentProps;
-  variants: VariantConfig[];
-  styles: TailwindStyles;
-};
-
-interface VariantConfig {
-  name: string;
-  className: string;
-  accessibility: AccessibilityChecks;
+  sections: {
+    purpose: string;
+    props: PropDefinition[];
+    usage: Example[];
+    dependencies: string[];
+  }
 }
 ```
 
-### Design System Integration
+### Code Examples
 ```yaml
-design_system:
-  colors:
-    - primary: Record<string, string>
-    - secondary: Record<string, string>
-    - accent: Record<string, string>
+example_requirements:
+  basic_usage:
+    - purpose: "Show default usage"
+    - code: "Working example"
   
-  typography:
-    - scale: FontScale
-    - weights: FontWeights
-    - families: FontFamilies
-  
-  spacing:
-    - scale: SpacingScale
-    - breakpoints: Breakpoints
+  variations:
+    - purpose: "Show component variants"
+    - code: "Different prop combinations"
 ```
 
-### Component Generation Rules
-```typescript
-interface ComponentRules {
-  /** @component_rules
-   * @accessibility: required
-   * @responsive: required
-   * @variants: required
-   */
-  validate(): ValidationResult;
-  generateVariants(): Variant[];
-  checkAccessibility(): A11yResult;
-}
-```
+## Error Prevention [P0]
 
-## Code Generation Templates v2 [P0]
-
-### Enhanced Component Template
-```typescript
-/** @enhanced_component
- * @version: 2.0
- * @context_tracking: enabled
- * @edge_case_handling: enabled
- */
-interface EnhancedComponent<T> {
-  // Base properties
-  props: T;
-  state: ComponentState;
-  
-  // Enhancement tracking
-  enhancements: Enhancement[];
-  validations: Validation[];
-  
-  // Context preservation
-  context: ComponentContext;
-  recovery: RecoveryProtocol;
-  
-  // Quality assurance
-  metrics: QualityMetrics;
-  feedback: FeedbackLoop;
-}
-```
-
-### Implementation Protocol
+### Common Issues
 ```yaml
-implementation_protocol:
-  pre_implementation:
-    - validate_context
-    - check_requirements
-    - prepare_environment
+error_prevention:
+  checks:
+    - duplicate_components:
+        detection: "Registry scan"
+        action: "Prevent creation"
     
-  during_implementation:
-    - track_changes
-    - validate_steps
-    - maintain_context
+    - wrong_location:
+        detection: "Path validation"
+        action: "Suggest correct path"
     
-  post_implementation:
-    - verify_results
-    - collect_metrics
-    - update_documentation
+    - missing_files:
+        detection: "Template check"
+        action: "Generate missing"
 ```
 
-## Response Generation Protocol [P0]
+### Resolution Steps
+```yaml
+resolution_steps:
+  duplicate:
+    1: "Identify existing component"
+    2: "Suggest reuse/extension"
+    3: "Document decision"
+  
+  wrong_location:
+    1: "Determine correct location"
+    2: "Move component"
+    3: "Update imports"
+```
 
-### Enhanced Response Format
+## Generation Response Format [P0]
+
+### Response Structure
 ```typescript
-interface EnhancedResponse {
-  /** @response_tracking
-   * @version: 2.0
-   * @context_preserved: boolean
+interface GenerationResponse {
+  /** @response_format
+   * @version: string
    */
   metadata: {
     request_id: string;
-    context_state: ContextState;
-    decision_path: Decision[];
+    status: 'success' | 'error' | 'warning';
+    messages: string[];
   };
   
-  implementation: {
-    code: CodeBlock[];
-    validations: Validation[];
-    metrics: Metric[];
+  implementation?: {
+    files: {
+      path: string;
+      content: string;
+      type: 'component' | 'type' | 'test';
+    }[];
   };
   
-  quality_assurance: {
-    checks_passed: boolean;
-    improvements: Improvement[];
-    recommendations: Recommendation[];
+  validation: {
+    passed: boolean;
+    issues: Issue[];
+    suggestions: string[];
   };
 }
-```
-
-## Final Validation Checklist [P0]
-
-```yaml
-final_checklist:
-  context:
-    - state_preserved: boolean
-    - references_valid: boolean
-    - dependencies_intact: boolean
-    
-  implementation:
-    - code_complete: boolean
-    - types_validated: boolean
-    - edge_cases_handled: boolean
-    
-  quality:
-    - metrics_collected: boolean
-    - feedback_integrated: boolean
-    - improvements_suggested: boolean
 ```
 
 ## Summary
 
-This final enhanced version adds:
-1. Robust edge case handling
-2. Advanced context recovery
-3. Comprehensive feedback loops
-4. Enhanced quality metrics
-5. Improved decision matrices
-6. Detailed implementation protocols
+This document:
+1. Maintains accurate component registry
+2. Prevents component duplication
+3. Enforces consistent structure
+4. Ensures proper documentation
+5. Validates implementations
+6. Manages versioning
 
-These improvements ensure:
-- Consistent code generation
-- Reliable context preservation
-- Effective error handling
-- Quality assurance
-- Continuous improvement
-- Maintainable codebase
-
-The system now provides:
-- Better error prevention
-- Clearer decision paths
-- More robust validation
-- Enhanced context tracking
-- Improved quality controls
+All code generation must strictly follow these guidelines.
