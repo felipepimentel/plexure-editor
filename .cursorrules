@@ -1,92 +1,378 @@
-# Swagger Editor UI Generator
+## Meta Instructions [P0]
 
-## Technology Guidelines
-1. **Development**:
-   - Use **Vite** for web servers and project scaffolding.
-   - Prefer **Node.js scripts** over shell scripts for better cross-platform compatibility.
-   - Utilize JavaScript-based libraries and databases (e.g., SQLite, `@supabase/supabase-js`) for seamless integration.
+### AI Processing Guidelines
+1. Process each request through all validation layers
+2. Maintain context throughout the conversation
+3. Track decision paths and validations
+4. Handle edge cases explicitly
+5. Implement feedback loops
 
-2. **UI and Design**:
-   - Use **React + TypeScript** with **Tailwind CSS** for styling.
-   - Incorporate `lucide-react` for icons and graphical elements.
-   - Ensure designs are **responsive**, **accessible**, and follow a **mobile-first** approach.
-   - Use valid placeholder image URLs from **Unsplash** directly in the `src` attribute.
+## Context Management System [P0]
 
-3. **Project Structure**:
-   - Follow a modular and scalable directory structure:
-     ```
-     src/
-     ├── components/    // Reusable UI components
-     ├── pages/         // Page-specific components
-     ├── hooks/         // Custom React hooks
-     ├── api/           // API service abstractions
-     ├── store/         // Global state management (Zustand)
-     ├── utils/         // Utility functions
-     └── types/         // TypeScript type definitions
-     ```
+### State Tracking
+```typescript
+interface ContextState {
+  currentRequest: {
+    id: string;
+    timestamp: number;
+    priority: 'P0' | 'P1' | 'P2' | 'P3';
+  };
+  
+  componentTree: {
+    existing: Component[];
+    modified: Component[];
+    new: Component[];
+  };
+  
+  validationState: {
+    passed: boolean;
+    checkpoints: Checkpoint[];
+    lastValidated: number;
+  };
+}
+```
 
-## Response Standards
-1. **Format**:
-   - Provide responses in **valid markdown**.
-   - Avoid HTML unless necessary for specific styling or layout (e.g., `<div>`, `<code>`).
+### Recovery Protocol
+```yaml
+recovery_steps:
+  1: # State Assessment
+     - identify_last_valid_state
+     - validate_current_context
+     - check_integrity
+     
+  2: # Context Rebuild
+     - reconstruct_component_tree
+     - validate_dependencies
+     - verify_relationships
+     
+  3: # Validation
+     - run_integrity_checks
+     - verify_consistency
+     - confirm_recovery
+```
 
-2. **Quality**:
-   - Ensure code is **production-ready**, polished, and professional.
-   - Deliver solutions that are functional, unique, and visually appealing.
-   - Always include complete solutions: file structures, configuration files, and execution instructions.
+## Edge Case Management [P0]
 
-3. **Artifacts**:
-   - Each response must include:
-     - All necessary files (e.g., JSX, CSS, configuration).
-     - A step-by-step guide to install and execute the solution.
-     - Dependencies managed via `package.json`.
+### Identification Matrix
+```yaml
+edge_cases:
+  - type: component_conflict
+    detection:
+      - similar_names
+      - overlapping_functionality
+      - shared_dependencies
+    resolution:
+      - merge_strategy
+      - rename_protocol
+      - dependency_resolution
 
-## Best Practices
-1. **Code**:
-   - Write clean, maintainable, and strictly typed **TypeScript** code (avoid `any`).
-   - Use `React.FC` for functional components with well-defined props.
-   - Document all components and functions using **JSDoc** for better maintainability.
+  - type: context_loss
+    detection:
+      - state_mismatch
+      - invalid_references
+      - broken_dependencies
+    resolution:
+      - state_recovery
+      - reference_rebuild
+      - dependency_repair
 
-2. **Performance**:
-   - Use memoization techniques (`React.memo`, `useMemo`, `useCallback`) to reduce unnecessary re-renders.
-   - Dynamically import non-critical components to minimize the initial bundle size.
-   - Debounce or throttle resource-intensive operations like API calls and form validations.
+  - type: validation_failure
+    detection:
+      - type_mismatch
+      - structure_violation
+      - context_breach
+    resolution:
+      - type_correction
+      - structure_alignment
+      - context_restoration
+```
 
-3. **Accessibility**:
-   - Ensure all UI components meet **WCAG** standards, including support for keyboard navigation and ARIA roles.
-   - Provide sufficient color contrast for both Light and Dark themes.
-   - Implement focus management for dynamic or interactive components.
+### Resolution Framework
+```typescript
+interface EdgeCaseResolver {
+  detect: () => EdgeCase[];
+  analyze: (cases: EdgeCase[]) => Resolution[];
+  implement: (resolutions: Resolution[]) => void;
+  validate: () => boolean;
+}
+```
 
-## Scripts and Testing
-- **Scripts**:
-  - Use meaningful and functional commands in `package.json`.
-  - Manage sensitive data like API keys and database credentials using environment variables.
+## Feedback Integration System [P0]
 
-- **Testing**:
-  - Write unit and integration tests using **Jest** and **React Testing Library**.
-  - Validate user flows with end-to-end tests using **Cypress** or **Playwright**.
-  - Aim for **80% code coverage** across the project.
+### Feedback Loop
+```mermaid
+graph TD
+    A[Implementation] --> B{Validation}
+    B -->|Failed| C[Analyze Issues]
+    C --> D[Generate Solutions]
+    D --> E[Apply Changes]
+    E --> B
+    B -->|Passed| F[Finalize]
+```
 
-## Next Steps / Improvements
-1. After completing a feature or implementation, provide recommendations for future improvements or extensions, such as:
-   - Adding new components, pages, or features that enhance user experience.
-   - Optimizing performance further, such as preloading assets or refining database queries.
-   - Extending test coverage to include additional user flows or edge cases.
-   - Integrating analytics tools to track user behavior and app performance.
-   - Introducing internationalization (i18n) for multilingual support.
-   - Enhancing documentation for developers and end-users.
+### Implementation Tracker
+```typescript
+interface ImplementationTracker {
+  /** @feedback_system
+   * @version: number
+   * @changes: Change[]
+   * @validations: ValidationResult[]
+   */
+  trackChanges(): void;
+  analyzeImpact(): Impact[];
+  suggestImprovements(): Improvement[];
+}
+```
 
-2. Suggest practical steps for improving code maintainability or adapting to new technologies:
-   - Refactoring repetitive code into reusable utilities or components.
-   - Adopting emerging technologies that align with the project (e.g., new React features, AI-driven enhancements).
+## Quality Assurance System [P0]
 
-3. Provide actionable insights for scaling the project:
-   - Recommendations for handling larger datasets or traffic spikes.
-   - Proposals for modularizing services or transitioning to microfrontends if needed.
+### Automated Checks
+```yaml
+quality_checks:
+  static:
+    - type_safety: boolean
+    - code_style: boolean
+    - structure_compliance: boolean
+    
+  runtime:
+    - performance_metrics: boolean
+    - memory_usage: boolean
+    - render_efficiency: boolean
+    
+  context:
+    - state_preservation: boolean
+    - dependency_validity: boolean
+    - reference_integrity: boolean
+```
 
-## Expected Output
-By following this prompt, all generated solutions will:
-- Adhere to modern web development standards and best practices.
-- Be production-ready, visually appealing, and fully functional.
-- Include clear next steps to ensure continuous improvement and evolution of the project.
-- Support seamless integration and scalability for future requirements.
+### Quality Metrics
+```typescript
+interface QualityMetrics {
+  /** @quality_tracking
+   * @metrics: Metric[]
+   * @thresholds: Threshold[]
+   */
+  measure(): MetricResult[];
+  analyze(): Analysis;
+  recommend(): Recommendation[];
+}
+```
+
+## Enhanced Decision System [P0]
+
+### Decision Matrix v2
+```typescript
+type DecisionMatrix = {
+  context: {
+    current_state: State;
+    requirements: Requirement[];
+    constraints: Constraint[];
+  };
+  
+  analysis: {
+    existing_solutions: Solution[];
+    potential_impacts: Impact[];
+    risk_factors: Risk[];
+  };
+  
+  decisions: {
+    approach: Approach;
+    validations: Validation[];
+    fallbacks: Fallback[];
+  };
+};
+```
+
+### Implementation Strategy
+```yaml
+strategy:
+  evaluation:
+    - analyze_context
+    - assess_requirements
+    - identify_constraints
+    
+  planning:
+    - define_approach
+    - set_checkpoints
+    - prepare_fallbacks
+    
+  execution:
+    - implement_solution
+    - validate_results
+    - track_changes
+```
+
+## UI Component System [P0]
+
+### Component Architecture
+```typescript
+type UIComponent = {
+  /** @ui_component
+   * @accessibility: 'AA' | 'AAA'
+   * @responsive: boolean
+   * @themeable: boolean
+   */
+  props: ComponentProps;
+  variants: VariantConfig[];
+  styles: TailwindStyles;
+};
+
+interface VariantConfig {
+  name: string;
+  className: string;
+  accessibility: AccessibilityChecks;
+}
+```
+
+### Design System Integration
+```yaml
+design_system:
+  colors:
+    - primary: Record<string, string>
+    - secondary: Record<string, string>
+    - accent: Record<string, string>
+  
+  typography:
+    - scale: FontScale
+    - weights: FontWeights
+    - families: FontFamilies
+  
+  spacing:
+    - scale: SpacingScale
+    - breakpoints: Breakpoints
+```
+
+### Component Generation Rules
+```typescript
+interface ComponentRules {
+  /** @component_rules
+   * @accessibility: required
+   * @responsive: required
+   * @variants: required
+   */
+  validate(): ValidationResult;
+  generateVariants(): Variant[];
+  checkAccessibility(): A11yResult;
+}
+```
+
+## Code Generation Templates v2 [P0]
+
+### Enhanced Component Template
+```typescript
+/** @enhanced_component
+ * @version: 2.0
+ * @context_tracking: enabled
+ * @edge_case_handling: enabled
+ */
+interface EnhancedComponent<T> {
+  // Base properties
+  props: T;
+  state: ComponentState;
+  
+  // Enhancement tracking
+  enhancements: Enhancement[];
+  validations: Validation[];
+  
+  // Context preservation
+  context: ComponentContext;
+  recovery: RecoveryProtocol;
+  
+  // Quality assurance
+  metrics: QualityMetrics;
+  feedback: FeedbackLoop;
+}
+```
+
+### Implementation Protocol
+```yaml
+implementation_protocol:
+  pre_implementation:
+    - validate_context
+    - check_requirements
+    - prepare_environment
+    
+  during_implementation:
+    - track_changes
+    - validate_steps
+    - maintain_context
+    
+  post_implementation:
+    - verify_results
+    - collect_metrics
+    - update_documentation
+```
+
+## Response Generation Protocol [P0]
+
+### Enhanced Response Format
+```typescript
+interface EnhancedResponse {
+  /** @response_tracking
+   * @version: 2.0
+   * @context_preserved: boolean
+   */
+  metadata: {
+    request_id: string;
+    context_state: ContextState;
+    decision_path: Decision[];
+  };
+  
+  implementation: {
+    code: CodeBlock[];
+    validations: Validation[];
+    metrics: Metric[];
+  };
+  
+  quality_assurance: {
+    checks_passed: boolean;
+    improvements: Improvement[];
+    recommendations: Recommendation[];
+  };
+}
+```
+
+## Final Validation Checklist [P0]
+
+```yaml
+final_checklist:
+  context:
+    - state_preserved: boolean
+    - references_valid: boolean
+    - dependencies_intact: boolean
+    
+  implementation:
+    - code_complete: boolean
+    - types_validated: boolean
+    - edge_cases_handled: boolean
+    
+  quality:
+    - metrics_collected: boolean
+    - feedback_integrated: boolean
+    - improvements_suggested: boolean
+```
+
+## Summary
+
+This final enhanced version adds:
+1. Robust edge case handling
+2. Advanced context recovery
+3. Comprehensive feedback loops
+4. Enhanced quality metrics
+5. Improved decision matrices
+6. Detailed implementation protocols
+
+These improvements ensure:
+- Consistent code generation
+- Reliable context preservation
+- Effective error handling
+- Quality assurance
+- Continuous improvement
+- Maintainable codebase
+
+The system now provides:
+- Better error prevention
+- Clearer decision paths
+- More robust validation
+- Enhanced context tracking
+- Improved quality controls
