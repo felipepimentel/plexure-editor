@@ -1,22 +1,17 @@
-import React, { useState, useEffect } from 'react';
-import { useAuth } from './hooks/useAuth';
-import { useProfile } from './hooks/useProfile';
-import { usePreferences } from './hooks/usePreferences';
-import { MainLayout } from './components/layout/MainLayout';
-import { NavigatorPanel, PreviewPanel, ValidationPanel } from './components/panels';
-import { OpenAPI } from 'openapi-types';
-import { Project, ApiContract } from './types/project';
-import { Editor } from './components/Editor';
-import { KeyboardShortcuts } from './components/KeyboardShortcuts';
-import { Search, FileText, Sun, Moon } from 'lucide-react';
-import { EditorLayout } from './components/layout/EditorLayout';
-import { UserPreferences, EditorPreferences } from './types/preferences';
-import { Header } from './components/layout/Header';
-import { NavigationMenu } from './components/navigation/NavigationMenu';
-import { useTheme } from './hooks/useTheme';
-import { LoginForm } from './components/auth/LoginForm';
-import { useNavigation } from './hooks/useNavigation';
 import yaml from 'js-yaml';
+import { OpenAPI } from 'openapi-types';
+import { useEffect, useState } from 'react';
+import { LoginForm } from './components/auth/LoginForm';
+import { KeyboardShortcuts } from './components/KeyboardShortcuts';
+import { EditorLayout } from './components/layout/EditorLayout';
+import { MainLayout } from './components/layout/MainLayout';
+import { useAuth } from './hooks/useAuth';
+import { useNavigation, NavigationItem } from './hooks/useNavigation';
+import { usePreferences } from './hooks/usePreferences';
+import { useProfile } from './hooks/useProfile';
+import { useTheme } from './hooks/useTheme';
+import { EditorPreferences } from './types/preferences';
+import { ApiContract, Project } from './types/project';
 
 const DEFAULT_SPEC = `openapi: 3.0.0
 info:
@@ -54,6 +49,7 @@ export default function App() {
   const [canUndo, setCanUndo] = useState(false);
   const [canRedo, setCanRedo] = useState(false);
   const [selectedPath, setSelectedPath] = useState<string>();
+  const [isEditorMaximized, setIsEditorMaximized] = useState(false);
 
   // Project and contract state
   const [projects, setProjects] = useState<Project[]>([]);
@@ -272,20 +268,19 @@ export default function App() {
     <MainLayout
       darkMode={darkMode}
       onDarkModeToggle={toggleDarkMode}
-      errorCount={errorCount}
-      projectName={selectedProject?.name}
       userName={user.email}
+      projectName={selectedProject?.name}
+      errorCount={errorCount}
+      isEditorMaximized={isEditorMaximized}
+      isPanelLeftCollapsed={preferences?.left_panel_collapsed || false}
+      isPanelRightCollapsed={preferences?.right_panel_collapsed || false}
+      onToggleEditorMaximize={() => setIsEditorMaximized(!isEditorMaximized)}
+      onToggleLeftPanel={() => handlePanelCollapse('left', !preferences?.left_panel_collapsed)}
+      onToggleRightPanel={() => handlePanelCollapse('right', !preferences?.right_panel_collapsed)}
       navigationCollapsed={navigationCollapsed}
       activeNavigationItem={activeItem}
       onNavigationItemSelect={handleNavigationItemSelect}
       onNavigationCollapse={() => setNavigationCollapsed(!navigationCollapsed)}
-      onSave={handleSave}
-      onShare={handleShare}
-      onHistory={handleHistory}
-      onSettings={handleSettings}
-      onProfile={handleProfile}
-      onHelp={() => window.open('https://docs.swagger-editor.com', '_blank')}
-      onLogout={signOut}
     >
       {/* Renderização condicional baseada no item ativo */}
       {activeItem === 'spec' ? (

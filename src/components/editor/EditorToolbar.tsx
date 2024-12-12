@@ -10,24 +10,26 @@ import {
 
 interface EditorToolbarProps {
   darkMode: boolean;
+  onSave: () => void;
   onImport: () => void;
   onExport: () => void;
   onFormat: () => void;
-  onUndo: () => void;
-  onRedo: () => void;
   canUndo: boolean;
   canRedo: boolean;
+  onUndo: () => void;
+  onRedo: () => void;
 }
 
 export function EditorToolbar({
   darkMode,
+  onSave,
   onImport,
   onExport,
   onFormat,
-  onUndo,
-  onRedo,
   canUndo,
-  canRedo
+  canRedo,
+  onUndo,
+  onRedo
 }: EditorToolbarProps) {
   const buttonClass = `p-2 rounded-lg transition-colors ${
     darkMode 
@@ -40,9 +42,10 @@ export function EditorToolbar({
   } cursor-not-allowed`;
 
   return (
-    <div className={`h-12 border-b flex items-center justify-between px-4 ${
-      darkMode ? 'border-gray-800' : 'border-gray-200'
-    }`}>
+    <div className={`
+      h-12 px-4 border-b flex items-center justify-between
+      ${darkMode ? 'border-gray-800 bg-gray-900' : 'border-gray-200 bg-white'}
+    `}>
       <div className="flex items-center gap-2">
         <button
           onClick={onUndo}
