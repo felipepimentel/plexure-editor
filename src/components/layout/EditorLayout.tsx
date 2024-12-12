@@ -11,7 +11,7 @@ interface EditorLayoutProps {
   spec: string;
   parsedSpec: any;
   validationResults: any[];
-  preferences: EditorPreferences;
+  preferences?: EditorPreferences;
   onSpecChange: (value: string) => void;
   onShowShortcuts: () => void;
   onSave: () => void;
@@ -72,6 +72,7 @@ export function EditorLayout({
         <NavigatorPanel
           darkMode={darkMode}
           spec={parsedSpec}
+          rawSpec={spec}
           collapsed={preferences?.left_panel_collapsed}
           selectedPath={selectedPath}
           onPathSelect={onPathSelect}

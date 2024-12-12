@@ -1,134 +1,137 @@
 import React from 'react';
-import { ChevronRight, ChevronDown, FileJson, Globe, Code2, Box, List, ArrowRight } from 'lucide-react';
 import { OpenAPI } from 'openapi-types';
-import { buildNavigationTree } from '../../utils/openApiUtils';
-
-interface NavigationNode {
-  id: string;
-  type: 'path' | 'method' | 'schema' | 'response' | 'parameter';
-  label: string;
-  children?: NavigationNode[];
-  method?: string;
-  path?: string;
-}
+import { NavigationTreeItem } from './NavigationTreeItem';
 
 interface NavigationTreeProps {
   spec: OpenAPI.Document | null;
   darkMode: boolean;
   selectedPath?: string;
   onSelect: (path: string) => void;
+  expandedNodes: Set<string>;
+  onNodeExpand: (nodeId: string, recursive?: boolean) => void;
+  viewMode: 'tree' | 'list';
+  filterOptions: {
+    showGet: boolean;
+    showPost: boolean;
+    showPut: boolean;
+    showDelete: boolean;
+    showDeprecated: boolean;
+    showParameters: boolean;
+    showResponses: boolean;
+  };
 }
 
 export function NavigationTree({
   spec,
   darkMode,
   selectedPath,
-  onSelect
+  onSelect,
+  expandedNodes,
+  onNodeExpand,
+  viewMode,
+  filterOptions
 }: NavigationTreeProps) {
-  const [expandedNodes, setExpandedNodes] = React.useState<Set<string>>(new Set(['paths']));
-  const nodes = React.useMemo(() => buildNavigationTree(spec), [spec]);
-
-  const getNodeIcon = (type: string, method?: string) => {
-    switch (type) {
-      case 'path':
-        return Globe;
-      case 'method':
-        return method ? ArrowRight : FileJson;
-      case 'schema':
-        return Code2;
-      case 'parameter':
-        return List;
-      case 'response':
-        return Box;
-      default:
-        return FileJson;
-    }
-  };
-
-  const getMethodColor = (method?: string) => {
-    switch (method?.toLowerCase()) {
-      case 'get': return 'text-blue-500';
-      case 'post': return 'text-green-500';
-      case 'put': return 'text-yellow-500';
-      case 'delete': return 'text-red-500';
-      case 'patch': return 'text-purple-500';
-      default: return darkMode ? 'text-gray-400' : 'text-gray-600';
-    }
-  };
-
-  const renderNode = (node: NavigationNode) => {
-    const Icon = getNodeIcon(node.type, node.method);
-    const isExpanded = expandedNodes.has(node.id);
-    const isSelected = node.id === selectedPath;
-    const hasChildren = node.children?.length;
-
-    return (
-      <div key={node.id} className="select-none">
-        <div
-          onClick={() => {
-            if (hasChildren) {
-              const newExpanded = new Set(expandedNodes);
-              if (isExpanded) {
-                newExpanded.delete(node.id);
-              } else {
-                newExpanded.add(node.id);
-              }
-              setExpandedNodes(newExpanded);
-            }
-            onSelect(node.id);
-          }}
-          className={`
-            flex items-center px-2 py-1.5 rounded-md cursor-pointer
-            ${isSelected
-              ? darkMode
-                ? 'bg-gray-700 text-blue-400'
-                : 'bg-gray-200 text-blue-600'
-              : darkMode
-                ? 'hover:bg-gray-800 text-gray-300'
-                : 'hover:bg-gray-100 text-gray-700'
-            }
-          `}
-        >
-          {hasChildren ? (
-            <button className="p-0.5 rounded hover:bg-gray-700">
-              {isExpanded ? (
-                <ChevronDown className="w-4 h-4 text-gray-400" />
-              ) : (
-                <ChevronRight className="w-4 h-4 text-gray-400" />
-              )}
-            </button>
-          ) : (
-            <div className="w-5" />
-          )}
-          
-          <div className="flex items-center gap-2 ml-1">
-            <Icon className={`w-4 h-4 ${getMethodColor(node.method)}`} />
-            <span className="text-sm truncate">{node.label}</span>
-          </div>
-        </div>
-
-        {isExpanded && node.children && (
-          <div className="ml-4 mt-1 space-y-1">
-            {node.children.map(child => renderNode(child))}
-          </div>
-        )}
-      </div>
-    );
-  };
-
-  if (!spec) {
+  if (!spec?.paths) {
     return (
       <div className={`p-4 text-sm ${
         darkMode ? 'text-gray-400' : 'text-gray-500'
       }`}>
-        No specification loaded
+        No paths defined
       </div>
     );
   }
 
+  const renderPath = (path: string, pathItem: OpenAPI.PathItemObject) => {
+    const nodeId = path;
+    const isExpanded = expandedNodes.has(nodeId);
+    const methods = Object.entries(pathItem)
+      .filter(([method]) => {
+        if (!['get', 'post', 'put', 'delete', 'patch'].includes(method)) return false;
+        const methodName = `show${method.charAt(0).toUpperCase()}${method.slice(1)}` as keyof typeof filterOptions;
+        return filterOptions[methodName];
+      });
+
+    return (
+      <div key={path}>
+        <NavigationTreeItem
+          label={path}
+          path={path}
+          hasChildren={methods.length > 0}
+          isExpanded={isExpanded}
+          isSelected={selectedPath === path}
+          level={0}
+          darkMode={darkMode}
+          onToggle={(e?: React.MouseEvent) => {
+            onNodeExpand(nodeId, e?.shiftKey);
+          }}
+          onClick={() => onSelect(path)}
+        />
+
+        {isExpanded && methods.map(([method, operation]) => {
+          if (operation?.deprecated && !filterOptions.showDeprecated) return null;
+          
+          const methodNodeId = `${path}-${method}`;
+          const methodIsExpanded = expandedNodes.has(methodNodeId);
+
+          return (
+            <div key={methodNodeId}>
+              <NavigationTreeItem
+                label={operation?.summary || method.toUpperCase()}
+                method={method}
+                hasChildren={
+                  (filterOptions.showParameters && operation?.parameters?.length) ||
+                  (filterOptions.showResponses && operation?.responses)
+                }
+                isExpanded={methodIsExpanded}
+                isSelected={selectedPath === methodNodeId}
+                level={1}
+                darkMode={darkMode}
+                isDeprecated={operation?.deprecated}
+                onToggle={() => onNodeExpand(methodNodeId)}
+                onClick={() => onSelect(methodNodeId)}
+              />
+
+              {methodIsExpanded && (
+                <>
+                  {filterOptions.showParameters && operation?.parameters?.length > 0 && (
+                    <div>
+                      {operation.parameters.map((param: any, index: number) => (
+                        <NavigationTreeItem
+                          key={`${methodNodeId}-param-${index}`}
+                          label={param.name}
+                          level={2}
+                          darkMode={darkMode}
+                          onClick={() => onSelect(`${methodNodeId}-param-${param.name}`)}
+                        />
+                      ))}
+                    </div>
+                  )}
+
+                  {filterOptions.showResponses && operation?.responses && (
+                    <div>
+                      {Object.entries(operation.responses).map(([code, response]) => (
+                        <NavigationTreeItem
+                          key={`${methodNodeId}-response-${code}`}
+                          label={`${code} ${(response as any)?.description || ''}`}
+                          level={2}
+                          darkMode={darkMode}
+                          onClick={() => onSelect(`${methodNodeId}-response-${code}`)}
+                        />
+                      ))}
+                    </div>
+                  )}
+                </>
+              )}
+            </div>
+          );
+        })}
+      </div>
+    );
+  };
+
   return (
-    <div className="p-2 space-y-1">
-      {nodes.map(node => renderNode(node))}
+    <div className="py-2">
+      {Object.entries(spec.paths).map(([path, pathItem]) => renderPath(path, pathItem))}
     </div>
   );
 }

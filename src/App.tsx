@@ -14,6 +14,8 @@ import { UserPreferences, EditorPreferences } from './types/preferences';
 import { Header } from './components/layout/Header';
 import { NavigationMenu } from './components/navigation/NavigationMenu';
 import { useTheme } from './hooks/useTheme';
+import { LoginForm } from './components/auth/LoginForm';
+import { useNavigation } from './hooks/useNavigation';
 
 const DEFAULT_SPEC = `openapi: 3.0.0
 info:
@@ -59,7 +61,7 @@ export default function App() {
   const [selectedContract, setSelectedContract] = useState<ApiContract | null>(null);
 
   // Auth and preferences hooks
-  const { user, loading: authLoading, error: authError, retry: retryAuth } = useAuth();
+  const { user, loading: authLoading, error: authError, retry: retryAuth, signOut } = useAuth();
   const { profile, loading: profileLoading } = useProfile();
   const { preferences, loading: prefsLoading, updatePreference } = usePreferences();
 
@@ -77,6 +79,13 @@ export default function App() {
   const [navigationCollapsed, setNavigationCollapsed] = useState(true);
 
   const { darkMode, toggleDarkMode } = useTheme();
+
+  // Substituir os estados de navegação existentes pelo hook
+  const {
+    activeSection,
+    activeItem,
+    handleItemSelect
+  } = useNavigation(parsedSpec);
 
   // Loading state
   if (authLoading || profileLoading || prefsLoading) {
@@ -102,6 +111,11 @@ export default function App() {
         </div>
       </div>
     );
+  }
+
+  // Not authenticated
+  if (!user) {
+    return <LoginForm darkMode={darkMode} />;
   }
 
   const errorCount = validationResults.filter(r => r.rule.severity === 'error').length;
@@ -214,9 +228,32 @@ export default function App() {
   };
 
   const handleNavigationItemSelect = (item: string) => {
-    setActiveNavigationItem(item);
-    // TODO: Implementar lógica específica para cada item
-    console.log('Selected navigation item:', item);
+    handleItemSelect(item as NavigationItem);
+    
+    // Implementar comportamentos específicos para cada item
+    switch (item) {
+      case 'spec':
+        // Mostrar o editor principal
+        break;
+      case 'explorer':
+        // Mostrar o explorador de API
+        break;
+      case 'history':
+        // Mostrar histórico de alterações
+        break;
+      case 'team':
+        // Mostrar configurações de equipe
+        break;
+      case 'branches':
+        // Mostrar gerenciamento de branches
+        break;
+      case 'sharing':
+        // Mostrar opções de compartilhamento
+        break;
+      case 'docs':
+        // Mostrar documentação
+        break;
+    }
   };
 
   return (
@@ -225,9 +262,9 @@ export default function App() {
       onDarkModeToggle={toggleDarkMode}
       errorCount={errorCount}
       projectName={selectedProject?.name}
-      userName={user?.email}
+      userName={user.email}
       navigationCollapsed={navigationCollapsed}
-      activeNavigationItem={activeNavigationItem}
+      activeNavigationItem={activeItem}
       onNavigationItemSelect={handleNavigationItemSelect}
       onNavigationCollapse={() => setNavigationCollapsed(!navigationCollapsed)}
       onSave={handleSave}
@@ -235,30 +272,60 @@ export default function App() {
       onHistory={handleHistory}
       onSettings={handleSettings}
       onProfile={handleProfile}
+      onHelp={() => window.open('https://docs.swagger-editor.com', '_blank')}
+      onLogout={signOut}
     >
-      <EditorLayout
-        darkMode={darkMode}
-        spec={spec}
-        parsedSpec={parsedSpec}
-        validationResults={validationResults}
-        preferences={editorPreferences}
-        onSpecChange={setSpec}
-        onShowShortcuts={() => setShowShortcuts(true)}
-        onSave={handleSave}
-        onImport={handleImport}
-        onExport={handleExport}
-        onFormat={handleFormat}
-        canUndo={canUndo}
-        canRedo={canRedo}
-        onUndo={handleUndo}
-        onRedo={handleRedo}
-        selectedPath={selectedPath}
-        onPathSelect={handlePathSelect}
-        cursorPosition={cursorPosition}
-        documentInfo={documentInfo}
-        errorCount={errorCount}
-        warningCount={warningCount}
-      />
+      {/* Renderização condicional baseada no item ativo */}
+      {activeItem === 'spec' ? (
+        <EditorLayout
+          darkMode={darkMode}
+          spec={spec}
+          parsedSpec={parsedSpec}
+          validationResults={validationResults}
+          preferences={editorPreferences}
+          onSpecChange={setSpec}
+          onShowShortcuts={() => setShowShortcuts(true)}
+          onSave={handleSave}
+          onImport={handleImport}
+          onExport={handleExport}
+          onFormat={handleFormat}
+          canUndo={canUndo}
+          canRedo={canRedo}
+          onUndo={handleUndo}
+          onRedo={handleRedo}
+          selectedPath={selectedPath}
+          onPathSelect={handlePathSelect}
+          cursorPosition={cursorPosition}
+          documentInfo={documentInfo}
+          errorCount={errorCount}
+          warningCount={warningCount}
+          onPanelCollapse={handlePanelCollapse}
+        />
+      ) : activeItem === 'explorer' ? (
+        <div className="h-full flex items-center justify-center">
+          <p className="text-gray-500">API Explorer (Em desenvolvimento)</p>
+        </div>
+      ) : activeItem === 'history' ? (
+        <div className="h-full flex items-center justify-center">
+          <p className="text-gray-500">History View (Em desenvolvimento)</p>
+        </div>
+      ) : activeItem === 'team' ? (
+        <div className="h-full flex items-center justify-center">
+          <p className="text-gray-500">Team Management (Em desenvolvimento)</p>
+        </div>
+      ) : activeItem === 'branches' ? (
+        <div className="h-full flex items-center justify-center">
+          <p className="text-gray-500">Branch Management (Em desenvolvimento)</p>
+        </div>
+      ) : activeItem === 'sharing' ? (
+        <div className="h-full flex items-center justify-center">
+          <p className="text-gray-500">Sharing Options (Em desenvolvimento)</p>
+        </div>
+      ) : (
+        <div className="h-full flex items-center justify-center">
+          <p className="text-gray-500">Documentation (Em desenvolvimento)</p>
+        </div>
+      )}
 
       {/* Keyboard Shortcuts Modal */}
       {showShortcuts && (
