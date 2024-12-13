@@ -4,133 +4,112 @@
 
 ```
 src/
-├── components/          # Componentes reutilizáveis
-│   ├── ui/             # Componentes básicos de UI
-│   │   ├── Button.tsx
-│   │   ├── Input.tsx
-│   │   └── Card.tsx
-│   ├── forms/          # Componentes de formulário
-│   │   ├── LoginForm.tsx
-│   │   └── SearchForm.tsx
-│   └── navigation/     # Componentes de navegação
-│       ├── Sidebar.tsx
-│       └── Breadcrumb.tsx
-├── features/          # Funcionalidades específicas
-│   ├── editor/        # Feature do editor
-│   │   ├── Editor.tsx
-│   │   ├── EditorToolbar.tsx
-│   │   ├── hooks/     # Hooks específicos da feature
-│   │   └── utils/     # Utilitários específicos
-│   └── auth/          # Feature de autenticação
-│       ├── Login.tsx
-│       ├── hooks/
-│       └── utils/
+├── components/          # Componentes da aplicação
+│   ├── ui/             # Componentes UI atômicos/básicos
+│   │   ├── Button/     # Botões básicos
+│   │   │   ├── Button.tsx
+│   │   │   ├── Button.test.tsx
+│   │   │   └── Button.stories.tsx
+│   │   ├── Card/       # Cards básicos
+│   │   │   └── Card.tsx
+│   │   ├── Form/       # Componentes de formulário básicos
+│   │   │   ├── Input.tsx
+│   │   │   ├── Select.tsx
+│   │   │   └── TextArea.tsx
+│   │   ├── Modal/      # Modais básicos
+│   │   │   └── Modal.tsx
+│   │   └── Tooltip/    # Tooltips básicos
+│   │       └── Tooltip.tsx
+│   ├── auth/           # Componentes de domínio - Autenticação
+│   │   └── LoginForm.tsx
+│   ├── editor/         # Componentes de domínio - Editor
+│   │   ├── EditorLayout.tsx
+│   │   └── hooks/
+│   ├── error/          # Componentes de domínio - Erros
+│   │   ├── ErrorPanel.tsx
+│   │   └── ValidationPanel.tsx
+│   ├── navigation/     # Componentes de domínio - Navegação
+│   │   ├── MainNavigation.tsx
+│   │   └── NavigationTree.tsx
+│   ├── preview/        # Componentes de domínio - Preview
+│   │   └── Preview.tsx
+│   ├── settings/       # Componentes de domínio - Configurações
+│   │   └── SettingsDialog.tsx
+│   ├── shortcuts/      # Componentes de domínio - Atalhos
+│   │   └── KeyboardShortcuts.tsx
+│   └── statusbar/      # Componentes de domínio - Barra de Status
+│       └── StatusBar.tsx
+├── contexts/           # Contextos React
+├── hooks/              # Hooks globais
+├── styles/            # Estilos globais
+├── types/             # Tipos TypeScript
 └── views/             # Páginas da aplicação
-    ├── Editor/
-    │   ├── index.tsx  # Composição da página
-    │   └── sections/  # Seções específicas
-    └── Dashboard/
-        ├── index.tsx
-        └── sections/
 ```
 
 ## Regras de Organização [P0]
 
-1. **Componentes (`src/components/`)**
-   - Componentes reutilizáveis e independentes
-   - Estrutura plana, sem subpastas `components`
-   - Agrupados por domínio (ui, forms, navigation)
-   ```
-   ui/
-   ├── Button.tsx       # Componente direto
-   ├── Input.tsx        # Sem subpastas
-   └── types.ts         # Tipos relacionados
-   ```
+1. **Componentes UI (`components/ui/`)**
+   - APENAS componentes atômicos/básicos
+   - Sem lógica de negócio
+   - Altamente reutilizáveis
+   - Cada componente em sua própria pasta
+   - Inclui testes e stories
+   - Exemplos:
+     - Botões
+     - Inputs
+     - Cards
+     - Modais básicos
+     - Tooltips
 
-2. **Features (`src/features/`)**
-   - Funcionalidades específicas da aplicação
-   - Podem ter hooks e utils próprios
-   - Estrutura consistente:
-   ```
-   editor/
-   ├── Editor.tsx       # Componente principal
-   ├── hooks/           # Hooks da feature
-   │   └── useEditor.ts
-   └── utils/           # Utilitários
-       └── editorUtils.ts
-   ```
-
-3. **Views (`src/views/`)**
-   - Páginas da aplicação
-   - Composição de componentes e features
-   - Estrutura clara:
-   ```
-   Dashboard/
-   ├── index.tsx        # Composição principal
-   └── sections/        # Seções da página
-       ├── Header.tsx
-       └── Content.tsx
-   ```
-
-## Princípios [P0]
-
-1. **Simplicidade**
-   - Estrutura plana sempre que possível
-   - Evitar aninhamento desnecessário
-   - Nomes claros e descritivos
-
-2. **Organização**
-   - Componentes por domínio
-   - Features por funcionalidade
-   - Views por página
-
-3. **Reusabilidade**
-   - Componentes são blocos de construção
-   - Features encapsulam lógica
-   - Views compõem o todo
+2. **Componentes de Domínio (`components/<domain>/`)**
+   - Componentes específicos de domínio
+   - Podem conter lógica de negócio
+   - Compostos por componentes UI
+   - Organizados por funcionalidade
+   - Exemplo:
+     ```
+     editor/
+     ├── EditorLayout.tsx    # Composição de componentes UI
+     └── hooks/              # Lógica específica do editor
+     ```
 
 ## Anti-Patterns [P0]
 
 ❌ **Evitar**
-- Subpastas `components` dentro de componentes
-- Estruturas profundamente aninhadas
-- Mistura de responsabilidades
-- Duplicação de funcionalidades
+- Colocar lógica de negócio em `ui/`
+- Criar componentes UI muito específicos
+- Duplicar componentes UI básicos
+- Misturar componentes de domínio com UI
 
 ✅ **Preferir**
-- Estrutura plana e direta
-- Organização por domínio
-- Separação clara de responsabilidades
-- Nomes descritivos e específicos
+- Manter `ui/` APENAS para componentes atômicos
+- Compor componentes de domínio usando componentes UI
+- Reutilizar componentes UI
+- Separar claramente UI de lógica de negócio
 
 ## Importações [P0]
 
-1. **Componentes**
-   ```typescript
-   import { Button } from '@/components/ui/Button'
-   import { LoginForm } from '@/components/forms/LoginForm'
-   ```
+```typescript
+// Componentes UI básicos (atômicos)
+import { Button } from '@/components/ui/Button'
+import { Card } from '@/components/ui/Card'
+import { Input } from '@/components/ui/Form/Input'
 
-2. **Features**
-   ```typescript
-   import { Editor } from '@/features/editor/Editor'
-   import { useEditor } from '@/features/editor/hooks/useEditor'
-   ```
-
-3. **Views**
-   ```typescript
-   import { DashboardHeader } from '@/views/Dashboard/sections/Header'
-   ```
+// Componentes de domínio (compostos)
+import { EditorLayout } from '@/components/editor/EditorLayout'
+import { LoginForm } from '@/components/auth/LoginForm'
+```
 
 ## Manutenção [P0]
 
 1. **Novos Componentes**
-   - Avaliar se é reutilizável → `components/`
-   - Avaliar se é específico → `features/`
-   - Avaliar se é página → `views/`
+   - Se é um componente atômico/básico → `ui/`
+   - Se é específico de domínio → pasta do domínio
+   - Sempre considerar reuso de componentes UI
 
 2. **Refatoração**
-   - Mover componentes para local apropriado
-   - Manter estrutura plana
-   - Seguir padrões estabelecidos
+   - Manter `ui/` puro e simples
+   - Extrair lógica de negócio para componentes de domínio
+   - Garantir que `ui/` contenha APENAS componentes atômicos
+   - Evitar duplicação de componentes UI básicos
 ``` 

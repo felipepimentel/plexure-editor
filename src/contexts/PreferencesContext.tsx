@@ -1,41 +1,69 @@
-import React, { createContext, useContext, useState } from 'react';
-import { EditorPreferences } from '../types/preferences';
+import React, { createContext, useContext, useState, useEffect } from 'react';
+
+interface Preferences {
+  fontSize: number;
+  lineHeight: number;
+  tabSize: number;
+  wordWrap: boolean;
+  minimap: boolean;
+  autoSave: boolean;
+  formatOnSave: boolean;
+  showInvisibles: boolean;
+  showLineNumbers: boolean;
+  showIndentGuides: boolean;
+  theme: 'vs-dark' | 'vs-light';
+}
+
+const defaultPreferences: Preferences = {
+  fontSize: 14,
+  lineHeight: 1.5,
+  tabSize: 2,
+  wordWrap: true,
+  minimap: true,
+  autoSave: true,
+  formatOnSave: true,
+  showInvisibles: false,
+  showLineNumbers: true,
+  showIndentGuides: true,
+  theme: 'vs-dark',
+};
 
 interface PreferencesContextType {
-  preferences: EditorPreferences | null;
-  loading: boolean;
-  updatePreference: <K extends keyof EditorPreferences>(key: K, value: EditorPreferences[K]) => void;
+  preferences: Preferences;
+  updatePreference: <K extends keyof Preferences>(key: K, value: Preferences[K]) => void;
+  resetPreferences: () => void;
 }
 
 const PreferencesContext = createContext<PreferencesContextType | undefined>(undefined);
 
-const defaultPreferences: EditorPreferences = {
-  theme: 'dark',
-  font_size: 13,
-  tab_size: 2,
-  word_wrap: true,
-  left_panel_collapsed: false,
-  right_panel_collapsed: false,
-  left_panel_width: 356,
-  right_panel_width: 320
-};
-
 export function PreferencesProvider({ children }: { children: React.ReactNode }) {
-  const [preferences, setPreferences] = useState<EditorPreferences>(defaultPreferences);
-  const [loading, setLoading] = useState(false);
+  const [preferences, setPreferences] = useState<Preferences>(() => {
+    const saved = localStorage.getItem('preferences');
+    if (saved) {
+      try {
+        return { ...defaultPreferences, ...JSON.parse(saved) };
+      } catch (error) {
+        console.error('Failed to parse preferences:', error);
+        return defaultPreferences;
+      }
+    }
+    return defaultPreferences;
+  });
 
-  const updatePreference = <K extends keyof EditorPreferences>(
-    key: K,
-    value: EditorPreferences[K]
-  ) => {
-    setPreferences(prev => ({
-      ...prev,
-      [key]: value
-    }));
+  useEffect(() => {
+    localStorage.setItem('preferences', JSON.stringify(preferences));
+  }, [preferences]);
+
+  const updatePreference = <K extends keyof Preferences>(key: K, value: Preferences[K]) => {
+    setPreferences(prev => ({ ...prev, [key]: value }));
+  };
+
+  const resetPreferences = () => {
+    setPreferences(defaultPreferences);
   };
 
   return (
-    <PreferencesContext.Provider value={{ preferences, loading, updatePreference }}>
+    <PreferencesContext.Provider value={{ preferences, updatePreference, resetPreferences }}>
       {children}
     </PreferencesContext.Provider>
   );
