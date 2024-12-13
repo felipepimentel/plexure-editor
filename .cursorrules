@@ -7,8 +7,8 @@
 1. Use **Vite** for web servers and project scaffolding.
 2. Prefer **Node.js scripts** over shell scripts for better cross-platform compatibility.
 3. Utilize JavaScript-based libraries and databases (e.g., SQLite, `@supabase/supabase-js`) only when necessary and justified.
-4. Validate all structural changes against the predefined structure file (`STRUCTURE.md`) before generating or modifying code. Use automated scripts or CI/CD pipelines to ensure that the project structure complies with the defined standards, minimizing manual intervention and reducing errors.
-5. Do not create or use unnecessary dependencies, libraries, or files. Verify their necessity before including them in the project.
+4. Validate all structural changes against the predefined structure file (`STRUCTURE.md`) before generating or modifying code. Additionally, ensure no existing file has a similar name by performing a similarity or semantic check against the current project files to avoid redundancy or confusion. Use automated scripts or CI/CD pipelines to ensure that the project structure complies with the defined standards, minimizing manual intervention and reducing errors.
+5. Do not create or use unnecessary dependencies, libraries, or files. Before creating any new file, verify its necessity and ensure no similar file exists in the project to avoid duplication or confusion.
 6. All code, instructions, and documentation generated must be in **English**, ensuring consistency and readability across the project.
 
 ### UI and Design

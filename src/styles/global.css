@@ -2,6 +2,51 @@
 @tailwind components;
 @tailwind utilities;
 
+/* Monaco Editor Styles */
+.monaco-editor {
+  padding-top: 12px;
+}
+
+.monaco-editor .margin {
+  background-color: transparent !important;
+}
+
+.monaco-editor .minimap {
+  box-shadow: -1px 0 0 rgba(0, 0, 0, 0.1) inset;
+}
+
+.monaco-editor .line-numbers {
+  color: #6B7280 !important;
+}
+
+.monaco-editor .current-line {
+  border: none !important;
+  background-color: rgba(55, 65, 81, 0.1) !important;
+}
+
+.dark .monaco-editor .current-line {
+  background-color: rgba(255, 255, 255, 0.05) !important;
+}
+
+.monaco-editor .view-overlays .current-line {
+  border: none !important;
+}
+
+/* Syntax Highlighting */
+.monaco-editor .mtk1 { color: #D1D5DB; } /* Default text */
+.monaco-editor .mtk2 { color: #9CA3AF; } /* Comments */
+.monaco-editor .mtk3 { color: #60A5FA; } /* Keywords */
+.monaco-editor .mtk4 { color: #34D399; } /* Strings */
+.monaco-editor .mtk5 { color: #F472B6; } /* Numbers */
+.monaco-editor .mtk6 { color: #F59E0B; } /* Types */
+
+.dark .monaco-editor .mtk1 { color: #F3F4F6; } /* Default text */
+.dark .monaco-editor .mtk2 { color: #6B7280; } /* Comments */
+.dark .monaco-editor .mtk3 { color: #93C5FD; } /* Keywords */
+.dark .monaco-editor .mtk4 { color: #6EE7B7; } /* Strings */
+.dark .monaco-editor .mtk5 { color: #F9A8D4; } /* Numbers */
+.dark .monaco-editor .mtk6 { color: #FCD34D; } /* Types */
+
 /* Custom Scrollbar - Dark Mode */
 .dark ::-webkit-scrollbar {
   width: 6px;
@@ -47,4 +92,11 @@
 
 .hide-scrollbar:hover::-webkit-scrollbar {
   display: block;
+}
+
+/* Transitions */
+.transition-panel {
+  transition-property: width;
+  transition-timing-function: cubic-bezier(0.4, 0, 0.2, 1);
+  transition-duration: 200ms;
 }

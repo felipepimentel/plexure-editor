@@ -1,7 +1,7 @@
 import React, { useState } from 'react';
 import { Mail, ArrowRight, Github, FileCode, CheckCircle2 } from 'lucide-react';
-import { BaseForm, BaseFormField, BaseFormInput } from '../ui/Form';
-import { BaseButton } from '../ui/Button';
+import { BaseForm, BaseFormField, BaseFormInput } from '@components/ui/Form';
+import { BaseButton } from '@components/ui/Button';
 
 interface LoginFormProps {
   darkMode: boolean;

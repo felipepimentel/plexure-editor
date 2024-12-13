@@ -1,17 +1,17 @@
 import yaml from 'js-yaml';
 import { OpenAPI } from 'openapi-types';
 import { useEffect, useState } from 'react';
-import { LoginForm } from './components/auth/LoginForm';
-import { KeyboardShortcuts } from './components/KeyboardShortcuts';
-import { EditorLayout } from './components/layout/EditorLayout';
-import { MainLayout } from './components/layout/MainLayout';
-import { useAuth } from './hooks/useAuth';
-import { useNavigation, NavigationItem } from './hooks/useNavigation';
-import { usePreferences } from './hooks/usePreferences';
-import { useProfile } from './hooks/useProfile';
-import { useTheme } from './hooks/useTheme';
-import { EditorPreferences } from './types/preferences';
-import { ApiContract, Project } from './types/project';
+import { LoginForm } from '../../features/auth/LoginForm.component';
+import { KeyboardShortcuts } from '../../components/KeyboardShortcuts';
+import { EditorLayout } from '../../components/layout/EditorLayout';
+import { MainLayout } from '../../components/layout/MainLayout';
+import { useAuth } from '../../hooks/useAuth';
+import { useNavigation, NavigationItem } from '../../hooks/useNavigation';
+import { usePreferences } from '../../hooks/usePreferences';
+import { useProfile } from '../../hooks/useProfile';
+import { useTheme } from '../../hooks/useTheme';
+import { EditorPreferences } from '../../types/preferences';
+import { ApiContract, Project } from '../../types/project';
 import { Toaster } from 'react-hot-toast';
 
 const DEFAULT_SPEC = `openapi: 3.0.0
@@ -266,85 +266,45 @@ export default function App() {
   };
 
   return (
-    <>
-      <Toaster position="top-right" />
-      <MainLayout
+    <MainLayout
+      darkMode={darkMode}
+      onDarkModeToggle={handleDarkModeToggle}
+      userName={user?.email || 'demo@swagger-editor.com'}
+      navigationCollapsed={navigationCollapsed}
+      activeNavigationItem={activeNavigationItem}
+      onNavigationItemSelect={handleNavigationItemSelect}
+      onNavigationCollapse={() => setNavigationCollapsed(!navigationCollapsed)}
+    >
+      <EditorLayout
         darkMode={darkMode}
-        onDarkModeToggle={toggleDarkMode}
-        userName={user.email}
-        projectName={selectedProject?.name}
+        spec={spec}
+        parsedSpec={parsedSpec}
+        validationResults={validationResults}
+        preferences={editorPreferences}
+        onSpecChange={setSpec}
+        onShowShortcuts={() => setShowShortcuts(true)}
+        onSave={handleSave}
+        onImport={handleImport}
+        onExport={handleExport}
+        onFormat={handleFormat}
+        canUndo={canUndo}
+        canRedo={canRedo}
+        onUndo={handleUndo}
+        onRedo={handleRedo}
+        selectedPath={selectedPath}
+        onPathSelect={handlePathSelect}
+        cursorPosition={cursorPosition}
+        documentInfo={documentInfo}
         errorCount={errorCount}
-        isEditorMaximized={isEditorMaximized}
-        isPanelLeftCollapsed={preferences?.left_panel_collapsed || false}
-        isPanelRightCollapsed={preferences?.right_panel_collapsed || false}
-        onToggleEditorMaximize={() => setIsEditorMaximized(!isEditorMaximized)}
-        onToggleLeftPanel={() => handlePanelCollapse('left', !preferences?.left_panel_collapsed)}
-        onToggleRightPanel={() => handlePanelCollapse('right', !preferences?.right_panel_collapsed)}
-        navigationCollapsed={navigationCollapsed}
-        activeNavigationItem={activeItem}
-        onNavigationItemSelect={handleNavigationItemSelect}
-        onNavigationCollapse={() => setNavigationCollapsed(!navigationCollapsed)}
-      >
-        {/* Renderização condicional baseada no item ativo */}
-        {activeItem === 'spec' ? (
-          <EditorLayout
-            darkMode={darkMode}
-            spec={spec}
-            parsedSpec={parsedSpec}
-            validationResults={validationResults}
-            preferences={editorPreferences}
-            onSpecChange={setSpec}
-            onShowShortcuts={() => setShowShortcuts(true)}
-            onSave={handleSave}
-            onImport={handleImport}
-            onExport={handleExport}
-            onFormat={handleFormat}
-            canUndo={canUndo}
-            canRedo={canRedo}
-            onUndo={handleUndo}
-            onRedo={handleRedo}
-            selectedPath={selectedPath}
-            onPathSelect={handlePathSelect}
-            cursorPosition={cursorPosition}
-            documentInfo={documentInfo}
-            errorCount={errorCount}
-            warningCount={warningCount}
-            onPanelCollapse={handlePanelCollapse}
-          />
-        ) : activeItem === 'explorer' ? (
-          <div className="h-full flex items-center justify-center">
-            <p className="text-gray-500">API Explorer (Em desenvolvimento)</p>
-          </div>
-        ) : activeItem === 'history' ? (
-          <div className="h-full flex items-center justify-center">
-            <p className="text-gray-500">History View (Em desenvolvimento)</p>
-          </div>
-        ) : activeItem === 'team' ? (
-          <div className="h-full flex items-center justify-center">
-            <p className="text-gray-500">Team Management (Em desenvolvimento)</p>
-          </div>
-        ) : activeItem === 'branches' ? (
-          <div className="h-full flex items-center justify-center">
-            <p className="text-gray-500">Branch Management (Em desenvolvimento)</p>
-          </div>
-        ) : activeItem === 'sharing' ? (
-          <div className="h-full flex items-center justify-center">
-            <p className="text-gray-500">Sharing Options (Em desenvolvimento)</p>
-          </div>
-        ) : (
-          <div className="h-full flex items-center justify-center">
-            <p className="text-gray-500">Documentation (Em desenvolvimento)</p>
-          </div>
-        )}
-
-        {/* Keyboard Shortcuts Modal */}
-        {showShortcuts && (
-          <KeyboardShortcuts
-            darkMode={darkMode}
-            onClose={() => setShowShortcuts(false)}
-          />
-        )}
-      </MainLayout>
-    </>
+        warningCount={warningCount}
+        onPanelCollapse={handlePanelCollapse}
+      />
+      {showShortcuts && (
+        <KeyboardShortcuts
+          darkMode={darkMode}
+          onClose={() => setShowShortcuts(false)}
+        />
+      )}
+    </MainLayout>
   );
 }
