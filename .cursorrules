@@ -1,358 +1,180 @@
-# STRUCTURE.md
+# Swagger Editor UI Generator
 
-## File Information [P0]
+## Technology Guidelines
 
-Location: `./STRUCTURE.md`
-Purpose: Central source of truth for project structure and code generation guidelines
-Priority: P0 (Critical)
-Project: Plexure Editor
+### Development
 
-### File Usage
-This file must be:
-- Named exactly as "STRUCTURE.md"
-- Located in the project root directory
-- Referenced as the single source of truth for project structure
-- Maintained with each project modification
+1. Use **Vite** for web servers and project scaffolding.
+2. Prefer **Node.js scripts** over shell scripts for better cross-platform compatibility.
+3. Utilize JavaScript-based libraries and databases (e.g., SQLite, `@supabase/supabase-js`) only when necessary and justified.
+4. Validate all structural changes against the predefined structure file (`STRUCTURE.md`) before generating or modifying code. Use automated scripts or CI/CD pipelines to ensure that the project structure complies with the defined standards, minimizing manual intervention and reducing errors.
+5. Do not create or use unnecessary dependencies, libraries, or files. Verify their necessity before including them in the project.
+6. All code, instructions, and documentation generated must be in **English**, ensuring consistency and readability across the project.
 
-## Component Registry [P0]
+### UI and Design
 
-### Current Registry
-```yaml
-registered_components:
-  preview:
-    path: components/preview
-    purpose: "Editor preview component handling Monaco editor integration"
-    files:
-      - name: index.tsx
-        purpose: "Public exports and type definitions"
-      - name: preview.tsx
-        purpose: "Main preview component implementation"
-        dependencies:
-          - monaco-editor
-          - EditorToolbar
-          - ErrorPanel
-      - name: preview.test.tsx
-        purpose: "Test suite for preview component"
-    subcomponents:
-      - PreviewHeader
-      - PreviewContent
-      - PreviewFooter
-    related_components:
-      - EditorToolbar
-      - ErrorPanel
-    consumers:
-      - Editor.tsx
-      - ProjectView.tsx
+1. Use **React + TypeScript** with **Tailwind CSS** for styling.
+2. Incorporate `lucide-react` for icons and graphical elements only when needed.
+3. Ensure designs are:
+   - **Responsive**
+   - **Accessible**, meeting **WCAG standards**
+   - **Mobile-first**
+4. Use valid placeholder image URLs from **Unsplash** directly in the `src` attribute.
+5. Reuse existing styles and components to maintain consistency and avoid duplication. During development, first check the `src/components/` directory for existing solutions that meet your requirements. If creating a new component is unavoidable, ensure it is modular, adheres to existing design patterns, and follows the established naming conventions. For example, instead of creating duplicate button styles, extend the existing `Button` component by passing additional props to handle unique scenarios.
 
-  projects:
-    path: components/projects
-    purpose: "Project management and visualization components"
-    files:
-      # [Add actual project files structure]
+### Project Structure
 
-  editor:
-    path: components/editor
-    purpose: "Main editor functionality"
-    files:
-      - name: Editor.tsx
-        purpose: "Core editor component"
-        dependencies:
-          - monaco-editor
-          - EditorToolbar
-      - name: EditorToolbar.tsx
-        purpose: "Editor controls and actions"
-    
-  # [Add all other existing components with similar detail]
+#### Directory Structure [P0]
+
+```
+src/
+├── components/          # Reusable components
+│   ├── ui/              # Basic UI components
+│   ├── forms/           # Form-specific components
+│   └── navigation/      # Navigation components
+├── features/            # Application-specific features
+│   ├── feature_name/    # Feature-specific directories
+│   │   ├── hooks/       # Feature hooks
+│   │   └── utils/       # Feature utilities
+├── views/               # Application pages
+│   ├── PageName/        # Page-specific directories
+│   │   ├── index.tsx    # Page composition
+│   │   └── sections/    # Page sections
+└── utils/               # General-purpose utilities
 ```
 
-## Directory Structure [P0]
+#### Guidelines
 
-### Root Structure
-```
-project-root/
-├── src/
-│   ├── components/        # React components
-│   │   ├── editor/       # Editor components
-│   │   │   ├── Editor.tsx
-│   │   │   └── EditorToolbar.tsx
-│   │   ├── preview/      # Preview components
-│   │   │   └── Preview.tsx
-│   │   └── ui/          # Shared UI
-│   ├── hooks/           # React hooks
-│   ├── utils/           # Utilities
-│   └── stores/          # State management
-├── STRUCTURE.md         # This file
-└── package.json
-```
+1. **Components (********`src/components/`********)**
 
-### Component Structure
-```yaml
-component_structure:
-  required_files:
-    - index.tsx          # Public API
-    - {Component}.tsx    # Implementation
-    - types.ts          # Type definitions
-    - test.tsx          # Tests
-  
-  optional_files:
-    - styles.ts         # Component styles
-    - utils.ts         # Component utilities
-    - constants.ts     # Component constants
-```
+   - Reusable and independent.
+   - Grouped by domain (`ui`, `forms`, `navigation`).
+   - Flat structure, no nested `components` subfolders.
 
-## Implementation Rules [P0]
+2. **Features (********`src/features/`********)**
 
-### Component Generation Steps
-```typescript
-interface ComponentGeneration {
-  /** @generation_steps
-   * @required: true
-   */
-  steps: {
-    1: "Check ComponentRegistry";
-    2: "Validate Location";
-    3: "Check Dependencies";
-    4: "Generate Files";
-    5: "Update Registry";
-  }
-}
-```
+   - Encapsulate specific application logic.
+   - May include `hooks` and `utils` specific to the feature.
 
-### Location Validation
-```yaml
-location_validation:
-  steps:
-    - check_registry:
-        purpose: "Prevent duplicates"
-        action: "Compare with existing"
-    
-    - validate_path:
-        purpose: "Ensure correct location"
-        action: "Verify directory structure"
-    
-    - check_dependencies:
-        purpose: "Validate relationships"
-        action: "Verify imports"
-```
+3. **Views (********`src/views/`********)**
 
-## Real-Time Validation [P0]
+   - Organize by pages.
+   - Use `sections/` for complex page layouts.
 
-### Integration Checks
-```yaml
-integration_checks:
-  dependencies:
-    - validate_imports:
-        check: "Import paths exist"
-        action: "Report invalid imports"
-    
-    - check_circular:
-        check: "Circular dependencies"
-        action: "Prevent cycles"
-  
-  components:
-    - validate_props:
-        check: "Prop types match"
-        action: "Report mismatches"
-    
-    - check_context:
-        check: "Context usage"
-        action: "Verify providers"
-```
+#### Principles [P0]
 
-## Component Composition [P0]
+1. **Simplicity**
 
-### Patterns
-```yaml
-composition_patterns:
-  atomic:
-    atoms:
-      path: "components/ui"
-      examples: ["Button", "Input"]
-    
-    molecules:
-      path: "components/ui"
-      examples: ["Form", "Card"]
-    
-    organisms:
-      path: "components/features"
-      examples: ["Header", "Sidebar"]
+   - Prefer flat structures.
+   - Avoid deep nesting.
+   - Use clear, descriptive names.
+
+2. **Organization**
+
+   - Components by domain.
+   - Features by functionality.
+   - Views by page.
+
+3. **Reusability**
+
+   - Build reusable components.
+   - Encapsulate logic in features.
+   - Compose views using existing elements.
+
+#### Anti-Patterns [P0]
+
+❌ **Avoid**
+
+- Deeply nested directories.
+- Unnecessary subfolders.
+- Mixing unrelated responsibilities.
+
+✅ **Prefer**
+
+- Clear separation of concerns.
+- Descriptive and specific naming.
+- Maintaining consistency with the `project-structure.yaml`.
+
+### Response Standards
+
+#### Format
+
+1. Provide responses in **valid markdown**.
+2. Avoid HTML unless necessary for specific styling or layout (e.g., `<div>`, `<code>`).
+3. All content, including comments, should be written in **English**.
+
+#### Quality
+
+1. Ensure code is **production-ready**, polished, and professional.
+2. Deliver solutions that are functional, unique, and visually appealing.
+3. Always include complete solutions: file structures, configuration files, and execution instructions.
+
+#### Artifacts
+
+1. Each response must include:
+   - All necessary files (e.g., JSX, CSS, configuration).
+   - A step-by-step guide to install and execute the solution.
+   - Dependencies managed via `package.json`.
+
+### Best Practices
+
+#### Code
+
+1. Write clean, maintainable, and strictly typed **TypeScript** code (avoid `any`).
+2. Use `React.FC` for functional components with well-defined props.
+3. Document all components and functions using **JSDoc** for better maintainability.
+4. Ensure code adheres to the **project structure file** guidelines.
+5. Reuse existing components and utilities. Do not create new components, utilities, or logic without verifying the absence of an existing solution.
+
+#### Performance
+
+1. Use memoization techniques (`React.memo`, `useMemo`, `useCallback`) to reduce unnecessary re-renders. Memoization is particularly beneficial in scenarios where components depend on complex computations, reusable callback functions, or static props in large lists or frequent re-rendering contexts, such as rendering table rows or dynamically updating forms.
+2. Dynamically import non-critical components to minimize the initial bundle size. For example, use React's `lazy` and `Suspense`:
+
+```tsx
+import React, { Suspense } from 'react';
+
+const LazyComponent = React.lazy(() => import('./LazyComponent'));
+
+const App = () => (
+  <Suspense fallback={<div>Loading...</div>}>
+    <LazyComponent />
+  </Suspense>
+);
+
+export default App;
 ```
 
-### Feature Integration
-```yaml
-feature_integration:
-  rules:
-    - validate_boundaries:
-        check: "Feature isolation"
-        action: "Prevent coupling"
-    
-    - check_dependencies:
-        check: "Feature dependencies"
-        action: "Manage relationships"
-```
+3. Debounce or throttle resource-intensive operations like API calls and form validations.
 
-## State Management [P0]
+### Next Steps / Improvements
 
-### Store Structure
-```typescript
-interface StoreStructure {
-  /** @store_rules
-   * @framework: zustand
-   */
-  stores: {
-    name: string;
-    state: StateDefinition;
-    actions: ActionDefinition[];
-  }
-}
-```
+#### Continuous Improvement
 
-### Context Management
-```yaml
-context_management:
-  rules:
-    - provider_location:
-        path: "src/providers"
-        naming: "{Feature}Provider"
-    
-    - context_usage:
-        validation: "Check provider existence"
-        scope: "Verify context boundaries"
-```
+1. After completing a feature or implementation, provide recommendations for future improvements or extensions:
+   - Adding new components, pages, or features that enhance user experience.
+   - Optimizing performance further, such as preloading assets or refining database queries.
+   - Enhancing documentation for developers and end-users.
 
-## Version Control [P0]
+#### Maintainability and Evolution
 
-### Component Versioning
-```yaml
-version_control:
-  tracking:
-    major:
-      - breaking_changes
-      - api_modifications
-    
-    minor:
-      - new_features
-      - enhancements
-    
-    patch:
-      - bug_fixes
-      - performance_improvements
-```
+1. Refactor repetitive code into reusable utilities or components.
+2. Adopt emerging technologies that align with the project (e.g., new React features, AI-driven enhancements).
+3. Validate and document all significant architectural changes.
 
-### Change Management
-```yaml
-change_management:
-  documentation:
-    - location: "with_component"
-    - format: "changelog.md"
-    - required: true
-  
-  validation:
-    - check_breaking_changes
-    - update_consumers
-    - verify_integration
-```
+#### Scalability
 
-## Documentation Requirements [P0]
+1. Recommendations for handling larger datasets or traffic spikes.
+2. Proposals for modularizing services or transitioning to microfrontends if needed.
+3. Use the `project-structure.yaml` file as a blueprint for scaling architecture and ensuring consistency in multi-team environments.
 
-### Component Documentation
-```typescript
-interface Documentation {
-  /** @documentation_rules
-   * @required: true
-   */
-  sections: {
-    purpose: string;
-    props: PropDefinition[];
-    usage: Example[];
-    dependencies: string[];
-  }
-}
-```
+## Expected Output
 
-### Code Examples
-```yaml
-example_requirements:
-  basic_usage:
-    - purpose: "Show default usage"
-    - code: "Working example"
-  
-  variations:
-    - purpose: "Show component variants"
-    - code: "Different prop combinations"
-```
+By following this prompt, all generated solutions will:
 
-## Error Prevention [P0]
+1. Adhere to modern web development standards and best practices.
+2. Be production-ready, visually appealing, and fully functional.
+3. Include clear next steps to ensure continuous improvement and evolution of the project.
+4. Avoid unnecessary libraries, files, and dependencies to keep the project lean and maintainable.
+5. Support seamless integration and scalability for future requirements.
 
-### Common Issues
-```yaml
-error_prevention:
-  checks:
-    - duplicate_components:
-        detection: "Registry scan"
-        action: "Prevent creation"
-    
-    - wrong_location:
-        detection: "Path validation"
-        action: "Suggest correct path"
-    
-    - missing_files:
-        detection: "Template check"
-        action: "Generate missing"
-```
-
-### Resolution Steps
-```yaml
-resolution_steps:
-  duplicate:
-    1: "Identify existing component"
-    2: "Suggest reuse/extension"
-    3: "Document decision"
-  
-  wrong_location:
-    1: "Determine correct location"
-    2: "Move component"
-    3: "Update imports"
-```
-
-## Generation Response Format [P0]
-
-### Response Structure
-```typescript
-interface GenerationResponse {
-  /** @response_format
-   * @version: string
-   */
-  metadata: {
-    request_id: string;
-    status: 'success' | 'error' | 'warning';
-    messages: string[];
-  };
-  
-  implementation?: {
-    files: {
-      path: string;
-      content: string;
-      type: 'component' | 'type' | 'test';
-    }[];
-  };
-  
-  validation: {
-    passed: boolean;
-    issues: Issue[];
-    suggestions: string[];
-  };
-}
-```
-
-## Summary
-
-This document:
-1. Maintains accurate component registry
-2. Prevents component duplication
-3. Enforces consistent structure
-4. Ensures proper documentation
-5. Validates implementations
-6. Manages versioning
-
-All code generation must strictly follow these guidelines.
