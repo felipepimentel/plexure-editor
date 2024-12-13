@@ -11,7 +11,9 @@
     "db:setup": "bash scripts/setup-db.sh",
     "db:reset": "PGPASSWORD=$SUPABASE_DB_PASSWORD supabase db reset",
     "db:push": "PGPASSWORD=$SUPABASE_DB_PASSWORD supabase db push",
-    "db:seed": "for f in supabase/seed/*.sql; do PGPASSWORD=$SUPABASE_DB_PASSWORD psql $DATABASE_URL -f $f; done"
+    "db:seed": "for f in supabase/seed/*.sql; do PGPASSWORD=$SUPABASE_DB_PASSWORD psql $DATABASE_URL -f $f; done",
+    "storybook": "storybook dev -p 6006",
+    "build-storybook": "storybook build"
   },
   "dependencies": {
     "@monaco-editor/react": "^4.6.0",
@@ -32,6 +34,14 @@
   },
   "devDependencies": {
     "@eslint/js": "9.16.0",
+    "@storybook/addon-essentials": "^8.4.7",
+    "@storybook/addon-interactions": "^8.4.7",
+    "@storybook/addon-links": "^8.4.7",
+    "@storybook/blocks": "^8.4.7",
+    "@storybook/builder-vite": "^8.4.7",
+    "@storybook/react": "^8.4.7",
+    "@storybook/react-vite": "^8.4.7",
+    "@storybook/testing-library": "^0.2.1",
     "@types/react": "^18.3.5",
     "@types/react-dom": "^18.3.0",
     "@types/uuid": "10.0.0",
@@ -42,6 +52,7 @@
     "eslint-plugin-react-refresh": "0.4.16",
     "globals": "15.13.0",
     "postcss": "8.4.49",
+    "storybook": "^8.4.7",
     "tailwindcss": "3.4.16",
     "typescript": "5.7.2",
     "typescript-eslint": "8.18.0",

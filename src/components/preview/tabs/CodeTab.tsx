@@ -1,1 +1,0 @@
-// Exemplos de código em várias linguagens 

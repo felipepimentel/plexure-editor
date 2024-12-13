@@ -1,1 +1,0 @@
-// Componente para mostrar exemplos de request/response 
