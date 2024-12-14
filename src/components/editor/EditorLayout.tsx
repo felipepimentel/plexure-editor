@@ -1,14 +1,26 @@
-import React, { useRef, useEffect, useState } from 'react';
+import React, { useRef, useEffect, useState, useCallback } from 'react';
 import Editor, { Monaco } from '@monaco-editor/react';
 import * as monaco from 'monaco-editor';
 import { EditorPreferences } from '@/types/preferences';
 import { SwaggerPreview } from '../preview/SwaggerPreview';
-import { Grip, Maximize2, Minimize2, Code, Eye, PanelRightClose, PanelRightOpen, PanelLeftClose, PanelLeftOpen } from 'lucide-react';
+import { 
+  Grip, 
+  Maximize2, 
+  Minimize2, 
+  Code, 
+  Eye, 
+  ArrowLeft, 
+  ArrowRight,
+  ChevronLeft,
+  ChevronRight,
+  LayoutTemplate,
+  Copy,
+  Check
+} from 'lucide-react';
 import { useOpenAPIEditor } from './hooks/useOpenAPIEditor';
 import { EditorToolbar } from '../toolbar/EditorToolbar';
-import { ActivityBar, ActivityType } from '../navigation/ActivityBar';
-import { SidebarManager } from '../navigation/SidebarManager';
-import { RightSidebarManager } from '../sidebar/RightSidebarManager';
+import { Tooltip } from '../ui/Tooltip';
+import { useKeyboardShortcuts } from '@/contexts/KeyboardShortcutsContext';
 
 interface EditorLayoutProps {
   content: string;
@@ -16,15 +28,23 @@ interface EditorLayoutProps {
   preferences: EditorPreferences;
 }
 
+const LAYOUT_PRESETS = {
+  EDITOR_FOCUSED: 70,
+  PREVIEW_FOCUSED: 30,
+  BALANCED: 50
+};
+
 export function EditorLayout({ content, onChange, preferences }: EditorLayoutProps) {
   const editorRef = useRef<monaco.editor.IStandaloneCodeEditor | null>(null);
-  const [splitPosition, setSplitPosition] = useState(50); // percentage
+  const [splitPosition, setSplitPosition] = useState(LAYOUT_PRESETS.BALANCED);
   const [isDragging, setIsDragging] = useState(false);
   const [isEditorMaximized, setIsEditorMaximized] = useState(false);
   const [isPreviewMaximized, setIsPreviewMaximized] = useState(false);
-  const [isLeftSidebarCollapsed, setIsLeftSidebarCollapsed] = useState(false);
-  const [isRightSidebarCollapsed, setIsRightSidebarCollapsed] = useState(false);
-  const [currentActivity, setCurrentActivity] = useState<ActivityType>('explorer');
+  const [isEditorFocused, setIsEditorFocused] = useState(false);
+  const [isPreviewFocused, setIsPreviewFocused] = useState(false);
+  const [isCopied, setIsCopied] = useState(false);
+  const { registerShortcut } = useKeyboardShortcuts();
+  const lastCursorPosition = useRef<monaco.Position | null>(null);
 
   const handleEditorDidMount = (editor: monaco.editor.IStandaloneCodeEditor, monaco: Monaco) => {
     editorRef.current = editor;
@@ -78,34 +98,69 @@ export function EditorLayout({ content, onChange, preferences }: EditorLayoutPro
         snippetsPreventQuickSuggestions: false,
         showIcons: true,
         maxVisibleSuggestions: 12,
-        showMethods: true,
-        showFunctions: true,
-        showConstructors: true,
-        showFields: true,
-        showVariables: true,
-        showClasses: true,
-        showStructs: true,
-        showInterfaces: true,
-        showModules: true,
-        showProperties: true,
-        showEvents: true,
-        showOperators: true,
-        showUnits: true,
-        showValues: true,
-        showConstants: true,
-        showEnums: true,
-        showEnumMembers: true,
-        showKeywords: true,
-        showWords: true,
-        showColors: true,
-        showFiles: true,
-        showReferences: true,
-        showFolders: true,
-        showTypeParameters: true,
-        showSnippets: true,
       },
     });
+
+    // Add focus listeners
+    editor.onDidFocusEditorWidget(() => setIsEditorFocused(true));
+    editor.onDidBlurEditorWidget(() => setIsEditorFocused(false));
+
+    // Track cursor position
+    editor.onDidChangeCursorPosition(e => {
+      lastCursorPosition.current = e.position;
+    });
   };
+
+  // Register keyboard shortcuts
+  useEffect(() => {
+    const shortcuts = [
+      {
+        key: '⌘+Shift+[',
+        description: 'Focus editor',
+        action: () => {
+          setIsEditorMaximized(true);
+          setIsPreviewMaximized(false);
+        }
+      },
+      {
+        key: '⌘+Shift+]',
+        description: 'Focus preview',
+        action: () => {
+          setIsPreviewMaximized(true);
+          setIsEditorMaximized(false);
+        }
+      },
+      {
+        key: '⌘+Shift+\\',
+        description: 'Reset split view',
+        action: () => {
+          setIsEditorMaximized(false);
+          setIsPreviewMaximized(false);
+          setSplitPosition(LAYOUT_PRESETS.BALANCED);
+        }
+      },
+      {
+        key: '⌘+Alt+[',
+        description: 'Editor focused split',
+        action: () => {
+          setIsEditorMaximized(false);
+          setIsPreviewMaximized(false);
+          setSplitPosition(LAYOUT_PRESETS.EDITOR_FOCUSED);
+        }
+      },
+      {
+        key: '⌘+Alt+]',
+        description: 'Preview focused split',
+        action: () => {
+          setIsEditorMaximized(false);
+          setIsPreviewMaximized(false);
+          setSplitPosition(LAYOUT_PRESETS.PREVIEW_FOCUSED);
+        }
+      }
+    ];
+
+    shortcuts.forEach(shortcut => registerShortcut(shortcut));
+  }, [registerShortcut]);
 
   // Use OpenAPI editor features
   useOpenAPIEditor(editorRef.current);
@@ -155,162 +210,214 @@ export function EditorLayout({ content, onChange, preferences }: EditorLayoutPro
   const handleFormat = (formattedContent: string) => {
     onChange(formattedContent);
     if (editorRef.current) {
+      const position = lastCursorPosition.current;
       editorRef.current.setValue(formattedContent);
+      if (position) {
+        editorRef.current.setPosition(position);
+        editorRef.current.revealPositionInCenter(position);
+      }
     }
   };
 
+  const copyContent = async () => {
+    try {
+      await navigator.clipboard.writeText(content);
+      setIsCopied(true);
+      setTimeout(() => setIsCopied(false), 2000);
+    } catch (err) {
+      console.error('Failed to copy:', err);
+    }
+  };
+
+  const resetLayout = useCallback(() => {
+    setIsEditorMaximized(false);
+    setIsPreviewMaximized(false);
+    setSplitPosition(LAYOUT_PRESETS.BALANCED);
+  }, []);
+
   return (
-    <div className="h-full flex">
-      {/* Activity Bar */}
-      <ActivityBar 
-        currentActivity={currentActivity}
-        onActivityChange={setCurrentActivity}
+    <div className="h-full flex flex-col">
+      <EditorToolbar 
+        content={content} 
+        onSave={onChange}
+        onFormat={handleFormat}
       />
+      
+      <div id="split-container" className="flex-1 flex relative">
+        {/* Layout Controls */}
+        <div className="absolute top-2 left-1/2 -translate-x-1/2 z-20 flex items-center gap-1 px-1 py-0.5 bg-gray-800/90 rounded-full backdrop-blur-sm">
+          <Tooltip content="Editor Focused (⌘+Alt+[)">
+            <button
+              onClick={() => setSplitPosition(LAYOUT_PRESETS.EDITOR_FOCUSED)}
+              className={`p-1 rounded-full hover:bg-gray-700/80 ${
+                splitPosition === LAYOUT_PRESETS.EDITOR_FOCUSED ? 'bg-gray-700/80 text-white' : 'text-gray-400'
+              }`}
+            >
+              <ChevronLeft className="w-3 h-3" />
+            </button>
+          </Tooltip>
+          <Tooltip content="Reset Split (⌘+Shift+\)">
+            <button
+              onClick={resetLayout}
+              className="p-1 rounded-full hover:bg-gray-700/80 text-gray-400"
+            >
+              <LayoutTemplate className="w-3 h-3" />
+            </button>
+          </Tooltip>
+          <Tooltip content="Preview Focused (⌘+Alt+])">
+            <button
+              onClick={() => setSplitPosition(LAYOUT_PRESETS.PREVIEW_FOCUSED)}
+              className={`p-1 rounded-full hover:bg-gray-700/80 ${
+                splitPosition === LAYOUT_PRESETS.PREVIEW_FOCUSED ? 'bg-gray-700/80 text-white' : 'text-gray-400'
+              }`}
+            >
+              <ChevronRight className="w-3 h-3" />
+            </button>
+          </Tooltip>
+        </div>
 
-      {/* Left Sidebar */}
-      <div className="relative">
-        <SidebarManager
-          activity={currentActivity}
-          content={content}
-          onNavigate={() => {}}
-          isCollapsed={isLeftSidebarCollapsed}
-        />
-        
-        <button
-          onClick={() => setIsLeftSidebarCollapsed(!isLeftSidebarCollapsed)}
-          className="absolute right-0 top-1/2 transform -translate-y-1/2 translate-x-1/2 z-20 p-1 bg-gray-800 text-gray-400 hover:text-white rounded-md"
-          title={isLeftSidebarCollapsed ? "Show sidebar" : "Hide sidebar"}
+        {/* Editor Panel */}
+        <div 
+          className={`h-full overflow-hidden transition-all duration-300 ease-in-out ${
+            isPreviewMaximized ? 'w-0 opacity-0' :
+            isEditorMaximized ? 'w-full' :
+            'w-[50%]'
+          }`}
+          style={{ 
+            width: !isEditorMaximized && !isPreviewMaximized ? `${splitPosition}%` : undefined 
+          }}
         >
-          {isLeftSidebarCollapsed ? (
-            <PanelLeftOpen className="w-4 h-4" />
-          ) : (
-            <PanelLeftClose className="w-4 h-4" />
-          )}
-        </button>
-      </div>
-
-      {/* Main Content */}
-      <div className="flex-1 flex flex-col">
-        <EditorToolbar 
-          content={content} 
-          onSave={onChange}
-          onFormat={handleFormat}
-        />
-        
-        <div id="split-container" className="flex-1 flex relative">
-          <div 
-            className={`h-full overflow-hidden transition-all duration-300 ${
-              isPreviewMaximized ? 'w-0' :
-              isEditorMaximized ? 'w-full' :
-              'w-[50%]'
-            }`}
-            style={{ 
-              width: !isEditorMaximized && !isPreviewMaximized ? `${splitPosition}%` : undefined 
-            }}
-          >
-            <div className="h-full relative">
-              <div className="absolute top-2 right-2 z-10 flex items-center gap-2">
+          <div className={`h-full relative transition-colors duration-300 ${
+            isEditorFocused ? 'ring-1 ring-blue-500/20' : ''
+          }`}>
+            <div className="absolute top-2 right-2 z-10 flex items-center gap-1">
+              <Tooltip content="Copy Content">
                 <button
-                  onClick={toggleEditorMaximize}
+                  onClick={copyContent}
                   className="p-1.5 rounded-md bg-gray-800/80 hover:bg-gray-700/80 text-gray-400 hover:text-white transition-colors"
-                  title={isEditorMaximized ? "Minimize editor" : "Maximize editor"}
                 >
-                  {isEditorMaximized ? (
-                    <Minimize2 className="w-4 h-4" />
+                  {isCopied ? (
+                    <Check className="w-4 h-4 text-green-400" />
                   ) : (
-                    <Maximize2 className="w-4 h-4" />
+                    <Copy className="w-4 h-4" />
                   )}
                 </button>
+              </Tooltip>
+              {!isPreviewMaximized && (
+                <Tooltip content={isEditorMaximized ? "Exit Full Screen (⌘+Shift+[)" : "Full Screen Editor (⌘+Shift+[)"}>
+                  <button
+                    onClick={toggleEditorMaximize}
+                    className="p-1.5 rounded-md bg-gray-800/80 hover:bg-gray-700/80 text-gray-400 hover:text-white transition-colors"
+                  >
+                    {isEditorMaximized ? (
+                      <Minimize2 className="w-4 h-4" />
+                    ) : (
+                      <Maximize2 className="w-4 h-4" />
+                    )}
+                  </button>
+                </Tooltip>
+              )}
+              {isPreviewMaximized && (
+                <Tooltip content="Show Editor">
+                  <button
+                    onClick={() => setIsPreviewMaximized(false)}
+                    className="p-1.5 rounded-md bg-gray-800/80 hover:bg-gray-700/80 text-gray-400 hover:text-white transition-colors"
+                  >
+                    <ArrowLeft className="w-4 h-4" />
+                  </button>
+                </Tooltip>
+              )}
+            </div>
+            <div className="absolute top-2 left-2 z-10">
+              <div className="flex items-center gap-2 px-2 py-1 rounded-md bg-gray-800/80 text-gray-400">
+                <Code className="w-4 h-4" />
+                <span className="text-xs">YAML Editor</span>
               </div>
-              <div className="absolute top-2 left-2 z-10">
-                <div className="flex items-center gap-2 px-2 py-1 rounded-md bg-gray-800/80 text-gray-400">
-                  <Code className="w-4 h-4" />
-                  <span className="text-xs">YAML Editor</span>
-                </div>
-              </div>
-              <Editor
-                height="100%"
-                defaultLanguage="yaml"
-                defaultValue={content}
-                theme={preferences.theme}
-                onChange={(value) => onChange(value || '')}
-                onMount={handleEditorDidMount}
-                options={{
-                  automaticLayout: true,
-                }}
-                className="rounded-lg overflow-hidden"
-              />
+            </div>
+            <Editor
+              height="100%"
+              defaultLanguage="yaml"
+              defaultValue={content}
+              theme={preferences.theme}
+              onChange={(value) => onChange(value || '')}
+              onMount={handleEditorDidMount}
+              options={{
+                automaticLayout: true,
+              }}
+              className="rounded-lg overflow-hidden"
+            />
+          </div>
+        </div>
+        
+        {/* Resizer */}
+        {!isEditorMaximized && !isPreviewMaximized && (
+          <div
+            className={`w-1 h-full bg-gray-800 hover:bg-blue-500 cursor-col-resize relative flex items-center justify-center group ${
+              isDragging ? 'bg-blue-500' : ''
+            }`}
+            onMouseDown={handleMouseDown}
+          >
+            <div className="absolute p-1 rounded bg-gray-800 group-hover:bg-blue-500">
+              <Grip className="w-4 h-4 text-gray-400 group-hover:text-white" />
             </div>
           </div>
-          
-          {/* Resizer */}
-          {!isEditorMaximized && !isPreviewMaximized && (
-            <div
-              className={`w-1 h-full bg-gray-800 hover:bg-blue-500 cursor-col-resize relative flex items-center justify-center group ${
-                isDragging ? 'bg-blue-500' : ''
-              }`}
-              onMouseDown={handleMouseDown}
-            >
-              <div className="absolute p-1 rounded bg-gray-800 group-hover:bg-blue-500">
-                <Grip className="w-4 h-4 text-gray-400 group-hover:text-white" />
+        )}
+
+        {/* Preview Panel */}
+        <div 
+          className={`h-full overflow-hidden transition-all duration-300 ease-in-out ${
+            isEditorMaximized ? 'w-0 opacity-0' :
+            isPreviewMaximized ? 'w-full' :
+            'w-[50%]'
+          }`}
+          style={{ 
+            width: !isEditorMaximized && !isPreviewMaximized ? `${100 - splitPosition}%` : undefined 
+          }}
+        >
+          <div className={`h-full relative transition-colors duration-300 ${
+            isPreviewFocused ? 'ring-1 ring-blue-500/20' : ''
+          }`}>
+            <div className="absolute top-2 right-2 z-10 flex items-center gap-1">
+              {!isEditorMaximized && (
+                <Tooltip content={isPreviewMaximized ? "Exit Full Screen (⌘+Shift+])" : "Full Screen Preview (⌘+Shift+])"}>
+                  <button
+                    onClick={togglePreviewMaximize}
+                    className="p-1.5 rounded-md bg-gray-800/80 hover:bg-gray-700/80 text-gray-400 hover:text-white transition-colors"
+                  >
+                    {isPreviewMaximized ? (
+                      <Minimize2 className="w-4 h-4" />
+                    ) : (
+                      <Maximize2 className="w-4 h-4" />
+                    )}
+                  </button>
+                </Tooltip>
+              )}
+              {isEditorMaximized && (
+                <Tooltip content="Show Preview">
+                  <button
+                    onClick={() => setIsEditorMaximized(false)}
+                    className="p-1.5 rounded-md bg-gray-800/80 hover:bg-gray-700/80 text-gray-400 hover:text-white transition-colors"
+                  >
+                    <ArrowRight className="w-4 h-4" />
+                  </button>
+                </Tooltip>
+              )}
+            </div>
+            <div className="absolute top-2 left-2 z-10">
+              <div className="flex items-center gap-2 px-2 py-1 rounded-md bg-gray-800/80 text-gray-400">
+                <Eye className="w-4 h-4" />
+                <span className="text-xs">Preview</span>
               </div>
             </div>
-          )}
-
-          <div 
-            className={`h-full overflow-hidden transition-all duration-300 ${
-              isEditorMaximized ? 'w-0' :
-              isPreviewMaximized ? 'w-full' :
-              'w-[50%]'
-            }`}
-            style={{ 
-              width: !isEditorMaximized && !isPreviewMaximized ? `${100 - splitPosition}%` : undefined 
-            }}
-          >
-            <div className="h-full relative">
-              <div className="absolute top-2 right-2 z-10 flex items-center gap-2">
-                <button
-                  onClick={togglePreviewMaximize}
-                  className="p-1.5 rounded-md bg-gray-800/80 hover:bg-gray-700/80 text-gray-400 hover:text-white transition-colors"
-                  title={isPreviewMaximized ? "Minimize preview" : "Maximize preview"}
-                >
-                  {isPreviewMaximized ? (
-                    <Minimize2 className="w-4 h-4" />
-                  ) : (
-                    <Maximize2 className="w-4 h-4" />
-                  )}
-                </button>
-              </div>
-              <div className="absolute top-2 left-2 z-10">
-                <div className="flex items-center gap-2 px-2 py-1 rounded-md bg-gray-800/80 text-gray-400">
-                  <Eye className="w-4 h-4" />
-                  <span className="text-xs">Preview</span>
-                </div>
-              </div>
+            <div 
+              className="h-full"
+              onMouseEnter={() => setIsPreviewFocused(true)}
+              onMouseLeave={() => setIsPreviewFocused(false)}
+            >
               <SwaggerPreview content={content} />
             </div>
           </div>
         </div>
-      </div>
-
-      {/* Right Sidebar */}
-      <div className="relative">
-        <RightSidebarManager
-          content={content}
-          isCollapsed={isRightSidebarCollapsed}
-        />
-        
-        <button
-          onClick={() => setIsRightSidebarCollapsed(!isRightSidebarCollapsed)}
-          className="absolute left-0 top-1/2 transform -translate-y-1/2 -translate-x-1/2 z-20 p-1 bg-gray-800 text-gray-400 hover:text-white rounded-md"
-          title={isRightSidebarCollapsed ? "Show documentation" : "Hide documentation"}
-        >
-          {isRightSidebarCollapsed ? (
-            <PanelRightOpen className="w-4 h-4" />
-          ) : (
-            <PanelRightClose className="w-4 h-4" />
-          )}
-        </button>
       </div>
     </div>
   );

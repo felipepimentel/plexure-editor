@@ -1,4 +1,4 @@
-import React from 'react';
+import React, { useState } from 'react';
 import { FileText, HelpCircle, Settings } from 'lucide-react';
 import { RightSidebar } from './RightSidebar';
 import { cn } from '@/lib/utils';
@@ -11,7 +11,7 @@ interface RightSidebarManagerProps {
 }
 
 export function RightSidebarManager({ content, isCollapsed }: RightSidebarManagerProps) {
-  const [currentView, setCurrentView] = React.useState<RightViewType>('documentation');
+  const [currentView, setCurrentView] = useState<RightViewType>('documentation');
 
   const views = [
     { id: 'documentation', icon: HelpCircle, label: 'Documentation' },
@@ -20,6 +20,8 @@ export function RightSidebarManager({ content, isCollapsed }: RightSidebarManage
   ] as const;
 
   const renderContent = () => {
+    if (isCollapsed) return null;
+
     switch (currentView) {
       case 'documentation':
         return <RightSidebar content={content} />;
@@ -43,7 +45,7 @@ export function RightSidebarManager({ content, isCollapsed }: RightSidebarManage
   };
 
   return (
-    <div className={`transition-all duration-300 ${isCollapsed ? 'w-0' : 'w-64'} overflow-hidden flex flex-col`}>
+    <div className="h-full flex flex-col">
       <div className="h-10 border-b border-gray-800 bg-gray-900/50 flex items-center px-2 gap-1">
         {views.map(({ id, icon: Icon, label }) => (
           <button

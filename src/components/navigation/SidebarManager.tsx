@@ -15,6 +15,8 @@ interface SidebarManagerProps {
 
 export function SidebarManager({ activity, content, onNavigate, isCollapsed }: SidebarManagerProps) {
   const renderContent = () => {
+    if (isCollapsed) return null;
+
     switch (activity) {
       case 'explorer':
         return <Explorer content={content} onNavigate={onNavigate} />;
@@ -32,7 +34,7 @@ export function SidebarManager({ activity, content, onNavigate, isCollapsed }: S
   };
 
   return (
-    <div className={`transition-all duration-300 ${isCollapsed ? 'w-0' : 'w-64'} overflow-hidden`}>
+    <div className="h-full overflow-hidden">
       {renderContent()}
     </div>
   );

@@ -1,80 +1,118 @@
-import React, { useState, useEffect } from 'react';
-import { GitBranch, Wifi, Clock, HardDrive, Zap, FileJson, Users } from 'lucide-react';
+import React from 'react';
+import { 
+  FileJson, 
+  GitBranch, 
+  Wifi, 
+  WifiOff,
+  Check,
+  AlertCircle,
+  Clock
+} from 'lucide-react';
 import { useTheme } from '@/contexts/ThemeContext';
-import { useAuth } from '@/contexts/AuthContext';
-import { Tooltip } from '@/components/ui/Tooltip';
 
-interface StatusBarProps {
-  className?: string;
-}
-
-export function StatusBar({ className = '' }: StatusBarProps) {
+export function StatusBar() {
   const { theme } = useTheme();
-  const { user } = useAuth();
-  const [time, setTime] = useState(new Date());
-  const [lastSaved, setLastSaved] = useState<Date | null>(null);
+  const [isOnline, setIsOnline] = React.useState(navigator.onLine);
+  const [lastSaved, setLastSaved] = React.useState<Date | null>(null);
+  const [validationStatus, setValidationStatus] = React.useState<'valid' | 'invalid' | 'checking'>('checking');
 
-  useEffect(() => {
-    const timer = setInterval(() => setTime(new Date()), 1000);
-    return () => clearInterval(timer);
+  // Monitor online status
+  React.useEffect(() => {
+    const handleOnline = () => setIsOnline(true);
+    const handleOffline = () => setIsOnline(false);
+
+    window.addEventListener('online', handleOnline);
+    window.addEventListener('offline', handleOffline);
+
+    return () => {
+      window.removeEventListener('online', handleOnline);
+      window.removeEventListener('offline', handleOffline);
+    };
   }, []);
 
-  const formatLastSaved = () => {
-    if (!lastSaved) return 'Not saved yet';
-    const diff = Math.floor((Date.now() - lastSaved.getTime()) / 1000);
-    if (diff < 60) return 'Just now';
-    if (diff < 3600) return `${Math.floor(diff / 60)}m ago`;
-    return `${Math.floor(diff / 3600)}h ago`;
-  };
-
   return (
-    <div className={`h-6 flex items-center justify-between px-4 text-xs bg-gray-900/90 text-gray-400 border-t border-white/[0.05] ${className}`}>
-      <div className="flex items-center space-x-4">
-        <Tooltip content="Current branch">
-          <div className="flex items-center gap-1">
-            <GitBranch className="w-3.5 h-3.5" />
-            <span>main</span>
-          </div>
-        </Tooltip>
-        <Tooltip content="Connection status">
-          <div className="flex items-center gap-1">
-            <Wifi className="w-3.5 h-3.5 text-emerald-400" />
-            <span className="text-emerald-400">Connected</span>
-          </div>
-        </Tooltip>
-        <Tooltip content="Last saved">
-          <div className="flex items-center gap-1">
-            <HardDrive className="w-3.5 h-3.5" />
-            <span>{formatLastSaved()}</span>
-          </div>
-        </Tooltip>
-      </div>
-      <div className="flex items-center space-x-4">
-        <Tooltip content="Current file">
-          <div className="flex items-center gap-1">
-            <FileJson className="w-3.5 h-3.5 text-blue-400" />
-            <span>swagger.yaml</span>
-          </div>
-        </Tooltip>
-        <Tooltip content="Active users">
-          <div className="flex items-center gap-1">
-            <Users className="w-3.5 h-3.5 text-purple-400" />
-            <span>2 online</span>
-          </div>
-        </Tooltip>
-        <Tooltip content="Editor status">
-          <div className="flex items-center gap-1">
-            <Zap className="w-3.5 h-3.5 text-amber-400" />
-            <span>Ready</span>
-          </div>
-        </Tooltip>
-        <Tooltip content="Current time">
-          <div className="flex items-center gap-1">
+    <div className="h-6 border-t border-gray-800 bg-gray-900/90 backdrop-blur-sm flex items-center px-3 text-xs text-gray-400">
+      <div className="flex-1 flex items-center gap-4">
+        {/* File Type */}
+        <div className="flex items-center gap-1.5">
+          <FileJson className="w-3.5 h-3.5" />
+          <span>OpenAPI (YAML)</span>
+        </div>
+
+        {/* Git Info */}
+        <div className="flex items-center gap-1.5">
+          <GitBranch className="w-3.5 h-3.5" />
+          <span>main</span>
+        </div>
+
+        {/* Validation Status */}
+        <div className="flex items-center gap-1.5">
+          {validationStatus === 'valid' && (
+            <>
+              <Check className="w-3.5 h-3.5 text-green-400" />
+              <span className="text-green-400">Valid OpenAPI Schema</span>
+            </>
+          )}
+          {validationStatus === 'invalid' && (
+            <>
+              <AlertCircle className="w-3.5 h-3.5 text-yellow-400" />
+              <span className="text-yellow-400">Schema Validation Issues</span>
+            </>
+          )}
+          {validationStatus === 'checking' && (
+            <>
+              <AlertCircle className="w-3.5 h-3.5 text-blue-400" />
+              <span className="text-blue-400">Checking Schema...</span>
+            </>
+          )}
+        </div>
+
+        {/* Last Saved */}
+        {lastSaved && (
+          <div className="flex items-center gap-1.5">
             <Clock className="w-3.5 h-3.5" />
-            <span>{time.toLocaleTimeString()}</span>
+            <span>Saved {formatTimeAgo(lastSaved)}</span>
           </div>
-        </Tooltip>
+        )}
+      </div>
+
+      <div className="flex items-center gap-4">
+        {/* Connection Status */}
+        <div className="flex items-center gap-1.5">
+          {isOnline ? (
+            <>
+              <Wifi className="w-3.5 h-3.5 text-green-400" />
+              <span className="text-green-400">Connected</span>
+            </>
+          ) : (
+            <>
+              <WifiOff className="w-3.5 h-3.5 text-red-400" />
+              <span className="text-red-400">Offline</span>
+            </>
+          )}
+        </div>
+
+        {/* Editor Info */}
+        <div className="flex items-center gap-3 pl-3 border-l border-gray-800">
+          <span>Spaces: 2</span>
+          <span>UTF-8</span>
+          <span>LF</span>
+          <span>YAML</span>
+        </div>
       </div>
     </div>
   );
+}
+
+function formatTimeAgo(date: Date): string {
+  const now = new Date();
+  const diff = now.getTime() - date.getTime();
+  const minutes = Math.floor(diff / 1000 / 60);
+  const hours = Math.floor(minutes / 60);
+
+  if (minutes < 1) return 'just now';
+  if (minutes === 1) return '1 minute ago';
+  if (minutes < 60) return `${minutes} minutes ago`;
+  if (hours === 1) return '1 hour ago';
+  return `${hours} hours ago`;
 } 

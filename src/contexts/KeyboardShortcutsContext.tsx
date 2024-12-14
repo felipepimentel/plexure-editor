@@ -1,75 +1,86 @@
-import React, { createContext, useContext, useCallback, useEffect } from 'react';
+import React, { createContext, useContext, useEffect, useCallback } from 'react';
 
-interface ShortcutDefinition {
+interface Shortcut {
   key: string;
   description: string;
   action: () => void;
 }
 
 interface KeyboardShortcutsContextType {
-  registerShortcut: (shortcut: ShortcutDefinition) => void;
+  registerShortcut: (shortcut: Shortcut) => void;
   unregisterShortcut: (key: string) => void;
-  shortcuts: Map<string, ShortcutDefinition>;
+  shortcuts: Shortcut[];
 }
 
-const KeyboardShortcutsContext = createContext<KeyboardShortcutsContextType | null>(null);
+const KeyboardShortcutsContext = createContext<KeyboardShortcutsContextType | undefined>(undefined);
 
-export function useKeyboardShortcuts() {
-  const context = useContext(KeyboardShortcutsContext);
-  if (!context) {
-    throw new Error('useKeyboardShortcuts must be used within a KeyboardShortcutsProvider');
-  }
-  return context;
-}
+export function KeyboardShortcutsProvider({ children }: { children: React.ReactNode }) {
+  const [shortcuts, setShortcuts] = React.useState<Shortcut[]>([]);
 
-interface KeyboardShortcutsProviderProps {
-  children: React.ReactNode;
-}
-
-export function KeyboardShortcutsProvider({ children }: KeyboardShortcutsProviderProps) {
-  const shortcuts = React.useRef(new Map<string, ShortcutDefinition>());
-
-  const registerShortcut = useCallback((shortcut: ShortcutDefinition) => {
-    shortcuts.current.set(shortcut.key, shortcut);
+  const registerShortcut = useCallback((shortcut: Shortcut) => {
+    setShortcuts(prev => {
+      // Remove any existing shortcut with the same key
+      const filtered = prev.filter(s => s.key !== shortcut.key);
+      return [...filtered, shortcut];
+    });
   }, []);
 
   const unregisterShortcut = useCallback((key: string) => {
-    shortcuts.current.delete(key);
+    setShortcuts(prev => prev.filter(s => s.key !== key));
   }, []);
 
-  const handleKeyDown = useCallback((event: KeyboardEvent) => {
-    if (!event.key) return;
+  // Convert key string to event key format
+  const normalizeKey = (key: string): string => {
+    return key
+      .toLowerCase()
+      .replace('⌘', 'meta+')
+      .replace('shift+', 'shift+')
+      .replace('alt+', 'alt+')
+      .replace('ctrl+', 'control+');
+  };
 
-    const isMac = navigator.platform.toUpperCase().indexOf('MAC') >= 0;
-    const cmdKey = isMac ? event.metaKey : event.ctrlKey;
-    
-    let shortcutKey = '';
-    if (cmdKey) shortcutKey += '⌘+';
-    if (event.shiftKey) shortcutKey += 'Shift+';
-    if (event.altKey) shortcutKey += 'Alt+';
-    shortcutKey += event.key.toUpperCase();
-
-    const shortcut = shortcuts.current.get(shortcutKey);
-    if (shortcut) {
-      event.preventDefault();
-      shortcut.action();
-    }
-  }, []);
-
+  // Handle keyboard events
   useEffect(() => {
+    const handleKeyDown = (event: KeyboardEvent) => {
+      // Build the key string from the event
+      const keys: string[] = [];
+      if (event.metaKey) keys.push('meta');
+      if (event.shiftKey) keys.push('shift');
+      if (event.altKey) keys.push('alt');
+      if (event.ctrlKey) keys.push('control');
+      if (event.key.toLowerCase() !== 'meta' && 
+          event.key.toLowerCase() !== 'shift' && 
+          event.key.toLowerCase() !== 'alt' && 
+          event.key.toLowerCase() !== 'control') {
+        keys.push(event.key.toLowerCase());
+      }
+      const keyString = keys.join('+');
+
+      // Find and execute matching shortcut
+      shortcuts.forEach(shortcut => {
+        const normalizedShortcutKey = normalizeKey(shortcut.key);
+        if (normalizedShortcutKey === keyString) {
+          event.preventDefault();
+          shortcut.action();
+        }
+      });
+    };
+
     window.addEventListener('keydown', handleKeyDown);
     return () => window.removeEventListener('keydown', handleKeyDown);
-  }, [handleKeyDown]);
+  }, [shortcuts]);
 
   return (
-    <KeyboardShortcutsContext.Provider
-      value={{
-        registerShortcut,
-        unregisterShortcut,
-        shortcuts: shortcuts.current,
-      }}
-    >
+    <KeyboardShortcutsContext.Provider value={{ registerShortcut, unregisterShortcut, shortcuts }}>
       {children}
     </KeyboardShortcutsContext.Provider>
   );
+}
+
+export function useKeyboardShortcuts() {
+  const context = useContext(KeyboardShortcutsContext);
+  if (context === undefined) {
+    throw new Error('useKeyboardShortcuts must be used within a KeyboardShortcutsProvider');
+  }
+  return context;
 } 
