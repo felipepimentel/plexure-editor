@@ -1,6 +1,5 @@
 import React, { useState, useRef, useEffect } from 'react';
-import { Command, Settings, HelpCircle, ChevronLeft, ChevronRight, FileText, Search, History, Play, GripVertical } from 'lucide-react';
-import { NavigationTree } from '../NavigationTree';
+import { Command, Settings, HelpCircle, FileText } from 'lucide-react';
 import { StatusBar } from '../../statusbar/StatusBar';
 import { CommandPalette } from '../../ui/CommandPalette';
 import { useKeyboardShortcuts } from '../../../contexts/KeyboardShortcutsContext';
@@ -8,6 +7,8 @@ import { useTheme } from '../../../contexts/ThemeContext';
 import { usePreferences } from '../../../contexts/PreferencesContext';
 import { Tooltip } from '../../ui/Tooltip';
 import { EditorLayout } from '../../editor/EditorLayout';
+import { LeftSidebar } from '../LeftSidebar';
+import { RightSidebar } from '../RightSidebar';
 
 const DEFAULT_SPEC = `openapi: 3.0.0
 info:
@@ -222,46 +223,12 @@ export function MainLayout({ children }: MainLayoutProps) {
       {/* Main Content */}
       <div className="flex-1 flex min-h-0" ref={containerRef}>
         {/* Left Sidebar */}
-        <div 
-          className={`flex flex-col border-r border-white/[0.05] bg-gray-900/90 transition-all duration-200 ${
-            leftPanelCollapsed ? 'w-0' : ''
-          }`}
-          style={{ width: leftPanelCollapsed ? 0 : leftPanelWidth }}
-        >
-          {!leftPanelCollapsed && (
-            <>
-              <div className="flex-none p-4 border-b border-white/[0.05]">
-                <div className="relative">
-                  <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-gray-500" />
-                  <input
-                    type="text"
-                    placeholder="Search API..."
-                    className="w-full pl-9 pr-4 py-2 bg-white/[0.05] border border-white/[0.05] rounded-md text-sm text-gray-300 placeholder-gray-500 focus:outline-none focus:ring-1 focus:ring-blue-500"
-                  />
-                </div>
-              </div>
-              <div className="flex-1 overflow-auto">
-                <NavigationTree className="p-2" />
-              </div>
-            </>
-          )}
-          <button
-            onClick={() => setLeftPanelCollapsed(!leftPanelCollapsed)}
-            className="absolute left-0 top-1/2 -translate-y-1/2 p-1 bg-gray-800 rounded-r border border-white/[0.05] text-gray-400 hover:text-gray-300"
-          >
-            {leftPanelCollapsed ? <ChevronRight className="w-4 h-4" /> : <ChevronLeft className="w-4 h-4" />}
-          </button>
-          {!leftPanelCollapsed && (
-            <div
-              className="absolute right-0 top-0 bottom-0 w-1 cursor-col-resize group hover:bg-blue-500/20"
-              onMouseDown={() => setIsResizingLeft(true)}
-            >
-              <div className="absolute right-0 top-1/2 -translate-y-1/2 -translate-x-1/2 opacity-0 group-hover:opacity-100 transition-opacity">
-                <GripVertical className="w-4 h-4 text-blue-500" />
-              </div>
-            </div>
-          )}
-        </div>
+        <LeftSidebar
+          collapsed={leftPanelCollapsed}
+          width={leftPanelWidth}
+          onCollapse={setLeftPanelCollapsed}
+          onResize={() => setIsResizingLeft(true)}
+        />
 
         {/* Editor */}
         <div className="flex-1 min-w-0">
@@ -282,79 +249,12 @@ export function MainLayout({ children }: MainLayoutProps) {
         </div>
 
         {/* Right Sidebar */}
-        <div 
-          className={`flex flex-col border-l border-white/[0.05] bg-gray-900/90 transition-all duration-200 ${
-            rightPanelCollapsed ? 'w-0' : ''
-          }`}
-          style={{ width: rightPanelCollapsed ? 0 : rightPanelWidth }}
-        >
-          {!rightPanelCollapsed && (
-            <>
-              <div className="flex-none p-4 border-b border-white/[0.05] flex items-center justify-between">
-                <h2 className="text-sm font-medium text-gray-300">API Preview</h2>
-                <Tooltip content="Test Endpoint">
-                  <button className="p-1.5 text-gray-400 hover:text-gray-300 hover:bg-white/[0.05] rounded">
-                    <Play className="w-4 h-4" />
-                  </button>
-                </Tooltip>
-              </div>
-              <div className="flex-1 overflow-auto p-4">
-                <div className="space-y-6">
-                  {/* API Info */}
-                  <div>
-                    <h3 className="text-xs font-medium text-gray-400 mb-2">API Information</h3>
-                    <div className="space-y-2">
-                      <div className="p-3 bg-white/[0.02] rounded-md">
-                        <div className="text-sm font-medium text-gray-300">Sample API</div>
-                        <div className="text-xs text-gray-500 mt-1">Version 1.0.0</div>
-                      </div>
-                    </div>
-                  </div>
-
-                  {/* Endpoints */}
-                  <div>
-                    <h3 className="text-xs font-medium text-gray-400 mb-2">Endpoints</h3>
-                    <div className="space-y-2">
-                      <div className="p-3 bg-white/[0.02] rounded-md">
-                        <div className="text-sm font-medium text-gray-300">/users</div>
-                        <div className="mt-2 space-y-1">
-                          <div className="flex items-center gap-2">
-                            <span className="text-xs px-2 py-1 rounded bg-emerald-400/10 text-emerald-400">
-                              GET
-                            </span>
-                            <span className="text-xs text-gray-400">List users</span>
-                          </div>
-                          <div className="flex items-center gap-2">
-                            <span className="text-xs px-2 py-1 rounded bg-blue-400/10 text-blue-400">
-                              POST
-                            </span>
-                            <span className="text-xs text-gray-400">Create user</span>
-                          </div>
-                        </div>
-                      </div>
-                    </div>
-                  </div>
-                </div>
-              </div>
-            </>
-          )}
-          <button
-            onClick={() => setRightPanelCollapsed(!rightPanelCollapsed)}
-            className="absolute right-0 top-1/2 -translate-y-1/2 p-1 bg-gray-800 rounded-l border border-white/[0.05] text-gray-400 hover:text-gray-300"
-          >
-            {rightPanelCollapsed ? <ChevronLeft className="w-4 h-4" /> : <ChevronRight className="w-4 h-4" />}
-          </button>
-          {!rightPanelCollapsed && (
-            <div
-              className="absolute left-0 top-0 bottom-0 w-1 cursor-col-resize group hover:bg-blue-500/20"
-              onMouseDown={() => setIsResizingRight(true)}
-            >
-              <div className="absolute left-0 top-1/2 -translate-y-1/2 translate-x-1/2 opacity-0 group-hover:opacity-100 transition-opacity">
-                <GripVertical className="w-4 h-4 text-blue-500" />
-              </div>
-            </div>
-          )}
-        </div>
+        <RightSidebar
+          collapsed={rightPanelCollapsed}
+          width={rightPanelWidth}
+          onCollapse={setRightPanelCollapsed}
+          onResize={() => setIsResizingRight(true)}
+        />
       </div>
 
       {/* Command Palette */}

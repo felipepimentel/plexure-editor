@@ -6,6 +6,7 @@ import { PrivateRoute } from '@/components/auth/PrivateRoute';
 import { AppProviders } from '@/providers/AppProviders';
 import { useAuth } from '@/contexts/AuthContext';
 import { useTheme } from '@/contexts/ThemeContext';
+import { Editor } from '@/views/Editor';
 
 interface AppProps {
   darkMode?: boolean;
@@ -30,7 +31,7 @@ function AppRoutes({ darkMode = true }: AppProps) {
         element={
           <PrivateRoute>
             <MainLayout>
-              {/* Editor content will go here */}
+              <Editor />
             </MainLayout>
           </PrivateRoute>
         }

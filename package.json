@@ -11,13 +11,17 @@
   },
   "dependencies": {
     "@monaco-editor/react": "^4.6.0",
-    "clsx": "^2.0.0",
+    "@radix-ui/react-tooltip": "^1.1.5",
+    "@supabase/supabase-js": "^2.47.7",
+    "clsx": "^2.1.1",
+    "cmdk": "^1.0.4",
     "lucide-react": "^0.294.0",
     "monaco-editor": "^0.44.0",
+    "monaco-editor-workers": "^0.45.0",
     "react": "^18.2.0",
     "react-dom": "^18.2.0",
     "react-router-dom": "^6.20.1",
-    "tailwind-merge": "^2.1.0",
+    "tailwind-merge": "^2.5.5",
     "yaml": "^2.3.4"
   },
   "devDependencies": {

@@ -25,11 +25,7 @@ export default defineConfig({
       },
     },
   },
-  optimizeDeps: {
-    include: [
-      'monaco-editor/esm/vs/language/json/json.worker',
-      'monaco-editor/esm/vs/language/yaml/yaml.worker',
-      'monaco-editor/esm/vs/editor/editor.worker',
-    ],
+  worker: {
+    format: 'es',
   },
 });
