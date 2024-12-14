@@ -3,11 +3,12 @@ import Editor, { Monaco } from '@monaco-editor/react';
 import * as monaco from 'monaco-editor';
 import { EditorPreferences } from '@/types/preferences';
 import { SwaggerPreview } from '../preview/SwaggerPreview';
-import { Grip, Maximize2, Minimize2, Code, Eye, PanelRightClose, PanelRightOpen } from 'lucide-react';
+import { Grip, Maximize2, Minimize2, Code, Eye, PanelRightClose, PanelRightOpen, PanelLeftClose, PanelLeftOpen } from 'lucide-react';
 import { useOpenAPIEditor } from './hooks/useOpenAPIEditor';
 import { EditorToolbar } from '../toolbar/EditorToolbar';
-import { Explorer } from '../navigation/Explorer';
-import { RightSidebar } from '../sidebar/RightSidebar';
+import { ActivityBar, ActivityType } from '../navigation/ActivityBar';
+import { SidebarManager } from '../navigation/SidebarManager';
+import { RightSidebarManager } from '../sidebar/RightSidebarManager';
 
 interface EditorLayoutProps {
   content: string;
@@ -21,8 +22,9 @@ export function EditorLayout({ content, onChange, preferences }: EditorLayoutPro
   const [isDragging, setIsDragging] = useState(false);
   const [isEditorMaximized, setIsEditorMaximized] = useState(false);
   const [isPreviewMaximized, setIsPreviewMaximized] = useState(false);
-  const [isExplorerCollapsed, setIsExplorerCollapsed] = useState(false);
+  const [isLeftSidebarCollapsed, setIsLeftSidebarCollapsed] = useState(false);
   const [isRightSidebarCollapsed, setIsRightSidebarCollapsed] = useState(false);
+  const [currentActivity, setCurrentActivity] = useState<ActivityType>('explorer');
 
   const handleEditorDidMount = (editor: monaco.editor.IStandaloneCodeEditor, monaco: Monaco) => {
     editorRef.current = editor;
@@ -159,9 +161,32 @@ export function EditorLayout({ content, onChange, preferences }: EditorLayoutPro
 
   return (
     <div className="h-full flex">
-      {/* Explorer */}
-      <div className={`transition-all duration-300 ${isExplorerCollapsed ? 'w-0' : 'w-64'}`}>
-        <Explorer content={content} onNavigate={() => {}} />
+      {/* Activity Bar */}
+      <ActivityBar 
+        currentActivity={currentActivity}
+        onActivityChange={setCurrentActivity}
+      />
+
+      {/* Left Sidebar */}
+      <div className="relative">
+        <SidebarManager
+          activity={currentActivity}
+          content={content}
+          onNavigate={() => {}}
+          isCollapsed={isLeftSidebarCollapsed}
+        />
+        
+        <button
+          onClick={() => setIsLeftSidebarCollapsed(!isLeftSidebarCollapsed)}
+          className="absolute right-0 top-1/2 transform -translate-y-1/2 translate-x-1/2 z-20 p-1 bg-gray-800 text-gray-400 hover:text-white rounded-md"
+          title={isLeftSidebarCollapsed ? "Show sidebar" : "Hide sidebar"}
+        >
+          {isLeftSidebarCollapsed ? (
+            <PanelLeftOpen className="w-4 h-4" />
+          ) : (
+            <PanelLeftClose className="w-4 h-4" />
+          )}
+        </button>
       </div>
 
       {/* Main Content */}
@@ -268,22 +293,24 @@ export function EditorLayout({ content, onChange, preferences }: EditorLayoutPro
         </div>
       </div>
 
-      {/* Right Sidebar Toggle */}
-      <button
-        onClick={() => setIsRightSidebarCollapsed(!isRightSidebarCollapsed)}
-        className="absolute right-0 top-1/2 transform -translate-y-1/2 z-20 p-1 bg-gray-800 text-gray-400 hover:text-white rounded-l-md"
-        title={isRightSidebarCollapsed ? "Show documentation" : "Hide documentation"}
-      >
-        {isRightSidebarCollapsed ? (
-          <PanelRightOpen className="w-4 h-4" />
-        ) : (
-          <PanelRightClose className="w-4 h-4" />
-        )}
-      </button>
-
       {/* Right Sidebar */}
-      <div className={`transition-all duration-300 ${isRightSidebarCollapsed ? 'w-0' : 'w-64'}`}>
-        <RightSidebar content={content} />
+      <div className="relative">
+        <RightSidebarManager
+          content={content}
+          isCollapsed={isRightSidebarCollapsed}
+        />
+        
+        <button
+          onClick={() => setIsRightSidebarCollapsed(!isRightSidebarCollapsed)}
+          className="absolute left-0 top-1/2 transform -translate-y-1/2 -translate-x-1/2 z-20 p-1 bg-gray-800 text-gray-400 hover:text-white rounded-md"
+          title={isRightSidebarCollapsed ? "Show documentation" : "Hide documentation"}
+        >
+          {isRightSidebarCollapsed ? (
+            <PanelRightOpen className="w-4 h-4" />
+          ) : (
+            <PanelRightClose className="w-4 h-4" />
+          )}
+        </button>
       </div>
     </div>
   );
