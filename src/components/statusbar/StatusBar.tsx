@@ -1,302 +1,162 @@
 import React from 'react';
-import { 
+import { cn } from '@/utils/cn';
+import { motion } from 'framer-motion';
+import { Tooltip } from '@/components/ui/Tooltip';
+import {
   GitBranch,
-  GitCommit,
-  GitPullRequest,
+  Clock,
   Bell,
-  Zap,
+  CheckCircle2,
+  AlertCircle,
   Wifi,
   WifiOff,
-  Check,
-  AlertCircle,
-  XCircle,
-  Clock,
-  FileText,
-  ChevronRight,
-  Split,
-  Maximize2,
-  Minimize2,
-  Monitor,
-  Cpu,
-  HardDrive,
-  Database,
-  Server,
-  Activity,
-  Terminal,
-  Code,
-  FileCode,
-  Settings,
-  RefreshCw,
-  MoreVertical
+  Lock,
+  Users
 } from 'lucide-react';
-import { cn } from '@/utils/cn';
-import { Tooltip } from '@/components/ui/Tooltip';
 
 interface StatusBarProps {
-  editorLayout: 'single' | 'split';
-  isMaximized: boolean;
-  onToggleLayout: () => void;
-  onToggleMaximize: () => void;
-  className?: string;
+  project: {
+    name: string;
+    branch: string;
+    lastSaved?: string;
+    collaborators?: number;
+    hasChanges?: boolean;
+  };
+  contract: {
+    name: string;
+    version: string;
+    isValid: boolean;
+    lastValidated?: string;
+  };
+  onNotificationCenterOpen: () => void;
 }
 
-interface StatusItem {
-  id: string;
-  icon: React.ElementType;
+interface StatusItemProps {
+  icon: React.ReactNode;
   label: string;
-  value?: string;
-  tooltip?: string;
+  text: string;
   onClick?: () => void;
-  status?: 'success' | 'warning' | 'error' | 'info';
-  loading?: boolean;
-  position?: 'left' | 'center' | 'right';
-  priority?: number;
+  color?: 'default' | 'success' | 'warning' | 'error';
+}
+
+function StatusItem({
+  icon,
+  label,
+  text,
+  onClick,
+  color = 'default'
+}: StatusItemProps) {
+  return (
+    <Tooltip content={label}>
+      <button
+        onClick={onClick}
+        className={cn(
+          "h-6 px-2",
+          "flex items-center gap-1.5",
+          "text-xs",
+          "hover:bg-gray-800",
+          "transition-colors duration-200",
+          color === 'default' && "text-gray-400 hover:text-gray-300",
+          color === 'success' && "text-green-400 hover:text-green-300",
+          color === 'warning' && "text-yellow-400 hover:text-yellow-300",
+          color === 'error' && "text-red-400 hover:text-red-300"
+        )}
+      >
+        {icon}
+        <span>{text}</span>
+      </button>
+    </Tooltip>
+  );
 }
 
 export function StatusBar({
-  editorLayout,
-  isMaximized,
-  onToggleLayout,
-  onToggleMaximize,
-  className
+  project,
+  contract,
+  onNotificationCenterOpen
 }: StatusBarProps) {
-  // Status items configuration
-  const statusItems: StatusItem[] = [
-    // Left items
-    {
-      id: 'git.branch',
-      icon: GitBranch,
-      label: 'main',
-      tooltip: 'Current Git Branch',
-      onClick: () => {},
-      position: 'left',
-      priority: 1
-    },
-    {
-      id: 'git.changes',
-      icon: GitCommit,
-      label: '+2 ~1',
-      tooltip: '2 additions, 1 modification',
-      onClick: () => {},
-      position: 'left',
-      priority: 2
-    },
-    {
-      id: 'git.sync',
-      icon: RefreshCw,
-      label: '↑2 ↓1',
-      tooltip: '2 unpushed, 1 unpulled changes',
-      onClick: () => {},
-      position: 'left',
-      priority: 3
-    },
-    {
-      id: 'git.pr',
-      icon: GitPullRequest,
-      label: 'PR #123',
-      tooltip: 'Active Pull Request',
-      onClick: () => {},
-      position: 'left',
-      priority: 4
-    },
-    // Center items
-    {
-      id: 'editor.file',
-      icon: FileCode,
-      label: 'swagger.yaml',
-      tooltip: 'Current File',
-      onClick: () => {},
-      position: 'center',
-      priority: 1
-    },
-    {
-      id: 'editor.path',
-      icon: ChevronRight,
-      label: 'src/api/v1',
-      tooltip: 'File Path',
-      onClick: () => {},
-      position: 'center',
-      priority: 2
-    },
-    {
-      id: 'editor.size',
-      icon: HardDrive,
-      label: '2.3 KB',
-      tooltip: 'File Size',
-      position: 'center',
-      priority: 3
-    },
-    // Right items
-    {
-      id: 'status.notifications',
-      icon: Bell,
-      label: '2',
-      tooltip: '2 notifications',
-      onClick: () => {},
-      position: 'right',
-      priority: 1
-    },
-    {
-      id: 'status.problems',
-      icon: AlertCircle,
-      label: '3 warnings',
-      tooltip: '3 validation warnings',
-      onClick: () => {},
-      status: 'warning',
-      position: 'right',
-      priority: 2
-    },
-    {
-      id: 'status.server',
-      icon: Server,
-      label: 'Connected',
-      tooltip: 'Server Status',
-      status: 'success',
-      position: 'right',
-      priority: 3
-    },
-    {
-      id: 'status.performance',
-      icon: Activity,
-      label: '120ms',
-      tooltip: 'Response Time',
-      position: 'right',
-      priority: 4
-    },
-    {
-      id: 'status.memory',
-      icon: Cpu,
-      label: '256MB',
-      tooltip: 'Memory Usage',
-      position: 'right',
-      priority: 5
-    }
-  ];
+  const [isOnline, setIsOnline] = React.useState(true);
 
-  // Group items by position
-  const leftItems = statusItems
-    .filter(item => item.position === 'left')
-    .sort((a, b) => (a.priority || 0) - (b.priority || 0));
+  // Monitor online/offline status
+  React.useEffect(() => {
+    const handleOnline = () => setIsOnline(true);
+    const handleOffline = () => setIsOnline(false);
 
-  const centerItems = statusItems
-    .filter(item => item.position === 'center')
-    .sort((a, b) => (a.priority || 0) - (b.priority || 0));
+    window.addEventListener('online', handleOnline);
+    window.addEventListener('offline', handleOffline);
 
-  const rightItems = statusItems
-    .filter(item => item.position === 'right')
-    .sort((a, b) => (a.priority || 0) - (b.priority || 0));
-
-  // Render status item
-  const StatusItem = ({ item }: { item: StatusItem }) => {
-    const Icon = item.icon;
-
-    return (
-      <Tooltip content={item.tooltip || item.label}>
-        <button
-          onClick={item.onClick}
-          className={cn(
-            "h-full px-2",
-            "flex items-center gap-1.5",
-            "text-xs",
-            "hover:bg-gray-800/50",
-            "transition-colors duration-200",
-            item.onClick ? "cursor-pointer" : "cursor-default",
-            item.status === 'success' && "text-green-400",
-            item.status === 'warning' && "text-yellow-400",
-            item.status === 'error' && "text-red-400",
-            item.status === 'info' && "text-blue-400",
-            !item.status && "text-gray-400"
-          )}
-        >
-          <Icon className={cn(
-            "w-3.5 h-3.5",
-            item.loading && "animate-spin"
-          )} />
-          {item.label && (
-            <span className="font-medium">{item.label}</span>
-          )}
-        </button>
-      </Tooltip>
-    );
-  };
+    return () => {
+      window.removeEventListener('online', handleOnline);
+      window.removeEventListener('offline', handleOffline);
+    };
+  }, []);
 
   return (
     <div className={cn(
-      "h-6 flex items-stretch",
-      "bg-gray-900/95 backdrop-blur-sm",
-      "border-t border-gray-800",
-      className
+      "h-6 flex items-center justify-between px-2",
+      "bg-gray-900/50 border-t border-gray-800",
+      "text-xs text-gray-400"
     )}>
       {/* Left Section */}
-      <div className="flex-none flex items-stretch divide-x divide-gray-800">
-        {leftItems.map(item => (
-          <StatusItem key={item.id} item={item} />
-        ))}
+      <div className="flex items-center divide-x divide-gray-800">
+        <StatusItem
+          icon={<GitBranch className="w-3.5 h-3.5" />}
+          label="Current Branch"
+          text={project.branch}
+        />
+        {project.lastSaved && (
+          <StatusItem
+            icon={<Clock className="w-3.5 h-3.5" />}
+            label="Last Saved"
+            text={project.lastSaved}
+          />
+        )}
+        {project.collaborators && (
+          <StatusItem
+            icon={<Users className="w-3.5 h-3.5" />}
+            label="Active Collaborators"
+            text={`${project.collaborators} online`}
+          />
+        )}
       </div>
 
       {/* Center Section */}
-      <div className="flex-1 flex items-stretch justify-center divide-x divide-gray-800">
-        {centerItems.map(item => (
-          <StatusItem key={item.id} item={item} />
-        ))}
+      <div className="absolute left-1/2 -translate-x-1/2 flex items-center divide-x divide-gray-800">
+        <StatusItem
+          icon={contract.isValid ? (
+            <CheckCircle2 className="w-3.5 h-3.5" />
+          ) : (
+            <AlertCircle className="w-3.5 h-3.5" />
+          )}
+          label="Contract Status"
+          text={contract.isValid ? 'Valid' : 'Invalid'}
+          color={contract.isValid ? 'success' : 'error'}
+        />
+        <StatusItem
+          icon={<Lock className="w-3.5 h-3.5" />}
+          label="Contract Version"
+          text={contract.version}
+        />
       </div>
 
       {/* Right Section */}
-      <div className="flex-none flex items-stretch divide-x divide-gray-800">
-        {rightItems.map(item => (
-          <StatusItem key={item.id} item={item} />
-        ))}
-
-        {/* Editor Layout Controls */}
-        <Tooltip content={`${editorLayout === 'single' ? 'Split' : 'Single'} Editor`}>
-          <button
-            onClick={onToggleLayout}
-            className={cn(
-              "h-full px-2",
-              "flex items-center",
-              "text-gray-400 hover:text-gray-300",
-              "hover:bg-gray-800/50",
-              "transition-colors duration-200"
-            )}
-          >
-            <Split className="w-3.5 h-3.5" />
-          </button>
-        </Tooltip>
-
-        <Tooltip content={isMaximized ? 'Restore Editor' : 'Maximize Editor'}>
-          <button
-            onClick={onToggleMaximize}
-            className={cn(
-              "h-full px-2",
-              "flex items-center",
-              "text-gray-400 hover:text-gray-300",
-              "hover:bg-gray-800/50",
-              "transition-colors duration-200"
-            )}
-          >
-            {isMaximized ? (
-              <Minimize2 className="w-3.5 h-3.5" />
-            ) : (
-              <Maximize2 className="w-3.5 h-3.5" />
-            )}
-          </button>
-        </Tooltip>
-
-        {/* Settings */}
-        <Tooltip content="Status Bar Settings">
-          <button
-            onClick={() => {}}
-            className={cn(
-              "h-full px-2",
-              "flex items-center",
-              "text-gray-400 hover:text-gray-300",
-              "hover:bg-gray-800/50",
-              "transition-colors duration-200"
-            )}
-          >
-            <Settings className="w-3.5 h-3.5" />
-          </button>
-        </Tooltip>
+      <div className="flex items-center divide-x divide-gray-800">
+        <StatusItem
+          icon={isOnline ? (
+            <Wifi className="w-3.5 h-3.5" />
+          ) : (
+            <WifiOff className="w-3.5 h-3.5" />
+          )}
+          label="Connection Status"
+          text={isOnline ? 'Connected' : 'Offline'}
+          color={isOnline ? 'success' : 'error'}
+        />
+        <StatusItem
+          icon={<Bell className="w-3.5 h-3.5" />}
+          label="Notifications"
+          text="3 new"
+          onClick={onNotificationCenterOpen}
+          color="warning"
+        />
       </div>
     </div>
   );

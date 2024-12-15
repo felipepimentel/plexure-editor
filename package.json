@@ -18,6 +18,7 @@
     "@supabase/supabase-js": "^2.47.7",
     "clsx": "^2.1.1",
     "cmdk": "^1.0.4",
+    "framer-motion": "^11.14.4",
     "lucide-react": "^0.294.0",
     "monaco-editor": "^0.44.0",
     "monaco-editor-workers": "^0.45.0",

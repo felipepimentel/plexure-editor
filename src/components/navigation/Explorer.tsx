@@ -1,231 +1,289 @@
 import React from 'react';
-import { ChevronRight, ChevronDown, FileJson, Server, Info, Book, Tag, Lock, Database } from 'lucide-react';
-import { parse } from 'yaml';
+import { cn } from '@/utils/cn';
+import { motion, AnimatePresence } from 'framer-motion';
+import {
+  ChevronRight,
+  Folder,
+  File,
+  FileJson,
+  FileCode,
+  Settings,
+  Plus,
+  MoreHorizontal,
+  Search,
+  RefreshCw
+} from 'lucide-react';
+import { Tooltip } from '@/components/ui/Tooltip';
+
+interface ExplorerItem {
+  id: string;
+  name: string;
+  type: 'file' | 'folder';
+  children?: ExplorerItem[];
+  icon?: React.ReactNode;
+  modified?: boolean;
+}
 
 interface ExplorerProps {
-  content: string;
-  onNavigate: (path: string) => void;
+  activePanel: 'explorer' | 'search' | 'extensions';
 }
 
-interface TreeNode {
-  name: string;
-  type: 'folder' | 'item';
-  icon?: React.ReactNode;
-  children?: TreeNode[];
-  path?: string;
-  method?: string;
+interface TreeItemProps {
+  item: ExplorerItem;
+  level: number;
+  isExpanded?: boolean;
+  isSelected?: boolean;
+  onToggle: () => void;
+  onSelect: () => void;
 }
 
-export function Explorer({ content, onNavigate }: ExplorerProps) {
-  const [expandedNodes, setExpandedNodes] = React.useState<Record<string, boolean>>({
-    paths: true,
-    components: true,
-  });
+function TreeItem({
+  item,
+  level,
+  isExpanded,
+  isSelected,
+  onToggle,
+  onSelect
+}: TreeItemProps) {
+  const [isHovered, setIsHovered] = React.useState(false);
 
-  const toggleNode = (nodeName: string) => {
-    setExpandedNodes(prev => ({
-      ...prev,
-      [nodeName]: !prev[nodeName]
-    }));
+  const getIcon = () => {
+    if (item.icon) return item.icon;
+    if (item.type === 'folder') return <Folder className="w-4 h-4" />;
+    if (item.name.endsWith('.json')) return <FileJson className="w-4 h-4" />;
+    if (item.name.endsWith('.ts') || item.name.endsWith('.tsx')) {
+      return <FileCode className="w-4 h-4" />;
+    }
+    return <File className="w-4 h-4" />;
   };
-
-  const buildTree = (spec: any): TreeNode[] => {
-    const tree: TreeNode[] = [];
-
-    // Info Section
-    if (spec.info) {
-      tree.push({
-        name: 'info',
-        type: 'folder',
-        icon: <Info className="w-4 h-4" />,
-        children: [
-          { name: 'title', type: 'item', path: 'info.title' },
-          { name: 'version', type: 'item', path: 'info.version' },
-          { name: 'description', type: 'item', path: 'info.description' },
-        ]
-      });
-    }
-
-    // Servers Section
-    if (spec.servers?.length) {
-      tree.push({
-        name: 'servers',
-        type: 'folder',
-        icon: <Server className="w-4 h-4" />,
-        children: spec.servers.map((server: any, index: number) => ({
-          name: server.url,
-          type: 'item',
-          path: `servers.${index}`
-        }))
-      });
-    }
-
-    // Paths Section
-    if (spec.paths) {
-      const pathsNode: TreeNode = {
-        name: 'paths',
-        type: 'folder',
-        icon: <Book className="w-4 h-4" />,
-        children: []
-      };
-
-      Object.entries(spec.paths).forEach(([path, methods]: [string, any]) => {
-        const pathNode: TreeNode = {
-          name: path,
-          type: 'folder',
-          children: []
-        };
-
-        Object.entries(methods).forEach(([method, operation]: [string, any]) => {
-          pathNode.children?.push({
-            name: `${method.toUpperCase()} ${operation.summary || path}`,
-            type: 'item',
-            path: `paths.${path}.${method}`,
-            method
-          });
-        });
-
-        pathsNode.children?.push(pathNode);
-      });
-
-      tree.push(pathsNode);
-    }
-
-    // Components Section
-    if (spec.components) {
-      const componentsNode: TreeNode = {
-        name: 'components',
-        type: 'folder',
-        icon: <Database className="w-4 h-4" />,
-        children: []
-      };
-
-      if (spec.components.schemas) {
-        componentsNode.children?.push({
-          name: 'schemas',
-          type: 'folder',
-          icon: <FileJson className="w-4 h-4" />,
-          children: Object.keys(spec.components.schemas).map(schema => ({
-            name: schema,
-            type: 'item',
-            path: `components.schemas.${schema}`
-          }))
-        });
-      }
-
-      if (spec.components.securitySchemes) {
-        componentsNode.children?.push({
-          name: 'security',
-          type: 'folder',
-          icon: <Lock className="w-4 h-4" />,
-          children: Object.keys(spec.components.securitySchemes).map(scheme => ({
-            name: scheme,
-            type: 'item',
-            path: `components.securitySchemes.${scheme}`
-          }))
-        });
-      }
-
-      tree.push(componentsNode);
-    }
-
-    // Tags Section
-    if (spec.tags?.length) {
-      tree.push({
-        name: 'tags',
-        type: 'folder',
-        icon: <Tag className="w-4 h-4" />,
-        children: spec.tags.map((tag: any) => ({
-          name: tag.name,
-          type: 'item',
-          path: `tags.${tag.name}`
-        }))
-      });
-    }
-
-    return tree;
-  };
-
-  const renderNode = (node: TreeNode, level: number = 0) => {
-    const isExpanded = expandedNodes[node.path || node.name];
-    const hasChildren = node.children && node.children.length > 0;
-    const paddingLeft = level * 12;
-
-    return (
-      <div key={node.path || node.name}>
-        <div
-          className={`flex items-center px-2 py-1 hover:bg-gray-800/50 cursor-pointer text-sm ${
-            node.type === 'item' ? 'text-gray-300' : 'text-gray-400'
-          }`}
-          style={{ paddingLeft: `${paddingLeft}px` }}
-          onClick={() => {
-            if (hasChildren) {
-              toggleNode(node.path || node.name);
-            } else if (node.path) {
-              onNavigate(node.path);
-            }
-          }}
-        >
-          <div className="flex items-center gap-1 flex-1">
-            {hasChildren ? (
-              <div className="w-4 h-4 flex items-center justify-center">
-                {isExpanded ? (
-                  <ChevronDown className="w-3 h-3" />
-                ) : (
-                  <ChevronRight className="w-3 h-3" />
-                )}
-              </div>
-            ) : (
-              <div className="w-4" />
-            )}
-            {node.icon && <div className="w-4 h-4">{node.icon}</div>}
-            <span className="truncate">
-              {node.method && (
-                <span className={`mr-1.5 text-xs ${
-                  node.method === 'get' ? 'text-blue-400' :
-                  node.method === 'post' ? 'text-green-400' :
-                  node.method === 'put' ? 'text-yellow-400' :
-                  node.method === 'delete' ? 'text-red-400' :
-                  'text-gray-400'
-                }`}>
-                  {node.method.toUpperCase()}
-                </span>
-              )}
-              {node.name}
-            </span>
-          </div>
-        </div>
-        {hasChildren && isExpanded && (
-          <div>
-            {node.children?.map(child => renderNode(child, level + 1))}
-          </div>
-        )}
-      </div>
-    );
-  };
-
-  const tree = React.useMemo(() => {
-    try {
-      const spec = parse(content);
-      return buildTree(spec);
-    } catch {
-      return [];
-    }
-  }, [content]);
 
   return (
-    <div className="h-full bg-gray-900 border-r border-gray-800 overflow-y-auto">
-      <div className="p-2">
-        <div className="relative">
-          <input
-            type="text"
-            placeholder="Search API..."
-            className="w-full bg-gray-800/50 border border-gray-700 rounded-md px-3 py-1.5 text-sm text-gray-300 placeholder-gray-500 focus:outline-none focus:ring-1 focus:ring-blue-500 focus:border-blue-500"
-          />
+    <div
+      onMouseEnter={() => setIsHovered(true)}
+      onMouseLeave={() => setIsHovered(false)}
+      style={{ paddingLeft: `${level * 12}px` }}
+      className={cn(
+        "group relative flex items-center h-6",
+        "cursor-pointer select-none",
+        isSelected
+          ? "bg-gray-800 text-gray-200"
+          : "text-gray-400 hover:text-gray-300",
+        "transition-colors duration-200"
+      )}
+    >
+      {/* Expand/Collapse Button */}
+      {item.type === 'folder' && (
+        <button
+          onClick={(e) => {
+            e.stopPropagation();
+            onToggle();
+          }}
+          className={cn(
+            "absolute left-0 top-1/2 -translate-y-1/2",
+            "p-0.5 rounded",
+            "text-gray-500 hover:text-gray-400",
+            "transition-colors duration-200",
+            "transform",
+            isExpanded && "rotate-90"
+          )}
+        >
+          <ChevronRight className="w-3.5 h-3.5" />
+        </button>
+      )}
+
+      {/* Item Content */}
+      <div
+        onClick={onSelect}
+        className="flex-1 flex items-center gap-2 px-6"
+      >
+        <span className="text-gray-400">
+          {getIcon()}
+        </span>
+        <span className="text-sm truncate">
+          {item.name}
+        </span>
+        {item.modified && (
+          <div className="w-1.5 h-1.5 rounded-full bg-blue-400" />
+        )}
+      </div>
+
+      {/* Actions */}
+      {isHovered && (
+        <div className="absolute right-2 top-1/2 -translate-y-1/2 flex items-center gap-1">
+          <button
+            onClick={(e) => {
+              e.stopPropagation();
+              // Handle more actions
+            }}
+            className={cn(
+              "p-0.5 rounded",
+              "text-gray-400 hover:text-gray-300",
+              "hover:bg-gray-700",
+              "transition-colors duration-200"
+            )}
+          >
+            <MoreHorizontal className="w-3.5 h-3.5" />
+          </button>
+        </div>
+      )}
+    </div>
+  );
+}
+
+function TreeView({ items }: { items: ExplorerItem[] }) {
+  const [expandedItems, setExpandedItems] = React.useState<Set<string>>(new Set());
+  const [selectedItem, setSelectedItem] = React.useState<string | null>(null);
+
+  const toggleItem = (itemId: string) => {
+    setExpandedItems(prev => {
+      const next = new Set(prev);
+      if (next.has(itemId)) {
+        next.delete(itemId);
+      } else {
+        next.add(itemId);
+      }
+      return next;
+    });
+  };
+
+  const renderItems = (items: ExplorerItem[], level: number = 0) => {
+    return items.map(item => (
+      <React.Fragment key={item.id}>
+        <TreeItem
+          item={item}
+          level={level}
+          isExpanded={expandedItems.has(item.id)}
+          isSelected={selectedItem === item.id}
+          onToggle={() => toggleItem(item.id)}
+          onSelect={() => setSelectedItem(item.id)}
+        />
+        {item.children && expandedItems.has(item.id) && (
+          <AnimatePresence>
+            <motion.div
+              initial={{ height: 0, opacity: 0 }}
+              animate={{ height: 'auto', opacity: 1 }}
+              exit={{ height: 0, opacity: 0 }}
+              transition={{ duration: 0.2 }}
+            >
+              {renderItems(item.children, level + 1)}
+            </motion.div>
+          </AnimatePresence>
+        )}
+      </React.Fragment>
+    ));
+  };
+
+  return (
+    <div className="py-1">
+      {renderItems(items)}
+    </div>
+  );
+}
+
+export function Explorer({ activePanel }: ExplorerProps) {
+  // Mock data - replace with real data
+  const items: ExplorerItem[] = [
+    {
+      id: '1',
+      name: 'src',
+      type: 'folder',
+      children: [
+        {
+          id: '2',
+          name: 'components',
+          type: 'folder',
+          children: [
+            {
+              id: '3',
+              name: 'Editor.tsx',
+              type: 'file',
+              modified: true
+            },
+            {
+              id: '4',
+              name: 'Preview.tsx',
+              type: 'file'
+            }
+          ]
+        },
+        {
+          id: '5',
+          name: 'types',
+          type: 'folder',
+          children: [
+            {
+              id: '6',
+              name: 'schema.ts',
+              type: 'file'
+            }
+          ]
+        }
+      ]
+    },
+    {
+      id: '7',
+      name: 'swagger.json',
+      type: 'file',
+      modified: true
+    }
+  ];
+
+  if (activePanel !== 'explorer') return null;
+
+  return (
+    <div className="h-full flex flex-col">
+      {/* Header */}
+      <div className="flex-none flex items-center justify-between p-2 border-b border-gray-800">
+        <h2 className="text-sm font-medium text-gray-200">
+          Explorer
+        </h2>
+        <div className="flex items-center gap-1">
+          <Tooltip content="Search in Files">
+            <button className={cn(
+              "p-1 rounded",
+              "text-gray-400 hover:text-gray-300",
+              "hover:bg-gray-800",
+              "transition-colors duration-200"
+            )}>
+              <Search className="w-4 h-4" />
+            </button>
+          </Tooltip>
+          <Tooltip content="Refresh">
+            <button className={cn(
+              "p-1 rounded",
+              "text-gray-400 hover:text-gray-300",
+              "hover:bg-gray-800",
+              "transition-colors duration-200"
+            )}>
+              <RefreshCw className="w-4 h-4" />
+            </button>
+          </Tooltip>
+          <Tooltip content="New File">
+            <button className={cn(
+              "p-1 rounded",
+              "text-gray-400 hover:text-gray-300",
+              "hover:bg-gray-800",
+              "transition-colors duration-200"
+            )}>
+              <Plus className="w-4 h-4" />
+            </button>
+          </Tooltip>
+          <Tooltip content="Explorer Settings">
+            <button className={cn(
+              "p-1 rounded",
+              "text-gray-400 hover:text-gray-300",
+              "hover:bg-gray-800",
+              "transition-colors duration-200"
+            )}>
+              <Settings className="w-4 h-4" />
+            </button>
+          </Tooltip>
         </div>
       </div>
-      <div className="mt-2">
-        {tree.map(node => renderNode(node))}
+
+      {/* Tree View */}
+      <div className="flex-1 overflow-y-auto">
+        <TreeView items={items} />
       </div>
     </div>
   );

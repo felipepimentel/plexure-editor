@@ -1,7 +1,6 @@
 import React, { useRef, useEffect, useState, useCallback } from 'react';
 import Editor, { Monaco } from '@monaco-editor/react';
 import * as monaco from 'monaco-editor';
-import { EditorPreferences } from '@/types/preferences';
 import { SwaggerPreview } from '../preview/SwaggerPreview';
 import { 
   Grip, 
@@ -21,12 +20,7 @@ import { useOpenAPIEditor } from './hooks/useOpenAPIEditor';
 import { EditorToolbar } from '../toolbar/EditorToolbar';
 import { Tooltip } from '../ui/Tooltip';
 import { useKeyboardShortcuts } from '@/contexts/KeyboardShortcutsContext';
-
-interface EditorLayoutProps {
-  content: string;
-  onChange: (value: string) => void;
-  preferences: EditorPreferences;
-}
+import { useEditor } from '@/contexts/EditorContext';
 
 const LAYOUT_PRESETS = {
   EDITOR_FOCUSED: 70,
@@ -34,7 +28,8 @@ const LAYOUT_PRESETS = {
   BALANCED: 50
 };
 
-export function EditorLayout({ content, onChange, preferences }: EditorLayoutProps) {
+export function EditorLayout() {
+  const { content, setContent, preferences, state, updateState } = useEditor();
   const editorRef = useRef<monaco.editor.IStandaloneCodeEditor | null>(null);
   const [splitPosition, setSplitPosition] = useState(LAYOUT_PRESETS.BALANCED);
   const [isDragging, setIsDragging] = useState(false);
@@ -51,12 +46,12 @@ export function EditorLayout({ content, onChange, preferences }: EditorLayoutPro
 
     // Set up editor options
     editor.updateOptions({
-      minimap: { enabled: false },
+      minimap: { enabled: preferences.minimap },
       fontSize: preferences.fontSize,
       tabSize: preferences.tabSize,
       wordWrap: preferences.wordWrap ? 'on' : 'off',
-      lineNumbers: 'on',
-      renderWhitespace: 'selection',
+      lineNumbers: preferences.lineNumbers ? 'on' : 'off',
+      renderWhitespace: preferences.renderWhitespace,
       scrollBeyondLastLine: false,
       padding: { top: 16, bottom: 16 },
       folding: true,
@@ -108,7 +103,60 @@ export function EditorLayout({ content, onChange, preferences }: EditorLayoutPro
     // Track cursor position
     editor.onDidChangeCursorPosition(e => {
       lastCursorPosition.current = e.position;
+      updateState({
+        cursorPosition: {
+          line: e.position.lineNumber,
+          column: e.position.column
+        }
+      });
     });
+
+    // Track selection
+    editor.onDidChangeCursorSelection(e => {
+      const selection = e.selection;
+      updateState({
+        selection: {
+          startLine: selection.startLineNumber,
+          startColumn: selection.startColumn,
+          endLine: selection.endLineNumber,
+          endColumn: selection.endColumn
+        }
+      });
+    });
+
+    // Track scroll position
+    editor.onDidScrollChange(e => {
+      updateState({
+        scrollPosition: {
+          scrollTop: e.scrollTop,
+          scrollLeft: e.scrollLeft
+        }
+      });
+    });
+
+    // Restore editor state
+    if (state.cursorPosition) {
+      editor.setPosition({
+        lineNumber: state.cursorPosition.line,
+        column: state.cursorPosition.column
+      });
+    }
+
+    if (state.selection) {
+      editor.setSelection({
+        startLineNumber: state.selection.startLine,
+        startColumn: state.selection.startColumn,
+        endLineNumber: state.selection.endLine,
+        endColumn: state.selection.endColumn
+      });
+    }
+
+    if (state.scrollPosition) {
+      editor.setScrollPosition({
+        scrollTop: state.scrollPosition.scrollTop,
+        scrollLeft: state.scrollPosition.scrollLeft
+      });
+    }
   };
 
   // Register keyboard shortcuts
@@ -208,7 +256,7 @@ export function EditorLayout({ content, onChange, preferences }: EditorLayoutPro
   };
 
   const handleFormat = (formattedContent: string) => {
-    onChange(formattedContent);
+    setContent(formattedContent);
     if (editorRef.current) {
       const position = lastCursorPosition.current;
       editorRef.current.setValue(formattedContent);
@@ -239,7 +287,7 @@ export function EditorLayout({ content, onChange, preferences }: EditorLayoutPro
     <div className="h-full flex flex-col">
       <EditorToolbar 
         content={content} 
-        onSave={onChange}
+        onSave={setContent}
         onFormat={handleFormat}
       />
       
@@ -337,9 +385,9 @@ export function EditorLayout({ content, onChange, preferences }: EditorLayoutPro
             <Editor
               height="100%"
               defaultLanguage="yaml"
-              defaultValue={content}
+              value={content}
               theme={preferences.theme}
-              onChange={(value) => onChange(value || '')}
+              onChange={(value) => setContent(value || '')}
               onMount={handleEditorDidMount}
               options={{
                 automaticLayout: true,
