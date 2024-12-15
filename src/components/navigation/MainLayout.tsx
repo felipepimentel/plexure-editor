@@ -92,7 +92,9 @@ import {
   Lock,
   Unlock,
   Pin,
-  PinOff
+  PinOff,
+  AlertCircle,
+  CheckCircle
 } from 'lucide-react';
 import { StatusBar } from '@/components/statusbar/StatusBar';
 import { CommandPalette } from '@/components/ui/CommandPalette';
@@ -125,6 +127,12 @@ import { BreadcrumbNavigation } from '@/components/navigation/BreadcrumbNavigati
 import { TabBar } from '@/components/navigation/TabBar';
 import { QuickDiffViewer } from '@/components/editor/QuickDiffViewer';
 import { SearchResultsPanel } from '@/components/search/SearchResultsPanel';
+import { Project, ApiContract, StyleGuide, ValidationResult } from '@/types/project';
+import { useStyleGuideValidation } from '@/hooks/useStyleGuideValidation';
+import { validateOpenAPI } from '@/utils/swagger';
+import { ValidationPanel } from '@/components/validation/ValidationPanel';
+import { GatesPanel } from '@/components/gates/GatesPanel';
+import { CollaborationPanel } from '@/components/collaboration/CollaborationPanel';
 
 interface EditorTab {
   id: string;
@@ -170,6 +178,15 @@ interface MainLayoutProps {
   onGridLayoutChange?: (layout: GridLayout) => void;
   onGroupLock?: (groupId: string, locked: boolean) => void;
   onGroupPin?: (groupId: string, pinned: boolean) => void;
+  projects?: Project[];
+  activeProject?: Project;
+  contracts?: ApiContract[];
+  activeContract?: ApiContract;
+  styleGuides?: StyleGuide[];
+  activeStyleGuide?: StyleGuide;
+  onProjectChange?: (projectId: string) => void;
+  onContractChange?: (contractId: string) => void;
+  onStyleGuideChange?: (guideId: string) => void;
 }
 
 const MIN_SIDEBAR_WIDTH = 240;
@@ -218,6 +235,37 @@ const SortableTab = ({ tab, isActive }: { tab: EditorTab; isActive: boolean }) =
   );
 };
 
+// Add new interfaces
+interface Gate {
+  id: string;
+  name: string;
+  description: string;
+  type: 'validation' | 'approval' | 'custom';
+  status: 'pending' | 'passed' | 'failed';
+  validate: () => Promise<boolean>;
+}
+
+interface Comment {
+  id: string;
+  user: {
+    id: string;
+    name: string;
+    avatar: string;
+  };
+  content: string;
+  createdAt: string;
+  path?: string;
+  line?: number;
+}
+
+interface Collaborator {
+  id: string;
+  name: string;
+  avatar: string;
+  role: 'owner' | 'editor' | 'reviewer' | 'viewer';
+  status: 'online' | 'offline';
+}
+
 export function MainLayout({ 
   children, 
   content = '', 
@@ -236,7 +284,16 @@ export function MainLayout({
   onGroupSizeChange,
   onGridLayoutChange,
   onGroupLock,
-  onGroupPin
+  onGroupPin,
+  projects = [],
+  activeProject,
+  contracts = [],
+  activeContract,
+  styleGuides = [],
+  activeStyleGuide,
+  onProjectChange,
+  onContractChange,
+  onStyleGuideChange
 }: MainLayoutProps) {
   const { theme, setTheme } = useTheme();
   const { preferences, updatePreference } = usePreferences();
@@ -1375,12 +1432,231 @@ export function MainLayout({
     // Implement navigation to search result
   };
 
+  // Add new state for API contract management
+  const [validationResults, setValidationResults] = useState<ValidationResult[]>([]);
+  const [isValidating, setIsValidating] = useState(false);
+  const [validationError, setValidationError] = useState<string | null>(null);
+  const [collaborators, setCollaborators] = useState<any[]>([]);
+  const [comments, setComments] = useState<any[]>([]);
+  const [gates, setGates] = useState<any[]>([]);
+  const [isPublishing, setIsPublishing] = useState(false);
+
+  // Add style guide validation hook
+  const styleGuideResults = useStyleGuideValidation(content);
+
+  // Add validation effect
+  useEffect(() => {
+    const validateContent = async () => {
+      if (!content) return;
+      
+      setIsValidating(true);
+      try {
+        const error = validateOpenAPI(content);
+        if (error) {
+          setValidationError(error);
+          setValidationResults([]);
+        } else {
+          setValidationError(null);
+          // Combine OpenAPI validation with style guide results
+          setValidationResults(styleGuideResults);
+        }
+      } catch (err) {
+        setValidationError(err instanceof Error ? err.message : 'Validation failed');
+        setValidationResults([]);
+      } finally {
+        setIsValidating(false);
+      }
+    };
+
+    validateContent();
+  }, [content, styleGuideResults]);
+
+  // Add project/contract selection handlers
+  const handleProjectChange = (projectId: string) => {
+    onProjectChange?.(projectId);
+  };
+
+  const handleContractChange = (contractId: string) => {
+    onContractChange?.(contractId);
+  };
+
+  const handleStyleGuideChange = (guideId: string) => {
+    onStyleGuideChange?.(guideId);
+  };
+
+  // Add publishing workflow
+  const handlePublish = async () => {
+    if (!activeContract) return;
+    
+    setIsPublishing(true);
+    try {
+      // Validate all gates
+      const passedGates = await Promise.all(gates.map(gate => gate.validate()));
+      if (passedGates.every(passed => passed)) {
+        // Publish contract logic here
+      }
+    } finally {
+      setIsPublishing(false);
+    }
+  };
+
+  // Add collaboration handlers
+  const handleAddComment = (comment: any) => {
+    setComments(prev => [...prev, comment]);
+  };
+
+  const handleAddCollaborator = (collaborator: any) => {
+    setCollaborators(prev => [...prev, collaborator]);
+  };
+
+  // Add new state
+  const [selectedPanel, setSelectedPanel] = useState<'validation' | 'gates' | 'collaboration'>('validation');
+
+  // Add gates management
+  const [customGates, setCustomGates] = useState<Gate[]>([
+    {
+      id: 'security-check',
+      name: 'Security Check',
+      description: 'Verify security requirements and best practices',
+      type: 'validation',
+      status: 'pending',
+      validate: async () => {
+        // Implement security validation logic
+        return true;
+      }
+    },
+    {
+      id: 'tech-lead-approval',
+      name: 'Tech Lead Approval',
+      description: 'Requires approval from technical lead',
+      type: 'approval',
+      status: 'pending',
+      validate: async () => {
+        // Implement approval validation logic
+        return false;
+      }
+    }
+  ]);
+
+  // Add gate management handlers
+  const handleAddGate = (gate: Gate) => {
+    setCustomGates(prev => [...prev, gate]);
+  };
+
+  const handleRemoveGate = (gateId: string) => {
+    setCustomGates(prev => prev.filter(g => g.id !== gateId));
+  };
+
+  const handleUpdateGate = (gateId: string, updates: Partial<Gate>) => {
+    setCustomGates(prev => prev.map(g => g.id === gateId ? { ...g, ...updates } : g));
+  };
+
   return (
     <div className={cn(
       "h-screen flex flex-col overflow-hidden",
       "bg-gradient-to-br from-gray-900 via-gray-800 to-gray-900",
       "transition-colors duration-300"
     )}>
+      {/* Add Project/Contract Selection Header */}
+      <div className="flex-none border-b border-gray-800 bg-gray-900/90 backdrop-blur-sm">
+        <div className="flex items-center gap-4 px-4 h-12">
+          {/* Project Selector */}
+          <div className="flex items-center gap-2">
+            <span className="text-sm text-gray-400">Project:</span>
+            <select 
+              className="bg-gray-800 border border-gray-700 rounded px-2 py-1 text-sm text-gray-200"
+              value={activeProject?.id}
+              onChange={(e) => handleProjectChange(e.target.value)}
+            >
+              {projects.map(project => (
+                <option key={project.id} value={project.id}>
+                  {project.name}
+                </option>
+              ))}
+            </select>
+          </div>
+
+          {/* Contract Selector */}
+          <div className="flex items-center gap-2">
+            <span className="text-sm text-gray-400">Contract:</span>
+            <select
+              className="bg-gray-800 border border-gray-700 rounded px-2 py-1 text-sm text-gray-200"
+              value={activeContract?.id}
+              onChange={(e) => handleContractChange(e.target.value)}
+            >
+              {contracts.map(contract => (
+                <option key={contract.id} value={contract.id}>
+                  {contract.name} (v{contract.version})
+                </option>
+              ))}
+            </select>
+          </div>
+
+          {/* Style Guide Selector */}
+          <div className="flex items-center gap-2">
+            <span className="text-sm text-gray-400">Style Guide:</span>
+            <select
+              className="bg-gray-800 border border-gray-700 rounded px-2 py-1 text-sm text-gray-200"
+              value={activeStyleGuide?.id}
+              onChange={(e) => handleStyleGuideChange(e.target.value)}
+            >
+              {styleGuides.map(guide => (
+                <option key={guide.id} value={guide.id}>
+                  {guide.name}
+                </option>
+              ))}
+            </select>
+          </div>
+
+          {/* Validation Status */}
+          <div className="flex items-center gap-2 ml-auto">
+            {isValidating ? (
+              <div className="flex items-center gap-2 text-yellow-400">
+                <RefreshCw className="w-4 h-4 animate-spin" />
+                <span className="text-sm">Validating...</span>
+              </div>
+            ) : validationError ? (
+              <div className="flex items-center gap-2 text-red-400">
+                <XCircle className="w-4 h-4" />
+                <span className="text-sm">{validationError}</span>
+              </div>
+            ) : validationResults.length > 0 ? (
+              <div className="flex items-center gap-2 text-yellow-400">
+                <AlertCircle className="w-4 h-4" />
+                <span className="text-sm">{validationResults.length} issues found</span>
+              </div>
+            ) : (
+              <div className="flex items-center gap-2 text-green-400">
+                <CheckCircle className="w-4 h-4" />
+                <span className="text-sm">Valid API Contract</span>
+              </div>
+            )}
+
+            {/* Publish Button */}
+            <button
+              onClick={handlePublish}
+              disabled={isPublishing || Boolean(validationError) || validationResults.length > 0}
+              className={cn(
+                "px-3 py-1.5 rounded-md text-sm font-medium",
+                "transition-all duration-200",
+                isPublishing || Boolean(validationError) || validationResults.length > 0
+                  ? "bg-gray-800 text-gray-500 cursor-not-allowed"
+                  : "bg-blue-500 text-white hover:bg-blue-600 active:scale-95"
+              )}
+            >
+              {isPublishing ? (
+                <div className="flex items-center gap-2">
+                  <RefreshCw className="w-4 h-4 animate-spin" />
+                  Publishing...
+                </div>
+              ) : (
+                "Publish"
+              )}
+            </button>
+          </div>
+        </div>
+      </div>
+
       {/* Header */}
       <header className={cn(
         "flex-none h-12 flex items-center justify-between gap-4 px-4",
@@ -1749,7 +2025,7 @@ export function MainLayout({
           </div>
         </div>
 
-        {/* Right Sidebar with Search Panel */}
+        {/* Right Sidebar with Validation, Gates, and Collaboration */}
         <div 
           className={cn(
             "border-l border-gray-800",
@@ -1762,34 +2038,93 @@ export function MainLayout({
             visibility: (rightSidebarCollapsed || maximizedEditor) ? 'hidden' : 'visible'
           }}
         >
-          {isSearchPanelOpen ? (
-            <SearchResultsPanel
-              query={searchQuery}
-              results={searchResults}
-              onResultClick={handleSearchResultClick}
-              onClose={() => setIsSearchPanelOpen(false)}
-            />
-          ) : (
-            <RightSidebarManager
-              content={content}
-              isCollapsed={rightSidebarCollapsed || maximizedEditor}
-            />
-          )}
-          
-          {/* Resize Handle */}
-          {!rightSidebarCollapsed && !maximizedEditor && (
-            <div
+          {/* Panel Selection Tabs */}
+          <div className="flex border-b border-gray-800">
+            <button
+              onClick={() => setSelectedPanel('validation')}
               className={cn(
-                "absolute left-0 top-0 bottom-0 w-1",
-                "cursor-col-resize group",
-                isResizingRight ? "bg-blue-500/50" : "hover:bg-blue-500/30",
-                "transition-colors duration-200"
+                "flex-1 px-4 py-2 text-sm font-medium",
+                "transition-colors duration-200",
+                selectedPanel === 'validation'
+                  ? "text-blue-400 border-b-2 border-blue-400"
+                  : "text-gray-400 hover:text-gray-300"
               )}
-              onMouseDown={() => setIsResizingRight(true)}
             >
-              {/* ... existing resize handle content ... */}
-            </div>
-          )}
+              Validation
+            </button>
+            <button
+              onClick={() => setSelectedPanel('gates')}
+              className={cn(
+                "flex-1 px-4 py-2 text-sm font-medium",
+                "transition-colors duration-200",
+                selectedPanel === 'gates'
+                  ? "text-blue-400 border-b-2 border-blue-400"
+                  : "text-gray-400 hover:text-gray-300"
+              )}
+            >
+              Gates
+            </button>
+            <button
+              onClick={() => setSelectedPanel('collaboration')}
+              className={cn(
+                "flex-1 px-4 py-2 text-sm font-medium",
+                "transition-colors duration-200",
+                selectedPanel === 'collaboration'
+                  ? "text-blue-400 border-b-2 border-blue-400"
+                  : "text-gray-400 hover:text-gray-300"
+              )}
+            >
+              Collaboration
+            </button>
+          </div>
+
+          {/* Panel Content */}
+          <div className="flex-1 overflow-auto">
+            {selectedPanel === 'validation' && (
+              <ValidationPanel
+                results={validationResults}
+                error={validationError}
+                isValidating={isValidating}
+                onFixIssue={(result) => {
+                  // Implement fix issue logic
+                }}
+                onIgnoreIssue={(result) => {
+                  // Implement ignore issue logic
+                }}
+              />
+            )}
+
+            {selectedPanel === 'gates' && (
+              <GatesPanel
+                gates={customGates}
+                onAddGate={handleAddGate}
+                onRemoveGate={handleRemoveGate}
+                onUpdateGate={handleUpdateGate}
+                onValidateGate={async (gateId) => {
+                  const gate = customGates.find(g => g.id === gateId);
+                  if (gate) {
+                    const passed = await gate.validate();
+                    handleUpdateGate(gateId, { status: passed ? 'passed' : 'failed' });
+                  }
+                }}
+              />
+            )}
+
+            {selectedPanel === 'collaboration' && (
+              <CollaborationPanel
+                collaborators={collaborators}
+                comments={comments}
+                onAddComment={handleAddComment}
+                onAddCollaborator={handleAddCollaborator}
+                onRemoveCollaborator={(id) => {
+                  setCollaborators(prev => prev.filter(c => c.id !== id));
+                }}
+                onUpdateCollaborator={(id, updates) => {
+                  setCollaborators(prev => prev.map(c => c.id === id ? { ...c, ...updates } : c));
+                }}
+              />
+            )}
+          </div>
         </div>
       </div>
 
