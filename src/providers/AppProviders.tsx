@@ -7,6 +7,7 @@ import { NavigationProvider } from '@/contexts/NavigationContext';
 import { AuthProvider } from '@/contexts/AuthContext';
 import { EditorProvider } from '@/contexts/EditorContext';
 import { TooltipProvider } from '@/components/ui';
+import { ActivityBarProvider } from '@/contexts/ActivityBarContext';
 
 interface AppProvidersProps {
   children: React.ReactNode;
@@ -24,9 +25,11 @@ export const AppProviders: React.FC<AppProvidersProps> = ({ children }) => {
             <NavigationProvider>
               <AuthProvider>
                 <EditorProvider>
-                  <TooltipProvider>
-                    {children}
-                  </TooltipProvider>
+                  <ActivityBarProvider>
+                    <TooltipProvider>
+                      {children}
+                    </TooltipProvider>
+                  </ActivityBarProvider>
                 </EditorProvider>
               </AuthProvider>
             </NavigationProvider>

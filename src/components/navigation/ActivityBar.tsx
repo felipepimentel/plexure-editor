@@ -1,78 +1,66 @@
 import React from 'react';
 import { cn } from '@/lib/utils';
-import { Button } from '@/components/ui/Button';
 import {
+  Button,
   Tooltip,
   TooltipContent,
   TooltipTrigger,
-} from '@/components/ui/Tooltip';
-import { LucideIcon } from 'lucide-react';
+  TooltipProvider,
+} from '@/components/ui';
+import { useActivityBar, type ActivityBarItem } from '@/contexts/ActivityBarContext';
 
 interface ActivityBarProps {
   className?: string;
   position?: 'left' | 'right';
-  topItems?: Array<{
-    icon: LucideIcon;
-    tooltip: string;
-    id: string;
-  }>;
-  bottomItems?: Array<{
-    icon: LucideIcon;
-    tooltip: string;
-    id: string;
-  }>;
 }
 
 export const ActivityBar = ({ 
   className,
   position = 'left',
-  topItems = [],
-  bottomItems = []
 }: ActivityBarProps) => {
-  const [activeItem, setActiveItem] = React.useState('');
+  const { primaryItems, secondaryItems, activeItem, setActiveItem } = useActivityBar();
+  const items = position === 'left' ? primaryItems : secondaryItems;
 
   return (
-    <div className={cn(
-      'flex h-full w-12 flex-col bg-background/95 backdrop-blur supports-[backdrop-filter]:bg-background/60',
-      position === 'left' ? 'border-r' : 'border-l fixed right-0',
-      className
-    )}>
-      {/* Top Actions */}
-      <div className="flex flex-col items-center gap-1 py-2">
-        {topItems?.map(({ icon: Icon, tooltip, id }) => (
-          <ActivityBarItem
-            key={id}
-            icon={Icon}
-            tooltip={tooltip}
-            isActive={activeItem === id}
-            onClick={() => setActiveItem(id)}
-            tooltipSide={position === 'left' ? 'right' : 'left'}
-          />
-        ))}
-      </div>
+    <TooltipProvider>
+      <div className={cn(
+        'flex h-full w-12 flex-col bg-background/95 backdrop-blur supports-[backdrop-filter]:bg-background/60',
+        position === 'left' ? 'border-r' : 'border-l',
+        'shrink-0',
+        className
+      )}>
+        {/* Top Actions */}
+        <div className="flex flex-col items-center gap-1 py-2">
+          {items.top.map((item) => (
+            <ActivityBarItem
+              key={item.id}
+              {...item}
+              isActive={activeItem === item.id}
+              onClick={() => setActiveItem(item.id)}
+              tooltipSide={position === 'left' ? 'right' : 'left'}
+            />
+          ))}
+        </div>
 
-      {/* Bottom Actions */}
-      <div className="mt-auto flex flex-col items-center gap-1 border-t py-2">
-        {bottomItems?.map(({ icon: Icon, tooltip, id }) => (
-          <ActivityBarItem
-            key={id}
-            icon={Icon}
-            tooltip={tooltip}
-            isActive={activeItem === id}
-            onClick={() => setActiveItem(id)}
-            tooltipSide={position === 'left' ? 'right' : 'left'}
-          />
-        ))}
+        {/* Bottom Actions */}
+        <div className="mt-auto flex flex-col items-center gap-1 border-t py-2">
+          {items.bottom.map((item) => (
+            <ActivityBarItem
+              key={item.id}
+              {...item}
+              isActive={activeItem === item.id}
+              onClick={() => setActiveItem(item.id)}
+              tooltipSide={position === 'left' ? 'right' : 'left'}
+            />
+          ))}
+        </div>
       </div>
-    </div>
+    </TooltipProvider>
   );
 };
 
-interface ActivityBarItemProps {
-  icon: LucideIcon;
-  tooltip: string;
+interface ActivityBarItemProps extends ActivityBarItem {
   isActive: boolean;
-  onClick: () => void;
   tooltipSide: 'left' | 'right';
 }
 
