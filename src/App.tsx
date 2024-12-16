@@ -1,23 +1,16 @@
-import React, { useState } from 'react';
+import React from 'react';
 import { Routes, Route, Navigate } from 'react-router-dom';
 import { LoginForm } from '@/components/auth/LoginForm';
-import { MainLayout } from '@/components/navigation/MainLayout';
+import { MainLayout } from '@/components/layout/MainLayout';
 import { PrivateRoute } from '@/components/auth/PrivateRoute';
 import { AppProviders } from '@/providers/AppProviders';
 import { useAuth } from '@/contexts/AuthContext';
-import { useTheme } from '@/contexts/ThemeContext';
-import { Editor } from '@/views/Editor';
 
-interface AppProps {
-  darkMode?: boolean;
-}
-
-function AppRoutes({ darkMode = true }: AppProps) {
+function AppRoutes() {
   const { user } = useAuth();
-  const { theme, toggleTheme } = useTheme();
 
   return (
-    <Routes future={{ v7_startTransition: true }}>
+    <Routes>
       <Route
         path="/login"
         element={
@@ -28,9 +21,7 @@ function AppRoutes({ darkMode = true }: AppProps) {
         path="/editor"
         element={
           <PrivateRoute>
-            <MainLayout>
-              <Editor />
-            </MainLayout>
+            <MainLayout />
           </PrivateRoute>
         }
       />
@@ -39,10 +30,10 @@ function AppRoutes({ darkMode = true }: AppProps) {
   );
 }
 
-export function App({ darkMode = true }: AppProps) {
+export function App() {
   return (
     <AppProviders>
-      <AppRoutes darkMode={darkMode} />
+      <AppRoutes />
     </AppProviders>
   );
 }

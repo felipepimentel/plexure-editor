@@ -8,13 +8,17 @@ import { cn } from "@/lib/utils"
 const ResizablePanelGroup = ({
   className,
   children,
+  direction = "horizontal",
   ...props
-}: React.ComponentProps<typeof PanelGroup>) => (
+}: React.ComponentProps<typeof PanelGroup> & {
+  direction?: "horizontal" | "vertical"
+}) => (
   <PanelGroup
     className={cn(
       "flex h-full w-full data-[panel-group-direction=vertical]:flex-col",
       className
     )}
+    direction={direction}
     {...props}
   >
     {children}
@@ -38,19 +42,28 @@ const ResizablePanel = ({
 )
 
 const ResizableHandle = ({
+  withHandle = true,
   className,
+  id,
   ...props
-}: React.ComponentProps<typeof PanelResizeHandle>) => (
+}: React.ComponentProps<typeof PanelResizeHandle> & {
+  withHandle?: boolean
+  id?: string
+}) => (
   <PanelResizeHandle
+    id={id}
     className={cn(
       "relative flex w-px items-center justify-center bg-border",
+      withHandle ? "hover:bg-ring" : "cursor-col-resize",
       className
     )}
     {...props}
   >
-    <div className="z-10 flex h-4 w-3 items-center justify-center rounded-sm border bg-border">
-      <GripVertical className="h-2.5 w-2.5" />
-    </div>
+    {withHandle && (
+      <div className="z-10 flex h-4 w-3 items-center justify-center rounded-sm border bg-border">
+        <GripVertical className="h-2.5 w-2.5" />
+      </div>
+    )}
   </PanelResizeHandle>
 )
 
