@@ -6,92 +6,83 @@ import {
   TooltipContent,
   TooltipTrigger,
 } from '@/components/ui/Tooltip';
-import {
-  Files,
-  Search,
-  GitBranch,
-  Settings,
-  Play,
-  Users,
-  History,
-  Blocks
-} from 'lucide-react';
+import { LucideIcon } from 'lucide-react';
 
 interface ActivityBarProps {
   className?: string;
+  position?: 'left' | 'right';
+  topItems?: Array<{
+    icon: LucideIcon;
+    tooltip: string;
+    id: string;
+  }>;
+  bottomItems?: Array<{
+    icon: LucideIcon;
+    tooltip: string;
+    id: string;
+  }>;
 }
 
-export const ActivityBar: React.FC<ActivityBarProps> = ({ className }) => {
-  const [activeItem, setActiveItem] = React.useState('files');
+export const ActivityBar = ({ 
+  className,
+  position = 'left',
+  topItems = [],
+  bottomItems = []
+}: ActivityBarProps) => {
+  const [activeItem, setActiveItem] = React.useState('');
 
   return (
-    <div className={cn('flex h-full w-12 flex-col border-r bg-background/95 backdrop-blur supports-[backdrop-filter]:bg-background/60', className)}>
+    <div className={cn(
+      'flex h-full w-12 flex-col bg-background/95 backdrop-blur supports-[backdrop-filter]:bg-background/60',
+      position === 'left' ? 'border-r' : 'border-l fixed right-0',
+      className
+    )}>
       {/* Top Actions */}
       <div className="flex flex-col items-center gap-1 py-2">
-        <ActivityBarItem
-          icon={Files}
-          tooltip="Explorer"
-          isActive={activeItem === 'files'}
-          onClick={() => setActiveItem('files')}
-        />
-        <ActivityBarItem
-          icon={Search}
-          tooltip="Search"
-          isActive={activeItem === 'search'}
-          onClick={() => setActiveItem('search')}
-        />
-        <ActivityBarItem
-          icon={GitBranch}
-          tooltip="Source Control"
-          isActive={activeItem === 'git'}
-          onClick={() => setActiveItem('git')}
-        />
-        <ActivityBarItem
-          icon={Play}
-          tooltip="Run & Debug"
-          isActive={activeItem === 'debug'}
-          onClick={() => setActiveItem('debug')}
-        />
-        <ActivityBarItem
-          icon={Blocks}
-          tooltip="Extensions"
-          isActive={activeItem === 'extensions'}
-          onClick={() => setActiveItem('extensions')}
-        />
+        {topItems?.map(({ icon: Icon, tooltip, id }) => (
+          <ActivityBarItem
+            key={id}
+            icon={Icon}
+            tooltip={tooltip}
+            isActive={activeItem === id}
+            onClick={() => setActiveItem(id)}
+            tooltipSide={position === 'left' ? 'right' : 'left'}
+          />
+        ))}
       </div>
 
       {/* Bottom Actions */}
       <div className="mt-auto flex flex-col items-center gap-1 border-t py-2">
-        <ActivityBarItem
-          icon={Users}
-          tooltip="Accounts"
-          isActive={activeItem === 'accounts'}
-          onClick={() => setActiveItem('accounts')}
-        />
-        <ActivityBarItem
-          icon={Settings}
-          tooltip="Settings"
-          isActive={activeItem === 'settings'}
-          onClick={() => setActiveItem('settings')}
-        />
+        {bottomItems?.map(({ icon: Icon, tooltip, id }) => (
+          <ActivityBarItem
+            key={id}
+            icon={Icon}
+            tooltip={tooltip}
+            isActive={activeItem === id}
+            onClick={() => setActiveItem(id)}
+            tooltipSide={position === 'left' ? 'right' : 'left'}
+          />
+        ))}
       </div>
     </div>
   );
 };
 
 interface ActivityBarItemProps {
-  icon: React.FC<{ className?: string }>;
+  icon: LucideIcon;
   tooltip: string;
   isActive: boolean;
   onClick: () => void;
+  tooltipSide: 'left' | 'right';
 }
 
-const ActivityBarItem: React.FC<ActivityBarItemProps> = ({
+const ActivityBarItem = ({
   icon: Icon,
   tooltip,
   isActive,
-  onClick
-}) => {
+  onClick,
+  tooltipSide
+}: ActivityBarItemProps) => {
   return (
     <Tooltip>
       <TooltipTrigger asChild>
@@ -108,7 +99,7 @@ const ActivityBarItem: React.FC<ActivityBarItemProps> = ({
           <Icon className="h-5 w-5" />
         </Button>
       </TooltipTrigger>
-      <TooltipContent side="right" className="text-xs">
+      <TooltipContent side={tooltipSide} className="text-xs">
         {tooltip}
       </TooltipContent>
     </Tooltip>

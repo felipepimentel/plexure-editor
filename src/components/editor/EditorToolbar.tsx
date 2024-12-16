@@ -1,183 +1,238 @@
 import React from 'react';
-import { cn } from '@/utils/cn';
+import { Button } from '@/components/ui/Button';
+import { Tooltip, TooltipContent, TooltipTrigger } from '@/components/ui/Tooltip';
 import {
-  Save,
-  Undo2,
-  Redo2,
-  Sun,
-  Moon,
-  Type,
-  Minimize2,
-  Maximize2,
-  Settings,
-  Eye,
-  EyeOff,
+  Copy,
   Download,
   Upload,
-  Layout,
+  Settings,
+  FileCode,
+  Save,
+  Undo,
+  Redo,
+  Eye,
+  Check,
+  AlertCircle,
+  Search,
+  ArrowUp,
+  ArrowDown,
+  Replace,
+  AlignJustify
 } from 'lucide-react';
-import type { EditorSettings } from './hooks/useEditorState';
 
-interface EditorToolbarProps {
-  onSave: () => void;
-  onUndo: () => void;
-  onRedo: () => void;
-  canUndo: boolean;
-  canRedo: boolean;
-  isDirty: boolean;
-  settings: EditorSettings;
-  onUpdateSettings: (settings: Partial<EditorSettings>) => void;
-  onImport: () => void;
-  onExport: () => void;
-  onOpenSettings: () => void;
-  onTogglePreview: () => void;
-  showPreview: boolean;
-  className?: string;
+interface SearchState {
+  isVisible: boolean;
+  searchTerm: string;
+  replaceTerm: string;
+  matchCase: boolean;
+  useRegex: boolean;
+  wholeWord: boolean;
+  matchCount: number;
 }
 
-export const EditorToolbar: React.FC<EditorToolbarProps> = ({
-  onSave,
+interface EditorToolbarProps {
+  filename?: string;
+  viewMode: 'yaml' | 'preview';
+  onViewModeChange: (mode: 'yaml' | 'preview') => void;
+  onUndo?: () => void;
+  onRedo?: () => void;
+  onSave?: () => void;
+  onCopy?: () => void;
+  onDownload?: () => void;
+  onUpload?: () => void;
+  onSettings?: () => void;
+  onFormat?: () => void;
+  isValid?: boolean;
+  onSearch?: () => void;
+  onFindNext?: () => void;
+  onFindPrevious?: () => void;
+  onReplace?: () => void;
+  searchState?: SearchState;
+}
+
+export const EditorToolbar = ({
+  filename = 'swagger.yaml',
+  viewMode,
+  onViewModeChange,
   onUndo,
   onRedo,
-  canUndo,
-  canRedo,
-  isDirty,
-  settings,
-  onUpdateSettings,
-  onImport,
-  onExport,
-  onOpenSettings,
-  onTogglePreview,
-  showPreview,
-  className,
-}) => {
+  onSave,
+  onCopy,
+  onDownload,
+  onUpload,
+  onSettings,
+  onFormat,
+  isValid,
+  onSearch,
+  onFindNext,
+  onFindPrevious,
+  onReplace,
+  searchState
+}: EditorToolbarProps) => {
   return (
-    <div className={cn(
-      'flex items-center gap-2 p-2 bg-white dark:bg-gray-800 border-b',
-      className
-    )}>
-      {/* File Operations */}
-      <div className="flex items-center gap-1 pr-2 border-r">
-        <button
-          onClick={onSave}
-          disabled={!isDirty}
-          className={cn(
-            'p-1.5 rounded hover:bg-gray-100 dark:hover:bg-gray-700',
-            'transition-colors duration-200',
-            'disabled:opacity-50 disabled:cursor-not-allowed'
-          )}
-          title="Save (Ctrl+S)"
+    <div className="flex h-10 items-center justify-between border-b bg-background/95 px-2 backdrop-blur supports-[backdrop-filter]:bg-background/60">
+      {/* File Info */}
+      <div className="flex items-center gap-2">
+        <Button
+          variant="ghost"
+          size="sm"
+          className="h-8 gap-2 px-2"
         >
-          <Save className="w-4 h-4" />
-        </button>
-        <button
-          onClick={onImport}
-          className="p-1.5 rounded hover:bg-gray-100 dark:hover:bg-gray-700 transition-colors duration-200"
-          title="Import OpenAPI"
-        >
-          <Upload className="w-4 h-4" />
-        </button>
-        <button
-          onClick={onExport}
-          className="p-1.5 rounded hover:bg-gray-100 dark:hover:bg-gray-700 transition-colors duration-200"
-          title="Export OpenAPI"
-        >
-          <Download className="w-4 h-4" />
-        </button>
+          <FileCode className="h-4 w-4" />
+          <span className="text-sm">{filename}</span>
+        </Button>
+
+        {/* Validation Status */}
+        {typeof isValid !== 'undefined' && (
+          <Tooltip>
+            <TooltipTrigger asChild>
+              <div className={`flex items-center gap-1 px-2 py-1 rounded-md text-xs ${
+                isValid 
+                  ? 'bg-green-100 text-green-700' 
+                  : 'bg-red-100 text-red-700'
+              }`}>
+                {isValid ? (
+                  <>
+                    <Check className="h-3 w-3" />
+                    <span>Valid</span>
+                  </>
+                ) : (
+                  <>
+                    <AlertCircle className="h-3 w-3" />
+                    <span>Invalid</span>
+                  </>
+                )}
+              </div>
+            </TooltipTrigger>
+            <TooltipContent>
+              <p className="text-xs">
+                {isValid 
+                  ? 'OpenAPI specification is valid' 
+                  : 'OpenAPI specification has errors'
+                }
+              </p>
+            </TooltipContent>
+          </Tooltip>
+        )}
+
+        {/* Search Status */}
+        {searchState?.isVisible && searchState.matchCount > 0 && (
+          <div className="text-xs text-muted-foreground">
+            {searchState.matchCount} matches
+          </div>
+        )}
       </div>
 
-      {/* Edit Operations */}
-      <div className="flex items-center gap-1 pr-2 border-r">
-        <button
+      {/* Actions */}
+      <div className="flex items-center gap-0.5">
+        <ToolbarButton
+          icon={Eye}
+          tooltip="Toggle Preview"
+          onClick={() => onViewModeChange(viewMode === 'yaml' ? 'preview' : 'yaml')}
+        />
+
+        <div className="h-4 w-px bg-border mx-1" />
+
+        <ToolbarButton
+          icon={Search}
+          tooltip="Find (Ctrl+F)"
+          onClick={onSearch}
+        />
+        {searchState?.isVisible && (
+          <>
+            <ToolbarButton
+              icon={ArrowUp}
+              tooltip="Find Previous (Shift+F3)"
+              onClick={onFindPrevious}
+            />
+            <ToolbarButton
+              icon={ArrowDown}
+              tooltip="Find Next (F3)"
+              onClick={onFindNext}
+            />
+            <ToolbarButton
+              icon={Replace}
+              tooltip="Replace (Ctrl+H)"
+              onClick={onReplace}
+            />
+          </>
+        )}
+
+        <div className="h-4 w-px bg-border mx-1" />
+
+        <ToolbarButton
+          icon={Undo}
+          tooltip="Undo (Ctrl+Z)"
           onClick={onUndo}
-          disabled={!canUndo}
-          className={cn(
-            'p-1.5 rounded hover:bg-gray-100 dark:hover:bg-gray-700',
-            'transition-colors duration-200',
-            'disabled:opacity-50 disabled:cursor-not-allowed'
-          )}
-          title="Undo (Ctrl+Z)"
-        >
-          <Undo2 className="w-4 h-4" />
-        </button>
-        <button
+        />
+        <ToolbarButton
+          icon={Redo}
+          tooltip="Redo (Ctrl+Y)"
           onClick={onRedo}
-          disabled={!canRedo}
-          className={cn(
-            'p-1.5 rounded hover:bg-gray-100 dark:hover:bg-gray-700',
-            'transition-colors duration-200',
-            'disabled:opacity-50 disabled:cursor-not-allowed'
-          )}
-          title="Redo (Ctrl+Y)"
-        >
-          <Redo2 className="w-4 h-4" />
-        </button>
-      </div>
+        />
 
-      {/* View Settings */}
-      <div className="flex items-center gap-1">
-        <button
-          onClick={() => onUpdateSettings({ theme: settings.theme === 'vs-dark' ? 'vs-light' : 'vs-dark' })}
-          className="p-1.5 rounded hover:bg-gray-100 dark:hover:bg-gray-700 transition-colors duration-200"
-          title="Toggle Theme"
-        >
-          {settings.theme === 'vs-dark' ? (
-            <Sun className="w-4 h-4" />
-          ) : (
-            <Moon className="w-4 h-4" />
-          )}
-        </button>
-        <button
-          onClick={() => onUpdateSettings({ fontSize: settings.fontSize + 1 })}
-          className="p-1.5 rounded hover:bg-gray-100 dark:hover:bg-gray-700 transition-colors duration-200"
-          title="Increase Font Size"
-        >
-          <Type className="w-4 h-4" />
-        </button>
-        <button
-          onClick={() => onUpdateSettings({ minimap: !settings.minimap })}
-          className="p-1.5 rounded hover:bg-gray-100 dark:hover:bg-gray-700 transition-colors duration-200"
-          title="Toggle Minimap"
-        >
-          {settings.minimap ? (
-            <Minimize2 className="w-4 h-4" />
-          ) : (
-            <Maximize2 className="w-4 h-4" />
-          )}
-        </button>
-        <button
-          onClick={() => onUpdateSettings({ renderWhitespace: settings.renderWhitespace === 'all' ? 'none' : 'all' })}
-          className="p-1.5 rounded hover:bg-gray-100 dark:hover:bg-gray-700 transition-colors duration-200"
-          title="Toggle Whitespace"
-        >
-          {settings.renderWhitespace === 'all' ? (
-            <EyeOff className="w-4 h-4" />
-          ) : (
-            <Eye className="w-4 h-4" />
-          )}
-        </button>
-      </div>
+        <div className="h-4 w-px bg-border mx-1" />
 
-      {/* Preview and Settings */}
-      <div className="flex items-center gap-1 ml-auto">
-        <button
-          onClick={onTogglePreview}
-          className={cn(
-            'p-1.5 rounded hover:bg-gray-100 dark:hover:bg-gray-700 transition-colors duration-200',
-            showPreview && 'bg-blue-50 text-blue-600 dark:bg-blue-900 dark:text-blue-200'
-          )}
-          title="Toggle Preview"
-        >
-          <Layout className="w-4 h-4" />
-        </button>
-        <button
-          onClick={onOpenSettings}
-          className="p-1.5 rounded hover:bg-gray-100 dark:hover:bg-gray-700 transition-colors duration-200"
-          title="Editor Settings"
-        >
-          <Settings className="w-4 h-4" />
-        </button>
+        <ToolbarButton
+          icon={AlignJustify}
+          tooltip="Format (Ctrl+Shift+F)"
+          onClick={onFormat}
+        />
+        <ToolbarButton
+          icon={Save}
+          tooltip="Save (Ctrl+S)"
+          onClick={onSave}
+        />
+        <ToolbarButton
+          icon={Copy}
+          tooltip="Copy (Ctrl+C)"
+          onClick={onCopy}
+        />
+        <ToolbarButton
+          icon={Download}
+          tooltip="Download"
+          onClick={onDownload}
+        />
+        <ToolbarButton
+          icon={Upload}
+          tooltip="Upload"
+          onClick={onUpload}
+        />
+
+        <div className="h-4 w-px bg-border mx-1" />
+
+        <ToolbarButton
+          icon={Settings}
+          tooltip="Settings"
+          onClick={onSettings}
+        />
       </div>
     </div>
+  );
+};
+
+interface ToolbarButtonProps {
+  icon: React.ComponentType<{ className?: string }>;
+  tooltip: string;
+  onClick?: () => void;
+}
+
+const ToolbarButton = ({ icon: Icon, tooltip, onClick }: ToolbarButtonProps) => {
+  return (
+    <Tooltip>
+      <TooltipTrigger asChild>
+        <Button
+          variant="ghost"
+          size="sm"
+          className="h-8 w-8 p-0"
+          onClick={onClick}
+        >
+          <Icon className="h-4 w-4" />
+        </Button>
+      </TooltipTrigger>
+      <TooltipContent>
+        <p className="text-xs">{tooltip}</p>
+      </TooltipContent>
+    </Tooltip>
   );
 }; 

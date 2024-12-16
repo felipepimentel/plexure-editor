@@ -322,3 +322,193 @@ By following this prompt, all generated solutions will:
    };
    ```
 
+### Code Simplicity and Maintainability [P0]
+
+1. **Keyboard Shortcuts**
+   - Reserve common shortcuts for standard operations:
+     ```
+     Ctrl+F: Find/Search
+     Ctrl+H: Replace
+     Ctrl+S: Save
+     Ctrl+Z: Undo
+     Ctrl+Y: Redo
+     Ctrl+C/V/X: Copy/Paste/Cut
+     F3: Find Next
+     Shift+F3: Find Previous
+     ```
+   - Use Ctrl+Shift combinations for custom operations:
+     ```
+     Ctrl+Shift+F: Format
+     Ctrl+Shift+P: Command Palette
+     ```
+   - Document all shortcuts in component props and tooltips
+
+2. **State Management**
+   - Prefer hooks over class components
+   - Keep state close to where it's used
+   - Use composition over inheritance
+   - Example:
+     ```typescript
+     // ❌ Avoid
+     const [state1, setState1] = useState();
+     const [state2, setState2] = useState();
+     const [state3, setState3] = useState();
+     
+     // ✅ Prefer
+     const [formState, setFormState] = useState({
+       field1: '',
+       field2: '',
+       field3: ''
+     });
+     ```
+
+3. **Component Complexity**
+   - Maximum of 200 lines per component file
+   - Extract complex logic into custom hooks
+   - Split large components into smaller, focused ones
+   - Example:
+     ```typescript
+     // ❌ Avoid
+     const ComplexComponent = () => {
+       // 300+ lines of mixed concerns
+     };
+     
+     // ✅ Prefer
+     const ComplexComponent = () => {
+       const logic = useComplexLogic();
+       return (
+         <>
+           <HeaderSection {...logic} />
+           <ContentSection {...logic} />
+           <FooterSection {...logic} />
+         </>
+       );
+     };
+     ```
+
+4. **Editor Integration**
+   - Use Monaco Editor features directly instead of reimplementing:
+     ```typescript
+     // ❌ Avoid
+     const customSearch = () => {
+       // Custom search implementation
+     };
+     
+     // ✅ Prefer
+     editor.trigger('search', 'actions.find', null);
+     ```
+   - Leverage built-in commands and actions
+   - Extend existing functionality rather than replacing it
+
+5. **Toolbar Organization**
+   - Group related actions with separators
+   - Use consistent icon sizes (16px default)
+   - Follow standard order:
+     ```
+     1. View Controls (Preview, Split)
+     2. Search Actions
+     3. Edit Actions (Undo, Redo)
+     4. File Actions (Save, Format)
+     5. Settings/Config
+     ```
+
+6. **Error Handling and Validation**
+   - Provide immediate feedback
+   - Use type-safe error handling
+   - Example:
+     ```typescript
+     // ❌ Avoid
+     try {
+       doSomething();
+     } catch (e) {
+       console.error(e);
+     }
+     
+     // ✅ Prefer
+     try {
+       doSomething();
+     } catch (e) {
+       if (e instanceof ValidationError) {
+         showValidationError(e.message);
+       } else {
+         reportError(e);
+       }
+     }
+     ```
+
+7. **Performance Optimization**
+   - Memoize only when necessary
+   - Use virtualization for large lists
+   - Example:
+     ```typescript
+     // ❌ Avoid - unnecessary memoization
+     const SimpleComponent = React.memo(() => <div>Hello</div>);
+     
+     // ✅ Prefer - memoize only complex computations
+     const ComplexList = React.memo(({ items }) => (
+       <VirtualList items={items} />
+     ));
+     ```
+
+8. **Code Generation Guidelines**
+   - Generate complete, working solutions
+   - Include all necessary imports
+   - Add TypeScript types
+   - Example:
+     ```typescript
+     // ❌ Avoid
+     const Component = () => {
+       // Missing imports
+       // Missing types
+       return <div />;
+     };
+     
+     // ✅ Prefer
+     import React from 'react';
+     import { cn } from '@/lib/utils';
+     
+     interface ComponentProps {
+       className?: string;
+     }
+     
+     export const Component: React.FC<ComponentProps> = ({
+       className
+     }) => {
+       return <div className={cn('base-styles', className)} />;
+     };
+     ```
+
+9. **Documentation**
+   - Document non-obvious code
+   - Include JSDoc for public APIs
+   - Example:
+     ```typescript
+     /**
+      * Formats YAML content according to OpenAPI standards.
+      * @param content - The YAML content to format
+      * @returns Formatted YAML string
+      * @throws {ValidationError} If content is invalid
+      */
+     export function formatYAML(content: string): string {
+       // Implementation
+     }
+     ```
+
+10. **Testing Considerations**
+    - Write testable code
+    - Avoid direct DOM manipulation
+    - Use data-testid for test selectors
+    - Example:
+      ```typescript
+      // ❌ Avoid
+      onClick={() => document.querySelector('.item').click()};
+      
+      // ✅ Prefer
+      <Button
+        data-testid="action-button"
+        onClick={handleClick}
+      >
+        Action
+      </Button>
+      ```
+
