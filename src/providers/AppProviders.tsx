@@ -8,6 +8,9 @@ import { AuthProvider } from '@/contexts/AuthContext';
 import { EditorProvider } from '@/contexts/EditorContext';
 import { TooltipProvider } from '@/components/ui';
 import { ActivityBarProvider } from '@/contexts/ActivityBarContext';
+import { RightSidebarProvider } from '@/contexts/RightSidebarContext';
+import { LeftSidebarProvider } from '@/contexts/LeftSidebarContext';
+import { SidebarLayoutProvider } from '@/contexts/SidebarLayoutContext';
 
 interface AppProvidersProps {
   children: React.ReactNode;
@@ -25,11 +28,17 @@ export const AppProviders: React.FC<AppProvidersProps> = ({ children }) => {
             <NavigationProvider>
               <AuthProvider>
                 <EditorProvider>
-                  <ActivityBarProvider>
-                    <TooltipProvider>
-                      {children}
-                    </TooltipProvider>
-                  </ActivityBarProvider>
+                  <SidebarLayoutProvider>
+                    <ActivityBarProvider>
+                      <LeftSidebarProvider>
+                        <RightSidebarProvider>
+                          <TooltipProvider>
+                            {children}
+                          </TooltipProvider>
+                        </RightSidebarProvider>
+                      </LeftSidebarProvider>
+                    </ActivityBarProvider>
+                  </SidebarLayoutProvider>
                 </EditorProvider>
               </AuthProvider>
             </NavigationProvider>

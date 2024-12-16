@@ -7,7 +7,9 @@ import {
   TooltipTrigger,
   TooltipProvider,
 } from '@/components/ui';
+import { CollapseIcon } from '@/components/ui/CollapseIcon';
 import { useActivityBar, type ActivityBarItem } from '@/contexts/ActivityBarContext';
+import { useSidebarLayout } from '@/contexts/SidebarLayoutContext';
 
 interface ActivityBarProps {
   className?: string;
@@ -19,7 +21,22 @@ export const ActivityBar = ({
   position = 'left',
 }: ActivityBarProps) => {
   const { primaryItems, secondaryItems, activeItem, setActiveItem } = useActivityBar();
+  const {
+    leftSidebarExpanded,
+    rightSidebarExpanded,
+    setLeftSidebarExpanded,
+    setRightSidebarExpanded,
+    leftActivityBarExpanded,
+    rightActivityBarExpanded,
+    setLeftActivityBarExpanded,
+    setRightActivityBarExpanded,
+  } = useSidebarLayout();
+  
   const items = position === 'left' ? primaryItems : secondaryItems;
+  const isExpanded = position === 'left' ? leftSidebarExpanded : rightSidebarExpanded;
+  const setExpanded = position === 'left' ? setLeftSidebarExpanded : setRightSidebarExpanded;
+  const isActivityBarExpanded = position === 'left' ? leftActivityBarExpanded : rightActivityBarExpanded;
+  const setActivityBarExpanded = position === 'left' ? setLeftActivityBarExpanded : setRightActivityBarExpanded;
 
   return (
     <TooltipProvider>
@@ -36,7 +53,15 @@ export const ActivityBar = ({
               key={item.id}
               {...item}
               isActive={activeItem === item.id}
-              onClick={() => setActiveItem(item.id)}
+              onClick={() => {
+                if (activeItem === item.id) {
+                  setActiveItem(null);
+                  setExpanded(false);
+                } else {
+                  setActiveItem(item.id);
+                  setExpanded(true);
+                }
+              }}
               tooltipSide={position === 'left' ? 'right' : 'left'}
             />
           ))}
@@ -49,10 +74,35 @@ export const ActivityBar = ({
               key={item.id}
               {...item}
               isActive={activeItem === item.id}
-              onClick={() => setActiveItem(item.id)}
+              onClick={() => {
+                if (activeItem === item.id) {
+                  setActiveItem(null);
+                  setExpanded(false);
+                } else {
+                  setActiveItem(item.id);
+                  setExpanded(true);
+                }
+              }}
               tooltipSide={position === 'left' ? 'right' : 'left'}
             />
           ))}
+
+          {/* Collapse/Expand Button */}
+          <Tooltip>
+            <TooltipTrigger asChild>
+              <div>
+                <CollapseIcon
+                  expanded={isActivityBarExpanded}
+                  position={position}
+                  onClick={() => setActivityBarExpanded(!isActivityBarExpanded)}
+                  className="h-10 w-10"
+                />
+              </div>
+            </TooltipTrigger>
+            <TooltipContent side={position === 'left' ? 'right' : 'left'} className="text-xs">
+              {isActivityBarExpanded ? 'Collapse Activity Bar' : 'Expand Activity Bar'}
+            </TooltipContent>
+          </Tooltip>
         </div>
       </div>
     </TooltipProvider>

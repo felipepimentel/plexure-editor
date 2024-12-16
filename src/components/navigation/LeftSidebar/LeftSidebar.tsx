@@ -1,24 +1,119 @@
 import React from 'react';
-import { Search } from 'lucide-react';
-import { NavigationTree } from '../NavigationTree';
-import { BaseSidebar } from '../Sidebar/BaseSidebar';
+import { cn } from '@/lib/utils';
+import {
+  Button,
+  Tooltip,
+  TooltipContent,
+  TooltipTrigger,
+  TooltipProvider,
+} from '@/components/ui';
+import { PanelHeader } from '@/components/ui/PanelHeader';
+import { useSidebarLayout } from '@/contexts/SidebarLayoutContext';
+import { useLeftSidebar, type SidebarItem } from '@/contexts/LeftSidebarContext';
 
-export function LeftSidebar() {
+interface LeftSidebarProps {
+  className?: string;
+}
+
+export const LeftSidebar = ({ className }: LeftSidebarProps) => {
+  const { items, activeItem, setActiveItem } = useLeftSidebar();
+  const { 
+    leftSidebarExpanded, 
+    setLeftSidebarExpanded,
+    leftPanelExpanded,
+    setLeftPanelExpanded,
+  } = useSidebarLayout();
+
+  const activeItemData = items.find(item => item.id === activeItem);
+  const Icon = activeItemData?.icon;
+
   return (
-    <BaseSidebar position="left">
-      <div className="flex-none p-4 border-b border-white/[0.05]">
-        <div className="relative">
-          <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-gray-500" />
-          <input
-            type="text"
-            placeholder="Search API..."
-            className="w-full pl-9 pr-4 py-2 bg-white/[0.05] border border-white/[0.05] rounded-md text-sm text-gray-300 placeholder-gray-500 focus:outline-none focus:ring-1 focus:ring-blue-500"
+    <div className={cn('flex h-full', className)}>
+      {/* Content Panel */}
+      {leftSidebarExpanded && activeItem && (
+        <div className="w-80 border-r bg-background overflow-hidden flex flex-col">
+          <PanelHeader
+            title={activeItemData?.tooltip || ''}
+            icon={Icon}
+            isExpanded={leftPanelExpanded}
+            onToggle={() => setLeftPanelExpanded(!leftPanelExpanded)}
+            position="left"
           />
+
+          {/* Content */}
+          <div className={cn(
+            'transition-all duration-300 ease-in-out',
+            leftPanelExpanded ? 'flex-1 overflow-auto' : 'h-0',
+          )}>
+            <div className="p-4">
+              {activeItemData?.panel}
+            </div>
+          </div>
         </div>
-      </div>
-      <div className="flex-1 overflow-auto">
-        <NavigationTree className="p-2" />
-      </div>
-    </BaseSidebar>
+      )}
+
+      {/* Icons Bar */}
+      <TooltipProvider>
+        <div className={cn(
+          'flex h-full w-12 flex-col bg-background/95 backdrop-blur supports-[backdrop-filter]:bg-background/60',
+          'border-r shrink-0'
+        )}>
+          {/* Top Actions */}
+          <div className="flex flex-col items-center gap-1 py-2">
+            {items.map((item) => (
+              <SidebarItemButton
+                key={item.id}
+                {...item}
+                isActive={activeItem === item.id}
+                onClick={() => {
+                  if (activeItem === item.id) {
+                    setActiveItem(null);
+                    setLeftSidebarExpanded(false);
+                  } else {
+                    setActiveItem(item.id);
+                    setLeftSidebarExpanded(true);
+                    setLeftPanelExpanded(true);
+                  }
+                }}
+              />
+            ))}
+          </div>
+        </div>
+      </TooltipProvider>
+    </div>
   );
-} 
+};
+
+interface SidebarItemButtonProps extends SidebarItem {
+  isActive: boolean;
+  onClick: () => void;
+}
+
+const SidebarItemButton = ({
+  icon: Icon,
+  tooltip,
+  isActive,
+  onClick,
+}: SidebarItemButtonProps) => {
+  return (
+    <Tooltip>
+      <TooltipTrigger asChild>
+        <Button
+          variant="ghost"
+          size="icon"
+          className={cn(
+            'h-10 w-10 rounded-md',
+            isActive && 'bg-muted text-primary',
+            !isActive && 'text-muted-foreground hover:text-foreground hover:bg-muted/50'
+          )}
+          onClick={onClick}
+        >
+          <Icon className="h-5 w-5" />
+        </Button>
+      </TooltipTrigger>
+      <TooltipContent side="right" className="text-xs">
+        {tooltip}
+      </TooltipContent>
+    </Tooltip>
+  );
+}; 
