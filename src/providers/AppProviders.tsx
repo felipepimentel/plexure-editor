@@ -6,21 +6,24 @@ import { KeyboardShortcutsProvider } from '@/contexts/KeyboardShortcutsContext';
 import { NavigationProvider } from '@/contexts/NavigationContext';
 import { AuthProvider } from '@/contexts/AuthContext';
 import { EditorProvider } from '@/contexts/EditorContext';
+import { TooltipProvider } from '@/components/ui';
 
 interface AppProvidersProps {
   children: React.ReactNode;
 }
 
-export function AppProviders({ children }: AppProvidersProps) {
+export const AppProviders: React.FC<AppProvidersProps> = ({ children }) => {
   return (
-    <BrowserRouter>
+    <BrowserRouter future={{ v7_startTransition: true }}>
       <ThemeProvider>
         <PreferencesProvider>
           <KeyboardShortcutsProvider>
             <NavigationProvider>
               <AuthProvider>
                 <EditorProvider>
-                  {children}
+                  <TooltipProvider>
+                    {children}
+                  </TooltipProvider>
                 </EditorProvider>
               </AuthProvider>
             </NavigationProvider>
@@ -29,4 +32,4 @@ export function AppProviders({ children }: AppProvidersProps) {
       </ThemeProvider>
     </BrowserRouter>
   );
-} 
+};

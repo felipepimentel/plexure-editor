@@ -15,11 +15,9 @@ interface AppProps {
 function AppRoutes({ darkMode = true }: AppProps) {
   const { user } = useAuth();
   const { theme, toggleTheme } = useTheme();
-  const [navigationCollapsed, setNavigationCollapsed] = useState(false);
-  const [activeNavigationItem, setActiveNavigationItem] = useState('spec');
 
   return (
-    <Routes>
+    <Routes future={{ v7_startTransition: true }}>
       <Route
         path="/login"
         element={

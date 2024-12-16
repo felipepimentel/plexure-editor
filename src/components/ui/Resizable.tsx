@@ -1,130 +1,43 @@
-import React from 'react';
-import { cn } from '@/utils/cn';
-import { motion, AnimatePresence, PanInfo } from 'framer-motion';
+import { GripVertical } from "lucide-react"
+import * as ResizablePrimitive from "react-resizable-panels"
 
-interface ResizablePanelGroupProps {
-  children: React.ReactNode;
-  direction?: 'horizontal' | 'vertical';
-  className?: string;
-}
+import { cn } from "@/lib/utils"
 
-interface ResizablePanelProps {
-  children: React.ReactNode;
-  defaultSize?: number;
-  minSize?: number;
-  maxSize?: number;
-  className?: string;
-}
+const ResizablePanelGroup = ({
+  className,
+  ...props
+}: React.ComponentProps<typeof ResizablePrimitive.PanelGroup>) => (
+  <ResizablePrimitive.PanelGroup
+    className={cn(
+      "flex h-full w-full data-[panel-group-direction=vertical]:flex-col",
+      className
+    )}
+    {...props}
+  />
+)
 
-interface ResizableHandleProps {
-  onResize?: (delta: number) => void;
-  className?: string;
-}
+const ResizablePanel = ResizablePrimitive.Panel
 
-export function ResizablePanelGroup({
-  children,
-  direction = 'horizontal',
-  className
-}: ResizablePanelGroupProps) {
-  return (
-    <div
-      className={cn(
-        "flex",
-        direction === 'horizontal' ? "flex-row" : "flex-col",
-        "h-full",
-        className
-      )}
-    >
-      {children}
-    </div>
-  );
-}
-
-export function ResizablePanel({
-  children,
-  defaultSize = 100,
-  minSize = 0,
-  maxSize = 100,
-  className
-}: ResizablePanelProps) {
-  const [size, setSize] = React.useState(defaultSize);
-  const lastSize = React.useRef(size);
-
-  const handleResize = React.useCallback((delta: number) => {
-    setSize(prev => {
-      const newSize = Math.max(minSize, Math.min(maxSize, prev + delta));
-      lastSize.current = newSize;
-      return newSize;
-    });
-  }, [minSize, maxSize]);
-
-  return (
-    <motion.div
-      className={cn("relative", className)}
-      style={{ flex: `${size} ${size} 0%` }}
-      layout
-    >
-      {children}
-    </motion.div>
-  );
-}
-
-export function ResizableHandle({
-  onResize,
-  className
-}: ResizableHandleProps) {
-  const [isDragging, setIsDragging] = React.useState(false);
-  const startPos = React.useRef({ x: 0, y: 0 });
-
-  const handleDragStart = (event: React.PointerEvent) => {
-    setIsDragging(true);
-    startPos.current = { x: event.clientX, y: event.clientY };
-    event.currentTarget.setPointerCapture(event.pointerId);
-  };
-
-  const handleDragMove = (event: React.PointerEvent) => {
-    if (!isDragging) return;
-
-    const delta = {
-      x: event.clientX - startPos.current.x,
-      y: event.clientY - startPos.current.y
-    };
-
-    onResize?.(delta.x);
-    startPos.current = { x: event.clientX, y: event.clientY };
-  };
-
-  const handleDragEnd = (event: React.PointerEvent) => {
-    setIsDragging(false);
-    event.currentTarget.releasePointerCapture(event.pointerId);
-  };
-
-  return (
-    <div
-      onPointerDown={handleDragStart}
-      onPointerMove={handleDragMove}
-      onPointerUp={handleDragEnd}
-      className={cn(
-        "absolute top-0 right-0 bottom-0",
-        "w-1 cursor-col-resize",
-        "group",
-        isDragging && "select-none",
-        className
-      )}
-    >
-      <div className={cn(
-        "absolute inset-y-0 -left-1 w-3",
-        "flex items-center justify-center",
-        "group-hover:bg-blue-500/10",
-        isDragging && "bg-blue-500/10"
-      )}>
-        <div className={cn(
-          "w-0.5 h-8",
-          "bg-gray-700 rounded-full",
-          "group-hover:bg-blue-400",
-          isDragging && "bg-blue-400"
-        )} />
+const ResizableHandle = ({
+  withHandle,
+  className,
+  ...props
+}: React.ComponentProps<typeof ResizablePrimitive.PanelResizeHandle> & {
+  withHandle?: boolean
+}) => (
+  <ResizablePrimitive.PanelResizeHandle
+    className={cn(
+      "relative flex w-px items-center justify-center bg-border after:absolute after:inset-y-0 after:left-1/2 after:w-1 after:-translate-x-1/2 focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring focus-visible:ring-offset-1 data-[panel-group-direction=vertical]:h-px data-[panel-group-direction=vertical]:w-full data-[panel-group-direction=vertical]:after:left-0 data-[panel-group-direction=vertical]:after:h-1 data-[panel-group-direction=vertical]:after:w-full data-[panel-group-direction=vertical]:after:-translate-y-1/2 data-[panel-group-direction=vertical]:after:translate-x-0 [&[data-panel-group-direction=vertical]>div]:rotate-90",
+      className
+    )}
+    {...props}
+  >
+    {withHandle && (
+      <div className="z-10 flex h-4 w-3 items-center justify-center rounded-sm border bg-border">
+        <GripVertical className="h-2.5 w-2.5" />
       </div>
-    </div>
-  );
-} 
+    )}
+  </ResizablePrimitive.PanelResizeHandle>
+)
+
+export { ResizablePanel, ResizablePanelGroup, ResizableHandle }

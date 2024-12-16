@@ -178,3 +178,147 @@ By following this prompt, all generated solutions will:
 4. Avoid unnecessary libraries, files, and dependencies to keep the project lean and maintainable.
 5. Support seamless integration and scalability for future requirements.
 
+### File and Directory Naming [P0]
+
+1. **File Naming**
+   - Use **PascalCase** for all React component files (`.tsx`, `.jsx`)
+   - Use **camelCase** for utility files (`.ts`, `.js`)
+   - Use **kebab-case** for configuration files
+   - Examples:
+     ```
+     ✅ Button.tsx, UserProfile.tsx, useAuth.ts
+     ❌ button.tsx, user-profile.tsx, use-auth.ts
+     ```
+
+2. **Directory Structure**
+   - Use **kebab-case** for directory names
+   - Group related components in feature directories
+   - Keep flat structure when possible
+   - Examples:
+     ```
+     ✅ src/components/ui/Button.tsx
+     ✅ src/features/auth/LoginForm.tsx
+     ❌ src/components/ui/button/Button.tsx
+     ❌ src/components/UI/Button.tsx
+     ```
+
+3. **Component Organization**
+   - Avoid component duplication across directories
+   - Keep related components together
+   - Use subdirectories only when necessary for organization
+   - Examples:
+     ```
+     ✅ src/components/sidebar/
+         ├── Sidebar.tsx
+         └── right/
+             ├── RightSidebar.tsx
+             └── RightSidebarManager.tsx
+     
+     ❌ src/components/
+         ├── navigation/Sidebar.tsx
+         └── sidebar/Sidebar.tsx
+     ```
+
+4. **Import Conventions**
+   - Prefer absolute imports using path aliases
+   - Group imports by type (React, external, internal)
+   - Examples:
+     ```typescript
+     // External imports
+     import React from 'react';
+     import { motion } from 'framer-motion';
+     
+     // Internal imports - absolute paths
+     import { Button } from '@/components/ui/Button';
+     import { useAuth } from '@/hooks/useAuth';
+     
+     // Internal imports - relative paths (only for same directory)
+     import { type ButtonProps } from './types';
+     import { buttonVariants } from './variants';
+     
+     // 5. Asset imports
+     import logo from '@/assets/logo.svg';
+     ```
+
+### Anti-Patterns [P0]
+
+❌ **Avoid**
+- Duplicate component files or directories
+- Mixed case conventions in file/directory names
+- Deep nesting of components
+- Multiple components in single file
+- Generic component names (e.g., `Container.tsx`, `Wrapper.tsx`)
+
+✅ **Prefer**
+- Single responsibility components
+- Clear, descriptive naming
+- Flat directory structure
+- Feature-based organization
+- Consistent naming conventions
+
+### Imports and Dependencies [P0]
+
+1. **Import Organization**
+   ```typescript
+   // 1. React and framework imports
+   import React from 'react';
+   import { useRouter } from 'next/router';
+   
+   // 2. External library imports
+   import { motion } from 'framer-motion';
+   import { format } from 'date-fns';
+   
+   // 3. Internal absolute imports
+   import { Button } from '@/components/ui/Button';
+   import { useAuth } from '@/hooks/useAuth';
+   
+   // 4. Internal relative imports
+   import { type ButtonProps } from './types';
+   import { buttonVariants } from './variants';
+   
+   // 5. Asset imports
+   import logo from '@/assets/logo.svg';
+   ```
+
+2. **Path Aliases**
+   - Use `@/` prefix for absolute imports from src directory
+   - Configure path aliases in `tsconfig.json`
+   - Example:
+     ```json
+     {
+       "compilerOptions": {
+         "baseUrl": ".",
+         "paths": {
+           "@/*": ["src/*"]
+         }
+       }
+     }
+     ```
+
+### Component File Structure [P0]
+
+1. **File Organization**
+   ```typescript
+   // 1. Imports (organized as specified above)
+   
+   // 2. Types/Interfaces
+   interface ButtonProps {
+     variant?: 'primary' | 'secondary';
+     size?: 'sm' | 'md' | 'lg';
+   }
+   
+   // 3. Component
+   export const Button: React.FC<ButtonProps> = ({
+     variant = 'primary',
+     size = 'md',
+     ...props
+   }) => {
+     // Component logic
+   };
+   
+   // 4. Styles (if not using CSS modules)
+   const styles = {
+     // ...
+   };
+   ```
+

@@ -3,12 +3,44 @@
 @tailwind utilities;
 
 @layer base {
-  body {
-    @apply antialiased bg-[#1B1F2A];
+  :root {
+    --background: 222.2 84% 4.9%;
+    --foreground: 210 40% 98%;
+    
+    --card: 222.2 84% 4.9%;
+    --card-foreground: 210 40% 98%;
+ 
+    --popover: 222.2 84% 4.9%;
+    --popover-foreground: 210 40% 98%;
+ 
+    --primary: 210 40% 98%;
+    --primary-foreground: 222.2 47.4% 11.2%;
+ 
+    --secondary: 217.2 32.6% 17.5%;
+    --secondary-foreground: 210 40% 98%;
+ 
+    --muted: 217.2 32.6% 17.5%;
+    --muted-foreground: 215 20.2% 65.1%;
+ 
+    --accent: 217.2 32.6% 17.5%;
+    --accent-foreground: 210 40% 98%;
+ 
+    --destructive: 0 62.8% 30.6%;
+    --destructive-foreground: 210 40% 98%;
+ 
+    --border: 217.2 32.6% 17.5%;
+    --input: 217.2 32.6% 17.5%;
+    --ring: 212.7 26.8% 83.9%;
+    --radius: 0.5rem;
   }
+}
 
-  label {
-    @apply block text-sm font-normal text-gray-400 mb-2;
+@layer base {
+  * {
+    @apply border-border;
+  }
+  body {
+    @apply bg-background text-foreground antialiased;
   }
 }
 
@@ -49,20 +81,51 @@ input:-webkit-autofill:focus {
   outline: none;
 }
 
-/* Custom scrollbar - minimal style */
+/* Custom Scrollbar */
 ::-webkit-scrollbar {
-  width: 6px;
+  @apply w-2;
 }
 
 ::-webkit-scrollbar-track {
-  background: transparent;
+  @apply bg-muted/30;
 }
 
 ::-webkit-scrollbar-thumb {
-  background: rgba(255, 255, 255, 0.1);
-  border-radius: 3px;
+  @apply bg-muted hover:bg-muted/80 transition-colors rounded-full;
 }
 
-::-webkit-scrollbar-thumb:hover {
-  background: rgba(255, 255, 255, 0.2);
+/* Monaco Editor */
+.monaco-editor {
+  @apply !bg-background;
+}
+
+.monaco-editor .margin {
+  @apply !bg-background;
+}
+
+.monaco-editor .minimap {
+  @apply !bg-background/50;
+}
+
+/* Split Panel */
+[data-panel-group-direction="horizontal"] > [data-panel-resize-handle] {
+  @apply w-1 bg-border hover:bg-primary/20 transition-colors;
+}
+
+[data-panel-group-direction="vertical"] > [data-panel-resize-handle] {
+  @apply h-1 bg-border hover:bg-primary/20 transition-colors;
+}
+
+[data-panel-resize-handle][data-panel-group-direction="horizontal"]::after {
+  content: "";
+  @apply absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-5 h-5 bg-primary/10 rounded opacity-0 transition-opacity;
+}
+
+[data-panel-resize-handle][data-panel-group-direction="vertical"]::after {
+  content: "";
+  @apply absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-5 h-5 bg-primary/10 rounded opacity-0 transition-opacity;
+}
+
+[data-panel-resize-handle]:hover::after {
+  @apply opacity-100;
 }
