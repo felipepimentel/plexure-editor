@@ -173,9 +173,9 @@ export const EditorPanels: React.FC<EditorPanelsProps> = ({
       >
         {/* AI Chat Panel */}
         <Panel
-          defaultSize={20}
+          defaultSize={25}
           minSize={15}
-          maxSize={30}
+          maxSize={50}
           className="bg-background relative z-20"
         >
           <div className="h-full flex flex-col">

@@ -33,8 +33,8 @@ export const ResizeHandle: React.FC<ResizeHandleProps> = ({
             ? 'w-0.5 h-full group-hover:w-1 group-hover:opacity-100'
             : 'w-full h-0.5 group-hover:h-1 group-hover:opacity-100',
           isResizing
-            ? 'bg-primary/60 w-1 opacity-100'
-            : 'bg-border opacity-0 group-hover:opacity-100'
+            ? 'bg-blue-500/60 w-1 opacity-100'
+            : 'bg-[#2d2d2d] opacity-0 group-hover:opacity-100'
         )}
       />
 
@@ -48,14 +48,14 @@ export const ResizeHandle: React.FC<ResizeHandleProps> = ({
           isResizing && 'opacity-100'
         )}
       >
-        <GripVertical className="w-2.5 h-2.5 text-muted-foreground" />
+        <GripVertical className="w-2.5 h-2.5 text-gray-400" />
       </div>
 
       {/* Active state overlay */}
       {isResizing && (
         <div
           className={cn(
-            'absolute bg-primary/10 z-50 transition-all',
+            'absolute bg-blue-500/10 z-50 transition-all',
             direction === 'horizontal'
               ? 'w-64 h-full -translate-x-1/2'
               : 'h-64 w-full -translate-y-1/2'
