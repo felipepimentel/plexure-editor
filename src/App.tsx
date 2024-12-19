@@ -6,7 +6,7 @@ import { validateContent } from "./lib/validation";
 import { DEFAULT_CONTENT } from "./lib/constants";
 import { TooltipProvider } from "./components/ui/TooltipComponent";
 import { handleSendMessage } from "./lib/chat";
-import type { Message } from "./lib/chat";
+import type { Message, ValidationMessage } from "./lib/types";
 
 const App: React.FC = () => {
   const [theme, setTheme] = React.useState("system");
@@ -14,9 +14,9 @@ const App: React.FC = () => {
   const [showPreview, setShowPreview] = React.useState(true);
   const [fileManager, setFileManager] = React.useState<FileManager | null>(null);
   const [messages, setMessages] = React.useState<Message[]>([]);
-  const [validationMessages, setValidationMessages] = React.useState([]);
+  const [validationMessages, setValidationMessages] = React.useState<ValidationMessage[]>([]);
   const [isValidating, setIsValidating] = React.useState(false);
-  const [parsedSpec, setParsedSpec] = React.useState(null);
+  const [parsedSpec, setParsedSpec] = React.useState<any>(null);
 
   React.useEffect(() => {
     const fm = new FileManager();
@@ -60,7 +60,7 @@ const App: React.FC = () => {
 
   const handleThemeChange = (newTheme: string) => setTheme(newTheme);
 
-  const handleEditorChange = async (value: string) => {
+  const handleEditorChange = async (value: string | undefined) => {
     if (!value) return;
     setIsValidating(true);
     try {
@@ -86,7 +86,7 @@ const App: React.FC = () => {
 
   return (
     <TooltipProvider>
-      <div className="h-screen flex flex-col">
+      <div className="h-screen flex flex-col bg-[#0D1117] text-gray-300">
         <MainMenu
           theme={theme}
           showSidebar={showSidebar}

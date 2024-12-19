@@ -1,107 +1,88 @@
-import YAML from "yaml";
+import { parse } from 'yaml';
+import type { ValidationMessage } from './types';
 
-export interface ValidationMessage {
-  id: string;
-  type: "error" | "warning";
-  message: string;
-  path?: string;
-}
+export async function validateContent(content: string) {
+  const messages: ValidationMessage[] = [];
+  let parsedSpec = null;
 
-export interface ValidationResponse {
-  messages: ValidationMessage[];
-  parsedSpec: any;
-}
-
-export async function validateContent(content: string): Promise<ValidationResponse> {
   try {
-    // First try to parse the YAML
-    const parsedSpec = YAML.parse(content);
+    // Parse YAML
+    parsedSpec = parse(content);
 
-    // Initialize messages array
-    const messages: ValidationMessage[] = [];
-
-    // Check if we have a valid object
-    if (!parsedSpec || typeof parsedSpec !== "object") {
-      return {
-        messages: [{
-          id: Date.now().toString(),
-          type: "error",
-          message: "Invalid YAML: Document must be a valid OpenAPI specification"
-        }],
-        parsedSpec: null
-      };
-    }
-
-    // Validate OpenAPI version
-    if (!parsedSpec.openapi && !parsedSpec.swagger) {
+    // Basic OpenAPI validation
+    if (!parsedSpec.openapi) {
       messages.push({
-        id: Date.now().toString(),
-        type: "error",
-        message: "Missing OpenAPI/Swagger version",
-        path: "openapi"
+        id: 'openapi-version',
+        type: 'error',
+        message: 'Missing OpenAPI version'
       });
     }
 
-    // Validate info object
     if (!parsedSpec.info) {
       messages.push({
-        id: Date.now().toString(),
-        type: "error",
-        message: "Missing info object",
-        path: "info"
+        id: 'info',
+        type: 'error',
+        message: 'Missing info object'
       });
     } else {
       if (!parsedSpec.info.title) {
         messages.push({
-          id: Date.now().toString(),
-          type: "error",
-          message: "Missing API title",
-          path: "info.title"
+          id: 'info-title',
+          type: 'error',
+          message: 'Missing API title'
         });
       }
       if (!parsedSpec.info.version) {
         messages.push({
-          id: Date.now().toString(),
-          type: "error",
-          message: "Missing API version",
-          path: "info.version"
+          id: 'info-version',
+          type: 'error',
+          message: 'Missing API version'
         });
       }
     }
 
-    // Validate paths object
     if (!parsedSpec.paths) {
       messages.push({
-        id: Date.now().toString(),
-        type: "error",
-        message: "Missing paths object",
-        path: "paths"
+        id: 'paths',
+        type: 'warning',
+        message: 'No paths defined'
       });
-    } else if (typeof parsedSpec.paths !== "object") {
-      messages.push({
-        id: Date.now().toString(),
-        type: "error",
-        message: "Paths must be an object",
-        path: "paths"
+    } else {
+      // Validate each path
+      Object.entries(parsedSpec.paths).forEach(([path, pathObj]: [string, any]) => {
+        if (!path.startsWith('/')) {
+          messages.push({
+            id: `path-${path}`,
+            type: 'error',
+            message: `Path "${path}" must start with /`,
+            path: `paths.${path}`
+          });
+        }
+
+        // Validate operations
+        const operations = ['get', 'post', 'put', 'delete', 'patch', 'options', 'head', 'trace'];
+        operations.forEach(op => {
+          if (pathObj[op]) {
+            if (!pathObj[op].responses) {
+              messages.push({
+                id: `${path}-${op}-responses`,
+                type: 'error',
+                message: `Missing responses for ${op.toUpperCase()} ${path}`,
+                path: `paths.${path}.${op}`
+              });
+            }
+          }
+        });
       });
     }
 
-    // Return the validation results
-    // If there are any errors, return null for parsedSpec
-    const hasErrors = messages.some(msg => msg.type === "error");
-    return {
-      messages,
-      parsedSpec: hasErrors ? null : parsedSpec
-    };
   } catch (error) {
-    // Handle YAML parsing errors
-    return {
-      messages: [{
-        id: Date.now().toString(),
-        type: "error",
-        message: error instanceof Error ? error.message : "Unknown error"
-      }],
-      parsedSpec: null
-    };
+    messages.push({
+      id: 'yaml-syntax',
+      type: 'error',
+      message: error instanceof Error ? error.message : 'Invalid YAML syntax'
+    });
   }
+
+  return { messages, parsedSpec };
 }

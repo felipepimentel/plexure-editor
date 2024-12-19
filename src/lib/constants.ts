@@ -1,16 +1,16 @@
 export const DEFAULT_CONTENT = `openapi: 3.0.0
 info:
   title: Sample API
+  description: A sample API to demonstrate OpenAPI features
   version: 1.0.0
-  description: A sample API specification
+servers:
+  - url: https://api.example.com/v1
+    description: Production server
 paths:
   /hello:
     get:
       summary: Hello World
       description: Returns a greeting message
-      operationId: getHello
-      tags:
-        - greetings
       responses:
         '200':
           description: Successful response
@@ -18,10 +18,13 @@ paths:
             application/json:
               schema:
                 type: object
-                required:
-                  - message
                 properties:
                   message:
                     type: string
-                    example: "Hello, World!"
-`;
+                    example: Hello, World!`;
+
+export const STORAGE_KEYS = {
+  RECENT_FILES: 'swagger-editor-recent-files',
+  THEME: 'swagger-editor-theme',
+  EDITOR_CONFIG: 'swagger-editor-config'
+};

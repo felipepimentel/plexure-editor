@@ -1,1 +1,190 @@
-import YAML from "yaml"; const STORAGE_KEY = { RECENT_FILES: "api-editor-recent-files", AUTO_SAVE: "api-editor-auto-save" }; export interface FileState { name: string; content: string; isDirty: boolean; lastSaved?: Date; lastModified?: Date; path?: string; } export interface RecentFile { name: string; path?: string; lastOpened: Date; lastModified: Date; } export async function readFile(file: File): Promise<string> { return new Promise((resolve, reject) => { const reader = new FileReader(); reader.onload = () => resolve(reader.result as string); reader.onerror = reject; reader.readAsText(file); }); } export function convertJSONtoYAML(jsonContent: string): string { try { const parsed = JSON.parse(jsonContent); return YAML.stringify(parsed, { indent: 2 }); } catch (error) { console.error("Error converting JSON to YAML:", error); throw error; } } export class FileManager { private static MAX_RECENT_FILES = 10; private static AUTO_SAVE_INTERVAL = 30000; private currentFile: FileState | null = null; private autoSaveTimer: number | null = null; private onChangeCallback: ((file: FileState) => void) | null = null; private hasUnsavedChanges = false; constructor() { this.setupAutoSave(); this.setupBeforeUnload(); } private setupAutoSave() { if (this.isAutoSaveEnabled()) { this.startAutoSave(); } } private setupBeforeUnload() { window.addEventListener("beforeunload", (e) => { if (this.hasUnsavedChanges) { e.preventDefault(); e.returnValue = ""; } }); } private startAutoSave() { if (this.autoSaveTimer) { window.clearInterval(this.autoSaveTimer); } this.autoSaveTimer = window.setInterval(() => { if (this.currentFile?.isDirty) { this.saveCurrentFile(); } }, FileManager.AUTO_SAVE_INTERVAL); } private stopAutoSave() { if (this.autoSaveTimer) { window.clearInterval(this.autoSaveTimer); this.autoSaveTimer = null; } } public isAutoSaveEnabled(): boolean { return localStorage.getItem(STORAGE_KEY.AUTO_SAVE) === "true"; } public setAutoSave(enabled: boolean) { localStorage.setItem(STORAGE_KEY.AUTO_SAVE, String(enabled)); if (enabled) { this.startAutoSave(); } else { this.stopAutoSave(); } } public getCurrentFile(): FileState | null { return this.currentFile; } public async setCurrentFile(file: FileState, skipConfirmation = false) { if (!skipConfirmation && this.hasUnsavedChanges) { const confirmed = await this.confirmDiscardChanges(); if (!confirmed) return; } this.currentFile = file; this.hasUnsavedChanges = false; this.addToRecentFiles({ name: file.name, path: file.path, lastOpened: new Date(), lastModified: file.lastModified || new Date(), }); this.onChangeCallback?.(file); } public onChange(callback: (file: FileState) => void) { this.onChangeCallback = callback; } public markAsDirty() { if (this.currentFile) { this.currentFile.isDirty = true; this.currentFile.lastModified = new Date(); this.hasUnsavedChanges = true; this.onChangeCallback?.(this.currentFile); } } private async confirmDiscardChanges(): Promise<boolean> { return window.confirm("You have unsaved changes. Do you want to discard them?"); } public async saveCurrentFile(): Promise<void> { if (!this.currentFile) return; try { if (this.currentFile.path) { console.log("Saving to file system:", this.currentFile.path); } this.currentFile.isDirty = false; this.currentFile.lastSaved = new Date(); this.hasUnsavedChanges = false; this.onChangeCallback?.(this.currentFile); } catch (error) { console.error("Error saving file:", error); throw error; } } public getRecentFiles(): RecentFile[] { try { const stored = localStorage.getItem(STORAGE_KEY.RECENT_FILES); return stored ? JSON.parse(stored) : []; } catch (error) { console.error("Error loading recent files:", error); return []; } } private addToRecentFiles(file: RecentFile) { const recentFiles = this.getRecentFiles(); const existingIndex = recentFiles.findIndex(f => f.path === file.path); if (existingIndex !== -1) { recentFiles.splice(existingIndex, 1); } recentFiles.unshift(file); if (recentFiles.length > FileManager.MAX_RECENT_FILES) { recentFiles.pop(); } localStorage.setItem(STORAGE_KEY.RECENT_FILES, JSON.stringify(recentFiles)); } public async createNewFile(name: string = "untitled.yaml"): Promise<FileState> { if (this.hasUnsavedChanges) { const confirmed = await this.confirmDiscardChanges(); if (!confirmed) throw new Error("Operation cancelled"); } const newFile: FileState = { name, content: "", isDirty: false, lastModified: new Date(), }; await this.setCurrentFile(newFile, true); return newFile; } public async loadFile(file: File): Promise<FileState> { if (this.hasUnsavedChanges) { const confirmed = await this.confirmDiscardChanges(); if (!confirmed) throw new Error("Operation cancelled"); } let content = await readFile(file); if (file.name.endsWith(".json")) { try { const jsonContent = JSON.parse(content); content = YAML.stringify(jsonContent, { indent: 2 }); } catch (error) { throw new Error("Invalid JSON file"); } } const fileState: FileState = { name: file.name.replace(/\.json$/, ".yaml"), content, isDirty: false, lastModified: new Date(file.lastModified), path: file.path || undefined, }; await this.setCurrentFile(fileState, true); return fileState; } public async openRecentFile(recentFile: RecentFile): Promise<void> { if (this.hasUnsavedChanges) { const confirmed = await this.confirmDiscardChanges(); if (!confirmed) return; } const fileState: FileState = { name: recentFile.name, content: "", isDirty: false, lastModified: recentFile.lastModified, path: recentFile.path, }; await this.setCurrentFile(fileState, true); } public downloadYAML(filename?: string) { if (!this.currentFile) return; const name = filename || this.currentFile.name; const blob = new Blob([this.currentFile.content], { type: "text/yaml" }); const url = URL.createObjectURL(blob); const a = document.createElement("a"); a.href = url; a.download = name.endsWith(".yaml") ? name : `${name}.yaml`; document.body.appendChild(a); a.click(); document.body.removeChild(a); URL.revokeObjectURL(url); } public downloadJSON(filename?: string) { if (!this.currentFile) return; try { const yamlContent = this.currentFile.content; const jsonContent = YAML.parse(yamlContent); const jsonString = JSON.stringify(jsonContent, null, 2); const name = filename || this.currentFile.name.replace(/\.ya?ml$/, ".json"); const blob = new Blob([jsonString], { type: "application/json" }); const url = URL.createObjectURL(blob); const a = document.createElement("a"); a.href = url; a.download = name.endsWith(".json") ? name : `${name}.json`; document.body.appendChild(a); a.click(); document.body.removeChild(a); URL.revokeObjectURL(url); } catch (error) { console.error("Error converting YAML to JSON:", error); throw error; } } public async openFile(): Promise<void> { const input = document.createElement("input"); input.type = "file"; input.accept = ".yaml,.yml,.json"; input.style.display = "none"; document.body.appendChild(input); return new Promise((resolve, reject) => { input.onchange = async () => { try { const file = input.files?.[0]; if (file) { await this.loadFile(file); } resolve(); } catch (error) { reject(error); } finally { document.body.removeChild(input); } }; input.click(); }); } public formatContent(): void { if (!this.currentFile) return; try { const parsed = YAML.parse(this.currentFile.content); this.currentFile.content = YAML.stringify(parsed, { indent: 2 }); this.markAsDirty(); } catch (error) { console.error("Error formatting content:", error); throw error; } } }
+import { parse, stringify } from 'yaml';
+
+interface FileType {
+  name: string;
+  content: string;
+  path?: string;
+  isDirty: boolean;
+}
+
+export class FileManager {
+  private currentFile: FileType | null = null;
+  private recentFiles: FileType[] = [];
+  private changeCallback: ((file: FileType) => void) | null = null;
+
+  constructor() {
+    this.loadRecentFiles();
+  }
+
+  onChange(callback: (file: FileType) => void) {
+    this.changeCallback = callback;
+  }
+
+  private notifyChange() {
+    if (this.currentFile && this.changeCallback) {
+      this.changeCallback(this.currentFile);
+    }
+  }
+
+  private loadRecentFiles() {
+    try {
+      const saved = localStorage.getItem('recentFiles');
+      if (saved) {
+        this.recentFiles = JSON.parse(saved);
+      }
+    } catch (error) {
+      console.error('Error loading recent files:', error);
+    }
+  }
+
+  private saveRecentFiles() {
+    try {
+      localStorage.setItem('recentFiles', JSON.stringify(this.recentFiles));
+    } catch (error) {
+      console.error('Error saving recent files:', error);
+    }
+  }
+
+  getCurrentFile(): FileType | null {
+    return this.currentFile;
+  }
+
+  getRecentFiles(): FileType[] {
+    return this.recentFiles;
+  }
+
+  createNewFile(content: string = '') {
+    this.currentFile = {
+      name: 'untitled.yaml',
+      content,
+      isDirty: false
+    };
+    this.notifyChange();
+  }
+
+  async openFile() {
+    try {
+      const [fileHandle] = await window.showOpenFilePicker({
+        types: [
+          {
+            description: 'YAML Files',
+            accept: {
+              'text/yaml': ['.yaml', '.yml']
+            }
+          }
+        ]
+      });
+      
+      const file = await fileHandle.getFile();
+      const content = await file.text();
+      
+      this.currentFile = {
+        name: file.name,
+        content,
+        path: fileHandle.name,
+        isDirty: false
+      };
+
+      this.addToRecentFiles(this.currentFile);
+      this.notifyChange();
+    } catch (error) {
+      console.error('Error opening file:', error);
+    }
+  }
+
+  async saveCurrentFile() {
+    if (!this.currentFile) return;
+
+    try {
+      const handle = await window.showSaveFilePicker({
+        suggestedName: this.currentFile.name,
+        types: [
+          {
+            description: 'YAML Files',
+            accept: {
+              'text/yaml': ['.yaml', '.yml']
+            }
+          }
+        ]
+      });
+
+      const writable = await handle.createWritable();
+      await writable.write(this.currentFile.content);
+      await writable.close();
+
+      this.currentFile.isDirty = false;
+      this.currentFile.path = handle.name;
+      this.addToRecentFiles(this.currentFile);
+      this.notifyChange();
+    } catch (error) {
+      console.error('Error saving file:', error);
+    }
+  }
+
+  updateContent(content: string) {
+    if (this.currentFile) {
+      this.currentFile.content = content;
+      this.currentFile.isDirty = true;
+      this.notifyChange();
+    }
+  }
+
+  private addToRecentFiles(file: FileType) {
+    const index = this.recentFiles.findIndex(f => f.path === file.path);
+    if (index !== -1) {
+      this.recentFiles.splice(index, 1);
+    }
+    this.recentFiles.unshift({ ...file });
+    if (this.recentFiles.length > 10) {
+      this.recentFiles.pop();
+    }
+    this.saveRecentFiles();
+  }
+
+  async downloadYAML() {
+    if (!this.currentFile) return;
+    
+    const blob = new Blob([this.currentFile.content], { type: 'text/yaml' });
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement('a');
+    a.href = url;
+    a.download = this.currentFile.name;
+    document.body.appendChild(a);
+    a.click();
+    document.body.removeChild(a);
+    URL.revokeObjectURL(url);
+  }
+
+  async downloadJSON() {
+    if (!this.currentFile) return;
+    
+    try {
+      const yamlContent = parse(this.currentFile.content);
+      const jsonContent = JSON.stringify(yamlContent, null, 2);
+      const blob = new Blob([jsonContent], { type: 'application/json' });
+      const url = URL.createObjectURL(blob);
+      const a = document.createElement('a');
+      a.href = url;
+      a.download = this.currentFile.name.replace(/\.ya?ml$/, '.json');
+      document.body.appendChild(a);
+      a.click();
+      document.body.removeChild(a);
+      URL.revokeObjectURL(url);
+    } catch (error) {
+      console.error('Error converting to JSON:', error);
+    }
+  }
+
+  formatContent() {
+    if (!this.currentFile) return;
+    
+    try {
+      const parsed = parse(this.currentFile.content);
+      this.currentFile.content = stringify(parsed, { indent: 2 });
+      this.currentFile.isDirty = true;
+      this.notifyChange();
+    } catch (error) {
+      console.error('Error formatting content:', error);
+    }
+  }
+}
