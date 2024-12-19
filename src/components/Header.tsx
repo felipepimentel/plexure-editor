@@ -1,349 +1,275 @@
 import React from 'react';
 import { cn } from '../lib/utils';
 import {
-  ChevronRight,
-  FileCode,
-  Settings,
   Sun,
   Moon,
-  Monitor,
-  Menu,
-  X,
-  Github,
-  HelpCircle,
-  FileQuestion,
-  Book,
   Keyboard,
-  LifeBuoy,
+  Settings,
+  Search,
+  SplitSquareHorizontal,
+  Maximize,
+  Minimize,
+  Plus,
   Save,
+  Share2,
+  FileJson,
   Download,
   Upload,
-  Plus,
-  FolderOpen,
-  Search,
-  Share2,
-  MoreVertical,
-  Command,
-  ChevronDown,
-  Eye,
-  PanelLeft,
-  Maximize2,
-  FileJson,
-  FileDown
+  HelpCircle,
+  ChevronDown
 } from 'lucide-react';
 import { Tooltip } from './ui/TooltipComponent';
 
 interface HeaderProps {
-  theme: string;
-  onThemeChange: (theme: string) => void;
-  showSidebar: boolean;
-  onToggleSidebar: () => void;
-  onNewFile?: () => void;
-  onOpenFile?: () => void;
-  onSaveFile?: () => void;
-  onShare?: () => void;
+  className?: string;
+  onThemeToggle?: () => void;
+  isDarkMode?: boolean;
+  isFullscreen?: boolean;
+  onFullscreenToggle?: () => void;
+  isSplitView?: boolean;
+  onSplitViewToggle?: () => void;
 }
 
 export const Header: React.FC<HeaderProps> = ({
-  theme,
-  onThemeChange,
-  showSidebar,
-  onToggleSidebar,
-  onNewFile,
-  onOpenFile,
-  onSaveFile,
-  onShare
+  className,
+  onThemeToggle,
+  isDarkMode = false,
+  isFullscreen = false,
+  onFullscreenToggle,
+  isSplitView = false,
+  onSplitViewToggle,
 }) => {
-  const [showThemeMenu, setShowThemeMenu] = React.useState(false);
-  const [showFileMenu, setShowFileMenu] = React.useState(false);
-  const [showViewMenu, setShowViewMenu] = React.useState(false);
-  const [showHelpMenu, setShowHelpMenu] = React.useState(false);
-  const [searchOpen, setSearchOpen] = React.useState(false);
+  const [showKeyboardShortcuts, setShowKeyboardShortcuts] = React.useState(false);
+  const [showSettings, setShowSettings] = React.useState(false);
 
-  // Close menus when clicking outside
-  React.useEffect(() => {
-    const handleClickOutside = () => {
-      setShowThemeMenu(false);
-      setShowFileMenu(false);
-      setShowViewMenu(false);
-      setShowHelpMenu(false);
-    };
-
-    document.addEventListener('click', handleClickOutside);
-    return () => document.removeEventListener('click', handleClickOutside);
-  }, []);
-
-  const MenuButton = ({ label, isOpen, onClick }: { label: string; isOpen: boolean; onClick: (e: React.MouseEvent) => void }) => (
-    <button
-      onClick={onClick}
-      className={cn(
-        'flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-sm font-medium transition-all duration-200',
-        'hover:bg-muted/50',
-        isOpen && 'bg-primary/10 text-primary'
-      )}
-    >
-      {label}
-      <ChevronDown className={cn('h-4 w-4 transition-transform', isOpen && 'rotate-180')} />
-    </button>
-  );
+  const shortcuts = [
+    { keys: ['Ctrl', 'S'], description: 'Save changes' },
+    { keys: ['Ctrl', 'B'], description: 'Toggle sidebar' },
+    { keys: ['Ctrl', 'P'], description: 'Quick search' },
+    { keys: ['Ctrl', '/'], description: 'Toggle comments' },
+    { keys: ['Alt', '←'], description: 'Go back' },
+    { keys: ['Alt', '→'], description: 'Go forward' },
+    { keys: ['Ctrl', 'F'], description: 'Find in file' },
+    { keys: ['Ctrl', 'Space'], description: 'Trigger suggestions' },
+  ];
 
   return (
-    <header className="flex flex-col border-b bg-background/95 backdrop-blur supports-[backdrop-filter]:bg-background/60">
-      {/* Main toolbar */}
-      <div className="flex items-center h-14 px-4">
-        {/* Left section - Logo and main menus */}
-        <div className="flex items-center gap-2">
-          <button
-            onClick={onToggleSidebar}
-            className={cn(
-              'p-2 rounded-lg transition-all duration-200 hover:scale-105',
-              showSidebar ? 'bg-primary/10 text-primary shadow-sm' : 'hover:bg-muted/80'
-            )}
-          >
-            {showSidebar ? <X className="h-5 w-5" /> : <Menu className="h-5 w-5" />}
-          </button>
-          
-          <div className="flex items-center gap-3 pl-1 pr-4 border-r">
-            <div className="flex items-center justify-center w-8 h-8 rounded-xl bg-primary/10">
-              <FileCode className="h-5 w-5 text-primary" />
-            </div>
-            <span className="text-lg font-semibold tracking-tight">OpenAPI Editor</span>
-          </div>
+    <header className={cn(
+      "flex items-center justify-between h-14 px-4 border-b bg-background/95 backdrop-blur supports-[backdrop-filter]:bg-background/60",
+      className
+    )}>
+      {/* Left section */}
+      <div className="flex items-center gap-2">
+        <button className="flex items-center gap-2 px-3 py-1.5 text-sm font-medium rounded-md hover:bg-muted/80 transition-colors">
+          <FileJson className="w-4 h-4" />
+          untitled.yaml
+          <ChevronDown className="w-4 h-4 text-muted-foreground" />
+        </button>
 
-          {/* Main menus */}
-          <nav className="flex items-center gap-1">
-            <div className="relative">
-              <MenuButton
-                label="File"
-                isOpen={showFileMenu}
-                onClick={(e) => {
-                  e.stopPropagation();
-                  setShowFileMenu(!showFileMenu);
-                  setShowViewMenu(false);
-                  setShowHelpMenu(false);
-                }}
-              />
-              {showFileMenu && (
-                <div className="absolute left-0 mt-1 w-56 rounded-xl border bg-popover/95 backdrop-blur-sm p-1.5 shadow-lg ring-1 ring-black/5 z-50">
-                  <button
-                    onClick={() => {
-                      onNewFile?.();
-                      setShowFileMenu(false);
-                    }}
-                    className="flex items-center gap-3 w-full px-3 py-2 text-sm rounded-lg hover:bg-muted/80 transition-colors"
-                  >
-                    <Plus className="h-4 w-4" />
-                    <span className="flex-1">New File</span>
-                    <kbd className="px-2 py-0.5 text-xs font-medium bg-muted rounded-md">⌘N</kbd>
-                  </button>
-                  <button
-                    onClick={() => {
-                      onOpenFile?.();
-                      setShowFileMenu(false);
-                    }}
-                    className="flex items-center gap-3 w-full px-3 py-2 text-sm rounded-lg hover:bg-muted/80 transition-colors"
-                  >
-                    <FolderOpen className="h-4 w-4" />
-                    <span className="flex-1">Open File</span>
-                    <kbd className="px-2 py-0.5 text-xs font-medium bg-muted rounded-md">⌘O</kbd>
-                  </button>
-                  <button
-                    onClick={() => {
-                      onSaveFile?.();
-                      setShowFileMenu(false);
-                    }}
-                    className="flex items-center gap-3 w-full px-3 py-2 text-sm rounded-lg hover:bg-muted/80 transition-colors"
-                  >
-                    <Save className="h-4 w-4" />
-                    <span className="flex-1">Save</span>
-                    <kbd className="px-2 py-0.5 text-xs font-medium bg-muted rounded-md">⌘S</kbd>
-                  </button>
-                  <div className="h-px bg-border my-1" />
-                  <button
-                    onClick={() => setShowFileMenu(false)}
-                    className="flex items-center gap-3 w-full px-3 py-2 text-sm rounded-lg hover:bg-muted/80 transition-colors"
-                  >
-                    <FileDown className="h-4 w-4" />
-                    Export as YAML
-                  </button>
-                  <button
-                    onClick={() => setShowFileMenu(false)}
-                    className="flex items-center gap-3 w-full px-3 py-2 text-sm rounded-lg hover:bg-muted/80 transition-colors"
-                  >
-                    <FileJson className="h-4 w-4" />
-                    Export as JSON
-                  </button>
-                </div>
-              )}
-            </div>
-
-            <div className="relative">
-              <MenuButton
-                label="View"
-                isOpen={showViewMenu}
-                onClick={(e) => {
-                  e.stopPropagation();
-                  setShowViewMenu(!showViewMenu);
-                  setShowFileMenu(false);
-                  setShowHelpMenu(false);
-                }}
-              />
-              {showViewMenu && (
-                <div className="absolute left-0 mt-1 w-56 rounded-xl border bg-popover/95 backdrop-blur-sm p-1.5 shadow-lg ring-1 ring-black/5 z-50">
-                  <button
-                    onClick={() => {
-                      onToggleSidebar();
-                      setShowViewMenu(false);
-                    }}
-                    className="flex items-center gap-3 w-full px-3 py-2 text-sm rounded-lg hover:bg-muted/80 transition-colors"
-                  >
-                    <PanelLeft className="h-4 w-4" />
-                    <span className="flex-1">Toggle Sidebar</span>
-                    <kbd className="px-2 py-0.5 text-xs font-medium bg-muted rounded-md">⌘B</kbd>
-                  </button>
-                  <button
-                    onClick={() => setShowViewMenu(false)}
-                    className="flex items-center gap-3 w-full px-3 py-2 text-sm rounded-lg hover:bg-muted/80 transition-colors"
-                  >
-                    <Eye className="h-4 w-4" />
-                    <span className="flex-1">Preview</span>
-                    <kbd className="px-2 py-0.5 text-xs font-medium bg-muted rounded-md">⌘P</kbd>
-                  </button>
-                  <button
-                    onClick={() => setShowViewMenu(false)}
-                    className="flex items-center gap-3 w-full px-3 py-2 text-sm rounded-lg hover:bg-muted/80 transition-colors"
-                  >
-                    <Maximize2 className="h-4 w-4" />
-                    Toggle Full Screen
-                  </button>
-                  <div className="h-px bg-border my-1" />
-                  <div className="px-3 py-1.5 text-xs text-muted-foreground font-medium">Theme</div>
-                  <button
-                    onClick={() => {
-                      onThemeChange('light');
-                      setShowViewMenu(false);
-                    }}
-                    className={cn(
-                      'flex items-center gap-3 w-full px-3 py-2 text-sm rounded-lg transition-colors',
-                      theme === 'light' ? 'bg-primary/10 text-primary' : 'hover:bg-muted/80'
-                    )}
-                  >
-                    <Sun className="h-4 w-4" />
-                    Light
-                  </button>
-                  <button
-                    onClick={() => {
-                      onThemeChange('dark');
-                      setShowViewMenu(false);
-                    }}
-                    className={cn(
-                      'flex items-center gap-3 w-full px-3 py-2 text-sm rounded-lg transition-colors',
-                      theme === 'dark' ? 'bg-primary/10 text-primary' : 'hover:bg-muted/80'
-                    )}
-                  >
-                    <Moon className="h-4 w-4" />
-                    Dark
-                  </button>
-                  <button
-                    onClick={() => {
-                      onThemeChange('system');
-                      setShowViewMenu(false);
-                    }}
-                    className={cn(
-                      'flex items-center gap-3 w-full px-3 py-2 text-sm rounded-lg transition-colors',
-                      theme === 'system' ? 'bg-primary/10 text-primary' : 'hover:bg-muted/80'
-                    )}
-                  >
-                    <Monitor className="h-4 w-4" />
-                    System
-                  </button>
-                </div>
-              )}
-            </div>
-
-            <div className="relative">
-              <MenuButton
-                label="Help"
-                isOpen={showHelpMenu}
-                onClick={(e) => {
-                  e.stopPropagation();
-                  setShowHelpMenu(!showHelpMenu);
-                  setShowFileMenu(false);
-                  setShowViewMenu(false);
-                }}
-              />
-              {showHelpMenu && (
-                <div className="absolute left-0 mt-1 w-56 rounded-xl border bg-popover/95 backdrop-blur-sm p-1.5 shadow-lg ring-1 ring-black/5 z-50">
-                  <a
-                    href="https://swagger.io/docs/specification/about/"
-                    target="_blank"
-                    rel="noopener noreferrer"
-                    className="flex items-center gap-3 px-3 py-2 text-sm rounded-lg hover:bg-muted/80 transition-colors"
-                  >
-                    <Book className="h-4 w-4" />
-                    OpenAPI Documentation
-                  </a>
-                  <a
-                    href="https://github.com/your-repo"
-                    target="_blank"
-                    rel="noopener noreferrer"
-                    className="flex items-center gap-3 px-3 py-2 text-sm rounded-lg hover:bg-muted/80 transition-colors"
-                  >
-                    <Github className="h-4 w-4" />
-                    GitHub Repository
-                  </a>
-                  <button
-                    onClick={() => setShowHelpMenu(false)}
-                    className="flex items-center gap-3 w-full px-3 py-2 text-sm rounded-lg hover:bg-muted/80 transition-colors"
-                  >
-                    <Keyboard className="h-4 w-4" />
-                    <span className="flex-1">Keyboard Shortcuts</span>
-                    <kbd className="px-2 py-0.5 text-xs font-medium bg-muted rounded-md">⌘K</kbd>
-                  </button>
-                  <div className="h-px bg-border my-1" />
-                  <button
-                    onClick={() => setShowHelpMenu(false)}
-                    className="flex items-center gap-3 w-full px-3 py-2 text-sm rounded-lg hover:bg-muted/80 transition-colors"
-                  >
-                    <FileQuestion className="h-4 w-4" />
-                    Quick Start Guide
-                  </button>
-                  <button
-                    onClick={() => setShowHelpMenu(false)}
-                    className="flex items-center gap-3 w-full px-3 py-2 text-sm rounded-lg hover:bg-muted/80 transition-colors"
-                  >
-                    <LifeBuoy className="h-4 w-4" />
-                    Support
-                  </button>
-                </div>
-              )}
-            </div>
-          </nav>
-        </div>
-
-        {/* Right section - Quick actions */}
-        <div className="flex items-center gap-2 ml-auto">
-          <div className="flex items-center gap-1.5 px-2 py-1.5 bg-muted/30 rounded-xl backdrop-blur-sm">
-            <Tooltip content="Command Palette (⌘K)">
-              <button
-                onClick={() => setSearchOpen(true)}
-                className="p-2 rounded-lg hover:bg-background/80 transition-all duration-200 hover:scale-105 hover:shadow-sm"
-              >
-                <Command className="h-4 w-4" />
-              </button>
-            </Tooltip>
-            
-            <Tooltip content="Share">
-              <button
-                onClick={onShare}
-                className="p-2 rounded-lg hover:bg-background/80 transition-all duration-200 hover:scale-105 hover:shadow-sm"
-              >
-                <Share2 className="h-4 w-4" />
-              </button>
-            </Tooltip>
-          </div>
+        <div className="flex items-center gap-1 pl-2 border-l">
+          <Tooltip content="New file (Ctrl+N)">
+            <button className="p-2 rounded-md hover:bg-muted/80 transition-colors">
+              <Plus className="w-4 h-4" />
+            </button>
+          </Tooltip>
+          <Tooltip content="Save (Ctrl+S)">
+            <button className="p-2 rounded-md hover:bg-muted/80 transition-colors">
+              <Save className="w-4 h-4" />
+            </button>
+          </Tooltip>
+          <Tooltip content="Share">
+            <button className="p-2 rounded-md hover:bg-muted/80 transition-colors">
+              <Share2 className="w-4 h-4" />
+            </button>
+          </Tooltip>
         </div>
       </div>
+
+      {/* Center section */}
+      <div className="flex-1 flex items-center justify-center">
+        <div className="relative max-w-md w-full">
+          <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground" />
+          <input
+            type="text"
+            placeholder="Search in specification... (Ctrl+P)"
+            className="w-full h-9 pl-9 pr-3 rounded-md border bg-background text-sm placeholder:text-muted-foreground focus:outline-none focus:ring-2 focus:ring-primary/50"
+          />
+        </div>
+      </div>
+
+      {/* Right section */}
+      <div className="flex items-center gap-1">
+        <Tooltip content="Split view">
+          <button
+            onClick={onSplitViewToggle}
+            className={cn(
+              "p-2 rounded-md transition-colors",
+              isSplitView
+                ? "bg-primary/10 text-primary hover:bg-primary/20"
+                : "hover:bg-muted/80"
+            )}
+          >
+            <SplitSquareHorizontal className="w-4 h-4" />
+          </button>
+        </Tooltip>
+        
+        <Tooltip content="Toggle theme">
+          <button
+            onClick={onThemeToggle}
+            className="p-2 rounded-md hover:bg-muted/80 transition-colors"
+          >
+            {isDarkMode ? (
+              <Sun className="w-4 h-4" />
+            ) : (
+              <Moon className="w-4 h-4" />
+            )}
+          </button>
+        </Tooltip>
+
+        <Tooltip content="Keyboard shortcuts">
+          <button
+            onClick={() => setShowKeyboardShortcuts(true)}
+            className="p-2 rounded-md hover:bg-muted/80 transition-colors"
+          >
+            <Keyboard className="w-4 h-4" />
+          </button>
+        </Tooltip>
+
+        <Tooltip content="Settings">
+          <button
+            onClick={() => setShowSettings(true)}
+            className="p-2 rounded-md hover:bg-muted/80 transition-colors"
+          >
+            <Settings className="w-4 h-4" />
+          </button>
+        </Tooltip>
+
+        <Tooltip content="Help">
+          <button className="p-2 rounded-md hover:bg-muted/80 transition-colors">
+            <HelpCircle className="w-4 h-4" />
+          </button>
+        </Tooltip>
+
+        <div className="pl-1 border-l">
+          <Tooltip content={isFullscreen ? "Exit fullscreen" : "Enter fullscreen"}>
+            <button
+              onClick={onFullscreenToggle}
+              className="p-2 rounded-md hover:bg-muted/80 transition-colors"
+            >
+              {isFullscreen ? (
+                <Minimize className="w-4 h-4" />
+              ) : (
+                <Maximize className="w-4 h-4" />
+              )}
+            </button>
+          </Tooltip>
+        </div>
+      </div>
+
+      {/* Keyboard Shortcuts Modal */}
+      {showKeyboardShortcuts && (
+        <div className="fixed inset-0 z-50 bg-background/80 backdrop-blur-sm">
+          <div className="fixed inset-[50%] w-[400px] translate-x-[-50%] translate-y-[-50%] rounded-lg border bg-background p-6 shadow-lg">
+            <div className="flex items-center justify-between mb-4">
+              <h2 className="text-lg font-semibold">Keyboard Shortcuts</h2>
+              <button
+                onClick={() => setShowKeyboardShortcuts(false)}
+                className="p-1 rounded-md hover:bg-muted/80 transition-colors"
+              >
+                <X className="w-4 h-4" />
+              </button>
+            </div>
+            <div className="space-y-2">
+              {shortcuts.map((shortcut, index) => (
+                <div
+                  key={index}
+                  className="flex items-center justify-between py-2"
+                >
+                  <span className="text-sm text-muted-foreground">
+                    {shortcut.description}
+                  </span>
+                  <div className="flex items-center gap-1">
+                    {shortcut.keys.map((key, keyIndex) => (
+                      <React.Fragment key={keyIndex}>
+                        <kbd className="px-2 py-1 text-xs rounded-md bg-muted">
+                          {key}
+                        </kbd>
+                        {keyIndex < shortcut.keys.length - 1 && (
+                          <span className="text-muted-foreground">+</span>
+                        )}
+                      </React.Fragment>
+                    ))}
+                  </div>
+                </div>
+              ))}
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Settings Modal */}
+      {showSettings && (
+        <div className="fixed inset-0 z-50 bg-background/80 backdrop-blur-sm">
+          <div className="fixed inset-[50%] w-[400px] translate-x-[-50%] translate-y-[-50%] rounded-lg border bg-background p-6 shadow-lg">
+            <div className="flex items-center justify-between mb-4">
+              <h2 className="text-lg font-semibold">Settings</h2>
+              <button
+                onClick={() => setShowSettings(false)}
+                className="p-1 rounded-md hover:bg-muted/80 transition-colors"
+              >
+                <X className="w-4 h-4" />
+              </button>
+            </div>
+            <div className="space-y-4">
+              <div className="flex items-center justify-between">
+                <span className="text-sm">Theme</span>
+                <select className="h-9 px-3 rounded-md border bg-background text-sm">
+                  <option value="system">System</option>
+                  <option value="light">Light</option>
+                  <option value="dark">Dark</option>
+                </select>
+              </div>
+              <div className="flex items-center justify-between">
+                <span className="text-sm">Font Size</span>
+                <select className="h-9 px-3 rounded-md border bg-background text-sm">
+                  <option value="12">12px</option>
+                  <option value="14">14px</option>
+                  <option value="16">16px</option>
+                  <option value="18">18px</option>
+                </select>
+              </div>
+              <div className="flex items-center justify-between">
+                <span className="text-sm">Tab Size</span>
+                <select className="h-9 px-3 rounded-md border bg-background text-sm">
+                  <option value="2">2 spaces</option>
+                  <option value="4">4 spaces</option>
+                  <option value="8">8 spaces</option>
+                </select>
+              </div>
+              <div className="flex items-center justify-between">
+                <span className="text-sm">Auto Save</span>
+                <div className="flex items-center">
+                  <input
+                    type="checkbox"
+                    id="autoSave"
+                    className="rounded border-muted-foreground"
+                  />
+                </div>
+              </div>
+              <div className="flex items-center justify-between">
+                <span className="text-sm">Format On Save</span>
+                <div className="flex items-center">
+                  <input
+                    type="checkbox"
+                    id="formatOnSave"
+                    className="rounded border-muted-foreground"
+                  />
+                </div>
+              </div>
+            </div>
+          </div>
+        </div>
+      )}
     </header>
   );
 };

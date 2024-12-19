@@ -1,297 +1,309 @@
 import React from 'react';
+import { cn } from '../lib/utils';
 import {
-  Maximize2,
-  Minimize2,
-  Code2,
-  FileJson,
+  ChevronDown,
   ChevronRight,
-  Plus,
-  Save,
-  Upload,
-  Download,
-  RefreshCw,
-  Settings,
-  Clock,
-  File,
-  Minus,
-  Type,
-  LayoutGrid,
+  Copy,
+  ExternalLink,
+  Tag,
+  Check,
+  Search,
+  Filter,
+  MoreVertical,
+  Share2,
+  Code2,
+  Braces,
+  FileText,
+  Settings2,
+  Sparkles,
+  Lightbulb,
+  Bug,
+  Boxes,
+  Box,
+  ArrowRight,
+  AlertCircle,
+  Info,
+  Link2,
   Eye,
   EyeOff,
+  List,
+  LayoutGrid,
+  Network,
+  Cloud,
+  CloudOff,
+  Laptop,
+  Workflow,
+  Layers,
+  Tags,
+  Hash,
+  Lock,
+  Unlock,
+  FileJson,
+  Database,
+  Folder,
+  FolderOpen,
+  Activity,
+  Zap,
+  Globe,
+  Mail,
+  License,
+  GitBranch,
+  FileCode,
+  BookOpen,
+  HelpCircle,
+  Terminal,
+  Shield,
+  ShieldCheck,
+  ShieldAlert,
+  ShieldQuestion,
+  Key,
+  Tool,
+  Trash,
+  CheckCircle,
+  XCircle,
+  AlertTriangle,
+  RefreshCw,
+  Clock,
+  Loader2,
+  FileType,
+  Brackets,
+  Regex,
+  Binary,
+  Table,
+  Image,
+  File,
+  Paperclip,
+  Maximize2,
+  Minimize2,
+  Send,
+  Play,
+  Pause,
+  Square,
+  RotateCw,
+  Download,
+  Upload,
+  Sliders,
+  Crosshair,
+  Heading1,
+  Heading2,
+  ListOrdered,
+  ListChecks,
+  Fingerprint,
+  Cookie,
+  Webhook,
+  Save
 } from 'lucide-react';
-import { cn } from '../lib/utils';
-import { monacoOptions } from '../lib/monaco-config';
-import { FileManager } from './FileManager';
-import { parse } from 'yaml';
-import type { Environment } from '../lib/environment-manager';
-import type { FileManager as FileManagerClass } from '../lib/file-manager';
-import { validateOpenAPI, validateYAMLSyntax } from '../lib/validation';
-import { ToolbarButton } from './ui/ToolbarButton';
-import { ToolbarGroup } from './ui/ToolbarGroup';
-import { EditorPanels } from './EditorPanels';
+import { Tooltip } from './ui/TooltipComponent';
+import { Editor as MonacoEditor } from '@monaco-editor/react';
 
-interface APIEditorProps {
-  defaultValue?: string;
-  onChange?: (value: string | undefined) => void;
-  isDarkMode?: boolean;
-  environment?: Environment | null;
-  fileManager: FileManagerClass;
-  showPreview?: boolean;
-  onTogglePreview?: () => void;
+interface EditorProps {
   className?: string;
+  content?: string;
+  onChange?: (value: string) => void;
+  language?: string;
+  path?: string;
+  onSave?: () => void;
 }
 
-export const APIEditor: React.FC<APIEditorProps> = ({
-  defaultValue,
-  onChange,
-  isDarkMode = false,
-  environment,
-  fileManager,
-  showPreview = true,
-  onTogglePreview,
+export const Editor: React.FC<EditorProps> = ({
   className,
+  content = '',
+  onChange,
+  language = 'yaml',
+  path,
+  onSave,
 }) => {
-  const [isFullscreen, setIsFullscreen] = React.useState(false);
-  const [parsedSpec, setParsedSpec] = React.useState<any>(null);
-  const [parseError, setParseError] = React.useState<string | null>(null);
-  const [editorValue, setEditorValue] = React.useState(defaultValue || '');
-  const [showMinimap, setShowMinimap] = React.useState(false);
+  const [isLoading, setIsLoading] = React.useState(true);
+  const [showMinimap, setShowMinimap] = React.useState(true);
+  const [wordWrap, setWordWrap] = React.useState('off');
   const [fontSize, setFontSize] = React.useState(14);
-  const [wordWrap, setWordWrap] = React.useState('on');
-  const [showLineNumbers, setShowLineNumbers] = React.useState(true);
-  const [validationErrors, setValidationErrors] = React.useState<Array<{
-    type: 'error' | 'warning';
-    message: string;
-    path?: string;
-    line?: number;
-    column?: number;
-  }>>([]);
+  const [showSettings, setShowSettings] = React.useState(false);
 
-  // Subscribe to file changes
-  React.useEffect(() => {
-    fileManager.onChange(file => {
-      if (file.content !== editorValue) {
-        setEditorValue(file.content);
-        // Parse the content when file changes
-        try {
-          const parsed = parse(file.content);
-          setParsedSpec(parsed);
-          setParseError(null);
-        } catch (error) {
-          setParseError((error as Error).message);
-        }
-      }
-    });
-  }, [fileManager, editorValue]);
+  const handleEditorDidMount = () => {
+    setIsLoading(false);
+  };
 
-  // Parse initial content
-  React.useEffect(() => {
-    if (defaultValue) {
-      try {
-        const parsed = parse(defaultValue);
-        setParsedSpec(parsed);
-        setParseError(null);
-      } catch (error) {
-        setParseError((error as Error).message);
-      }
+  const handleKeyDown = (e: React.KeyboardEvent) => {
+    if (e.key === 's' && (e.metaKey || e.ctrlKey)) {
+      e.preventDefault();
+      onSave?.();
     }
-  }, [defaultValue]);
-
-  // Handle keyboard shortcuts
-  React.useEffect(() => {
-    const handleKeyDown = async (e: KeyboardEvent) => {
-      // Save: Ctrl/Cmd + S
-      if ((e.ctrlKey || e.metaKey) && e.key === 's') {
-        e.preventDefault();
-        await fileManager.saveCurrentFile();
-      }
-      // New: Ctrl/Cmd + N
-      else if ((e.ctrlKey || e.metaKey) && e.key === 'n') {
-        e.preventDefault();
-        await fileManager.createNewFile();
-      }
-      // Open: Ctrl/Cmd + O
-      else if ((e.ctrlKey || e.metaKey) && e.key === 'o') {
-        e.preventDefault();
-        document.querySelector<HTMLInputElement>('input[type="file"]')?.click();
-      }
-      // Format: Shift + Alt + F
-      else if (e.shiftKey && e.altKey && e.key === 'F') {
-        e.preventDefault();
-        fileManager.formatContent();
-      }
-      // Toggle Preview: Ctrl/Cmd + P
-      else if ((e.ctrlKey || e.metaKey) && e.key === 'p') {
-        e.preventDefault();
-        onTogglePreview?.();
-      }
-      // Increase Font Size: Ctrl/Cmd + Plus
-      else if ((e.ctrlKey || e.metaKey) && e.key === '+') {
-        e.preventDefault();
-        setFontSize(prev => Math.min(prev + 1, 24));
-      }
-      // Decrease Font Size: Ctrl/Cmd + Minus
-      else if ((e.ctrlKey || e.metaKey) && e.key === '-') {
-        e.preventDefault();
-        setFontSize(prev => Math.max(prev - 1, 10));
-      }
-    };
-
-    document.addEventListener('keydown', handleKeyDown);
-    return () => document.removeEventListener('keydown', handleKeyDown);
-  }, [fileManager, onTogglePreview]);
-
-  const handleEditorChange = React.useCallback(async (value: string | undefined) => {
-    if (value !== undefined) {
-      setEditorValue(value);
-      
-      // First validate YAML syntax
-      const syntaxValidation = validateYAMLSyntax(value);
-      if (!syntaxValidation.isValid) {
-        setValidationErrors(syntaxValidation.messages);
-        setParseError(syntaxValidation.messages[0].message);
-        setParsedSpec(null);
-        return;
-      }
-
-      try {
-        const parsed = parse(value);
-        setParsedSpec(parsed);
-        setParseError(null);
-
-        // Then validate OpenAPI specification
-        const validation = await validateOpenAPI(value);
-        setValidationErrors(validation.messages);
-      } catch (error) {
-        console.error('Error parsing YAML:', error);
-        setParseError((error as Error).message);
-        setParsedSpec(null);
-        setValidationErrors([{
-          type: 'error',
-          message: (error as Error).message,
-        }]);
-      }
-
-      // Mark file as dirty and notify parent
-      if (fileManager.getCurrentFile()) {
-        fileManager.getCurrentFile()!.content = value;
-        fileManager.markAsDirty();
-      }
-      onChange?.(value);
-    }
-  }, [fileManager, onChange]);
+  };
 
   return (
-    <div className={cn('flex flex-col h-full', className)}>
+    <div
+      className={cn('flex flex-col h-full', className)}
+      onKeyDown={handleKeyDown}
+    >
       {/* Toolbar */}
-      <div className="border-b bg-card">
-        <div className="flex items-center justify-between p-1.5">
-          {/* Left side tools */}
-          <div className="flex items-center gap-1">
-            <ToolbarGroup>
-              <ToolbarButton
-                icon={Plus}
-                tooltip="New File (⌘N)"
-                onClick={() => fileManager.createNewFile()}
-              />
-              <ToolbarButton
-                icon={Upload}
-                tooltip="Open File (⌘O)"
-                onClick={() => fileManager.openFile()}
-              />
-              <ToolbarButton
-                icon={Save}
-                tooltip="Save File (⌘S)"
-                onClick={() => fileManager.saveCurrentFile()}
-              />
-            </ToolbarGroup>
-
-            <ToolbarGroup>
-              <ToolbarButton
-                icon={Download}
-                tooltip="Export as YAML"
-                onClick={() => fileManager.downloadYAML()}
-              />
-              <ToolbarButton
-                icon={FileJson}
-                tooltip="Export as JSON"
-                onClick={() => fileManager.downloadJSON()}
-              />
-            </ToolbarGroup>
-
-            <ToolbarButton
-              icon={RefreshCw}
-              tooltip="Format Document (⇧⌥F)"
-              onClick={() => fileManager.formatContent()}
-              border="both"
-            />
-          </div>
-
-          {/* Center - File Path */}
-          <div className="flex items-center gap-1 px-2 min-w-0 flex-1 justify-center">
-            <div className="flex items-center gap-1 px-3 py-1 rounded-md bg-background/50 border max-w-full">
-              <File className="w-3.5 h-3.5 text-muted-foreground shrink-0" />
-              <ChevronRight className="w-3.5 h-3.5 text-muted-foreground shrink-0" />
-              <span className="font-medium text-muted-foreground text-sm truncate">
-                {fileManager.getCurrentFile()?.name || 'untitled.yaml'}
-              </span>
-              {fileManager.getCurrentFile()?.isDirty && (
-                <span className="text-primary shrink-0">*</span>
+      <div className="flex items-center justify-between p-2 border-b bg-muted/30">
+        <div className="flex items-center gap-2">
+          <FileJson className="w-4 h-4 text-muted-foreground" />
+          <span className="text-sm text-muted-foreground">
+            {path || 'untitled.yaml'}
+          </span>
+        </div>
+        <div className="flex items-center gap-1">
+          <Tooltip content="Word Wrap">
+            <button
+              onClick={() => setWordWrap(wordWrap === 'off' ? 'on' : 'off')}
+              className={cn(
+                'p-1.5 rounded-md transition-colors',
+                wordWrap === 'on'
+                  ? 'bg-primary/10 text-primary'
+                  : 'text-muted-foreground hover:text-foreground hover:bg-muted/80'
               )}
-            </div>
-          </div>
-
-          {/* Right side tools */}
-          <div className="flex items-center gap-1">
-            <ToolbarGroup>
-              <ToolbarButton
-                icon={LayoutGrid}
-                tooltip="Toggle Minimap"
-                onClick={() => setShowMinimap(!showMinimap)}
-                active={showMinimap}
-              />
-              <ToolbarButton
-                icon={Type}
-                tooltip="Toggle Word Wrap"
-                onClick={() => setWordWrap(wordWrap === 'on' ? 'off' : 'on')}
-                active={wordWrap === 'on'}
-              />
-            </ToolbarGroup>
-
-            <ToolbarGroup>
-              <ToolbarButton
-                icon={showPreview ? Eye : EyeOff}
-                tooltip="Toggle Preview (⌘P)"
-                onClick={onTogglePreview}
-                active={showPreview}
-              />
-              <ToolbarButton
-                icon={isFullscreen ? Minimize2 : Maximize2}
-                tooltip={isFullscreen ? 'Exit Fullscreen' : 'Enter Fullscreen'}
-                onClick={() => setIsFullscreen(!isFullscreen)}
-              />
-            </ToolbarGroup>
-          </div>
+            >
+              <ArrowRight className="w-4 h-4" />
+            </button>
+          </Tooltip>
+          <Tooltip content="Toggle Minimap">
+            <button
+              onClick={() => setShowMinimap(!showMinimap)}
+              className={cn(
+                'p-1.5 rounded-md transition-colors',
+                showMinimap
+                  ? 'bg-primary/10 text-primary'
+                  : 'text-muted-foreground hover:text-foreground hover:bg-muted/80'
+              )}
+            >
+              <LayoutGrid className="w-4 h-4" />
+            </button>
+          </Tooltip>
+          <Tooltip content="Editor Settings">
+            <button
+              onClick={() => setShowSettings(true)}
+              className="p-1.5 rounded-md text-muted-foreground hover:text-foreground hover:bg-muted/80 transition-colors"
+            >
+              <Settings2 className="w-4 h-4" />
+            </button>
+          </Tooltip>
         </div>
       </div>
 
-      {/* Main Content */}
-      <EditorPanels
-        value={editorValue}
-        onChange={handleEditorChange}
-        isDarkMode={isDarkMode}
-        showPreview={showPreview}
-        showMinimap={showMinimap}
-        fontSize={fontSize}
-        wordWrap={wordWrap}
-        showLineNumbers={showLineNumbers}
-        monacoOptions={monacoOptions}
-        parsedSpec={parsedSpec}
-        environment={environment}
-        validationErrors={validationErrors}
-      />
+      {/* Editor */}
+      <div className="flex-1 relative">
+        {isLoading && (
+          <div className="absolute inset-0 flex items-center justify-center bg-background/80 backdrop-blur-sm">
+            <div className="flex flex-col items-center gap-2">
+              <Loader2 className="w-8 h-8 text-primary animate-spin" />
+              <span className="text-sm text-muted-foreground">
+                Loading editor...
+              </span>
+            </div>
+          </div>
+        )}
+        <MonacoEditor
+          height="100%"
+          defaultLanguage={language}
+          defaultValue={content}
+          onChange={(value) => onChange?.(value || '')}
+          theme="vs-dark"
+          options={{
+            fontSize,
+            minimap: {
+              enabled: showMinimap,
+            },
+            wordWrap: wordWrap as 'off' | 'on',
+            lineNumbers: 'on',
+            renderWhitespace: 'selection',
+            scrollBeyondLastLine: false,
+            automaticLayout: true,
+            tabSize: 2,
+            insertSpaces: true,
+            formatOnPaste: true,
+            formatOnType: true,
+            quickSuggestions: true,
+            suggestOnTriggerCharacters: true,
+            acceptSuggestionOnEnter: 'on',
+            folding: true,
+            foldingStrategy: 'indentation',
+            showFoldingControls: 'always',
+            matchBrackets: 'always',
+            occurrencesHighlight: true,
+            renderLineHighlight: 'all',
+            cursorBlinking: 'smooth',
+            cursorSmoothCaretAnimation: true,
+            smoothScrolling: true,
+            mouseWheelZoom: true,
+            bracketPairColorization: {
+              enabled: true,
+            },
+            guides: {
+              bracketPairs: true,
+              indentation: true,
+            },
+            hover: {
+              enabled: true,
+              delay: 300,
+            },
+            links: true,
+            contextmenu: true,
+            padding: {
+              top: 16,
+              bottom: 16,
+            },
+          }}
+          onMount={handleEditorDidMount}
+        />
+      </div>
+
+      {/* Settings Modal */}
+      {showSettings && (
+        <div className="fixed inset-0 z-50 bg-background/80 backdrop-blur-sm">
+          <div className="fixed inset-[50%] w-[400px] translate-x-[-50%] translate-y-[-50%] rounded-lg border bg-background p-6 shadow-lg">
+            <div className="flex items-center justify-between mb-4">
+              <h2 className="text-lg font-semibold">Editor Settings</h2>
+              <button
+                onClick={() => setShowSettings(false)}
+                className="p-1 rounded-md hover:bg-muted/80 transition-colors"
+              >
+                <X className="w-4 h-4" />
+              </button>
+            </div>
+            <div className="space-y-4">
+              <div className="flex items-center justify-between">
+                <span className="text-sm">Font Size</span>
+                <select
+                  value={fontSize}
+                  onChange={(e) => setFontSize(Number(e.target.value))}
+                  className="h-9 px-3 rounded-md border bg-background text-sm"
+                >
+                  {[12, 14, 16, 18, 20].map((size) => (
+                    <option key={size} value={size}>
+                      {size}px
+                    </option>
+                  ))}
+                </select>
+              </div>
+              <div className="flex items-center justify-between">
+                <span className="text-sm">Word Wrap</span>
+                <select
+                  value={wordWrap}
+                  onChange={(e) => setWordWrap(e.target.value)}
+                  className="h-9 px-3 rounded-md border bg-background text-sm"
+                >
+                  <option value="off">Off</option>
+                  <option value="on">On</option>
+                </select>
+              </div>
+              <div className="flex items-center justify-between">
+                <span className="text-sm">Show Minimap</span>
+                <div className="flex items-center">
+                  <input
+                    type="checkbox"
+                    checked={showMinimap}
+                    onChange={(e) => setShowMinimap(e.target.checked)}
+                    className="rounded border-muted-foreground"
+                  />
+                </div>
+              </div>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 };
 
-export default APIEditor;
+export default Editor;
