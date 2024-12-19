@@ -1,30 +1,38 @@
-import React from 'react';
+import React from 'react'
+import { cn } from '@/lib/theme'
 
-interface LoadingSpinnerProps {
-  size?: 'sm' | 'md' | 'lg';
-  className?: string;
+export interface LoadingSpinnerProps {
+  size?: 'sm' | 'md' | 'lg'
+  className?: string
+  label?: string
 }
 
-const sizeClasses = {
-  sm: 'w-4 h-4',
-  md: 'w-6 h-6',
-  lg: 'w-8 h-8'
-};
-
-export const LoadingSpinner: React.FC<LoadingSpinnerProps> = ({
+export function LoadingSpinner({
   size = 'md',
-  className = ''
-}) => {
-  return (
-    <div
-      className={`inline-block animate-spin rounded-full border-2 border-solid border-current border-r-transparent align-[-0.125em] motion-reduce:animate-[spin_1.5s_linear_infinite] ${sizeClasses[size]} ${className}`}
-      role="status"
-    >
-      <span className="!absolute !-m-px !h-px !w-px !overflow-hidden !whitespace-nowrap !border-0 !p-0 ![clip:rect(0,0,0,0)]">
-        Loading...
-      </span>
-    </div>
-  );
-};
+  className,
+  label,
+}: LoadingSpinnerProps) {
+  const sizes = {
+    sm: 'h-4 w-4 border-2',
+    md: 'h-8 w-8 border-3',
+    lg: 'h-12 w-12 border-4',
+  }
 
-export default LoadingSpinner; 
+  return (
+    <div className="flex flex-col items-center justify-center gap-3">
+      <div
+        className={cn(
+          'animate-spin rounded-full border-t-transparent',
+          'border-blue-500 dark:border-blue-400',
+          sizes[size],
+          className
+        )}
+      />
+      {label && (
+        <p className="text-sm text-gray-500 dark:text-gray-400">
+          {label}
+        </p>
+      )}
+    </div>
+  )
+} 

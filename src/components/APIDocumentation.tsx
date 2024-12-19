@@ -1,71 +1,38 @@
 import React from 'react';
 import { cn } from '../lib/utils';
+import {
+  AlertTriangle,
+  Code2,
+  Boxes,
+  Info,
+  Search,
+  Filter,
+  X,
+  Globe,
+  FileCode,
+  Database,
+  ChevronDown,
+  Hash,
+  Tag,
+  Clock,
+  CheckCircle2,
+  XCircle
+} from 'lucide-react';
+import { ValidationPanel } from './ValidationPanel';
 import { APIEndpoints } from './APIEndpoints';
 import { APISchemas } from './APISchemas';
-import { APISecurity } from './APISecurity';
-import { APIExample } from './APIExample';
-import { APIServers } from './APIServers';
-import { APIWebhooks } from './APIWebhooks';
-import { APITags } from './APITags';
-import { APIExternalDocs } from './APIExternalDocs';
-import { ValidationPanel } from './ValidationPanel';
 import { Tooltip } from './ui/TooltipComponent';
-import {
-  Code2,
-  FileJson,
-  Link2,
-  Lock,
-  PlayCircle,
-  Search,
-  Server,
-  Shield,
-  Tag,
-  Webhook,
-  ChevronDown,
-  AlertTriangle,
-  Globe,
-  Info,
-  Loader2,
-  X,
-  ChevronRight,
-  ExternalLink,
-  Copy,
-  ArrowRight,
-  FileCode,
-  Settings2,
-  Share2,
-  Check,
-  MoreVertical,
-  Braces,
-  FileText,
-  Book,
-  Sparkles,
-  Lightbulb,
-  Layers,
-  GitBranch,
-  Boxes
-} from 'lucide-react';
 
 interface APIDocumentationProps {
   spec: any;
-  environment?: any;
-  onServerChange?: (server: any) => void;
-  validationErrors?: Array<{
-    type: 'error' | 'warning';
-    message: string;
-    path?: string;
-    line?: number;
-    column?: number;
-  }>;
+  environment?: {
+    server?: {
+      url: string;
+    };
+  };
+  onServerChange?: (url: string) => void;
+  validationErrors?: any[];
   className?: string;
-}
-
-interface TabProps {
-  id: string;
-  label: string;
-  icon: React.ReactNode;
-  badge?: number;
-  description?: string;
 }
 
 export const APIDocumentation: React.FC<APIDocumentationProps> = ({
@@ -77,20 +44,52 @@ export const APIDocumentation: React.FC<APIDocumentationProps> = ({
 }) => {
   const [activeTab, setActiveTab] = React.useState('endpoints');
   const [searchQuery, setSearchQuery] = React.useState('');
-  const [isTabsMenuOpen, setIsTabsMenuOpen] = React.useState(false);
-  const [copiedUrl, setCopiedUrl] = React.useState<string | null>(null);
   const [showServerMenu, setShowServerMenu] = React.useState(false);
-  const tabsMenuRef = React.useRef<HTMLDivElement>(null);
+  const [showFilters, setShowFilters] = React.useState(false);
+  const [filters, setFilters] = React.useState({
+    method: [] as string[],
+    tags: [] as string[],
+    status: [] as string[],
+  });
+  
   const serverMenuRef = React.useRef<HTMLDivElement>(null);
+  const filterMenuRef = React.useRef<HTMLDivElement>(null);
+
+  // Extract available filters from spec
+  const availableFilters = React.useMemo(() => {
+    const methods = new Set<string>();
+    const tags = new Set<string>();
+    const statuses = new Set<string>();
+
+    if (spec?.paths) {
+      Object.values(spec.paths).forEach((path: any) => {
+        Object.entries(path).forEach(([method, operation]: [string, any]) => {
+          methods.add(method.toUpperCase());
+          if (operation.tags) {
+            operation.tags.forEach((tag: string) => tags.add(tag));
+          }
+          if (operation.responses) {
+            Object.keys(operation.responses).forEach(status => statuses.add(status));
+          }
+        });
+      });
+    }
+
+    return {
+      methods: Array.from(methods),
+      tags: Array.from(tags),
+      statuses: Array.from(statuses),
+    };
+  }, [spec]);
 
   // Close menus when clicking outside
   React.useEffect(() => {
     const handleClickOutside = (event: MouseEvent) => {
-      if (tabsMenuRef.current && !tabsMenuRef.current.contains(event.target as Node)) {
-        setIsTabsMenuOpen(false);
-      }
       if (serverMenuRef.current && !serverMenuRef.current.contains(event.target as Node)) {
         setShowServerMenu(false);
+      }
+      if (filterMenuRef.current && !filterMenuRef.current.contains(event.target as Node)) {
+        setShowFilters(false);
       }
     };
 
@@ -98,25 +97,15 @@ export const APIDocumentation: React.FC<APIDocumentationProps> = ({
     return () => document.removeEventListener('mousedown', handleClickOutside);
   }, []);
 
-  const copyServerUrl = async (url: string) => {
-    try {
-      await navigator.clipboard.writeText(url);
-      setCopiedUrl(url);
-      setTimeout(() => setCopiedUrl(null), 2000);
-    } catch (error) {
-      console.error('Failed to copy server URL:', error);
-    }
-  };
-
   if (!spec || !spec.paths) {
     return (
-      <div className={cn('flex flex-col h-full max-w-full items-center justify-center', className)}>
+      <div className={cn('flex flex-col h-full max-w-full items-center justify-center bg-[#1e1e1e]', className)}>
         <div className="text-center p-4">
-          <div className="w-12 h-12 rounded-full bg-muted/30 flex items-center justify-center mx-auto mb-4">
-            <Info className="w-6 h-6 text-muted-foreground" />
+          <div className="w-12 h-12 rounded-full bg-[#2d2d2d] flex items-center justify-center mx-auto mb-4">
+            <Info className="w-6 h-6 text-gray-400" />
           </div>
-          <h2 className="text-base font-medium mb-2">No Content to Preview</h2>
-          <p className="text-sm text-muted-foreground">
+          <h2 className="text-base font-medium mb-2 text-gray-200">No Content to Preview</h2>
+          <p className="text-sm text-gray-400">
             The OpenAPI specification is not available or contains errors.
           </p>
         </div>
@@ -124,241 +113,271 @@ export const APIDocumentation: React.FC<APIDocumentationProps> = ({
     );
   }
 
-  const tabs: TabProps[] = [
-    {
-      id: 'validation',
-      label: 'Validation',
-      icon: <AlertTriangle className="w-4 h-4" />,
-      badge: validationErrors?.length || 0,
-      description: 'View and fix validation errors in your API specification',
-    },
-    {
-      id: 'endpoints',
-      label: 'Endpoints',
-      icon: <Code2 className="w-4 h-4" />,
-      badge: spec?.paths ? Object.keys(spec.paths).length : 0,
-      description: 'Browse and test API endpoints',
-    },
-    {
-      id: 'schemas',
-      label: 'Schemas',
-      icon: <Boxes className="w-4 h-4" />,
-      badge: spec?.components?.schemas ? Object.keys(spec.components.schemas).length : 0,
-      description: 'View data models and type definitions',
-    },
-    {
-      id: 'security',
-      label: 'Security',
-      icon: <Lock className="w-4 h-4" />,
-      badge: spec?.security ? spec.security.length : 0,
-      description: 'Configure authentication and authorization',
-    },
-    {
-      id: 'servers',
-      label: 'Servers',
-      icon: <Server className="w-4 h-4" />,
-      badge: spec?.servers ? spec.servers.length : 0,
-      description: 'Manage API server configurations',
-    },
-    {
-      id: 'webhooks',
-      label: 'Webhooks',
-      icon: <Webhook className="w-4 h-4" />,
-      badge: spec?.webhooks ? Object.keys(spec.webhooks).length : 0,
-      description: 'Configure webhook endpoints',
-    },
-    {
-      id: 'tags',
-      label: 'Tags',
-      icon: <Tag className="w-4 h-4" />,
-      badge: spec?.tags ? spec.tags.length : 0,
-      description: 'Organize API endpoints with tags',
-    },
-    {
-      id: 'docs',
-      label: 'Documentation',
-      icon: <Book className="w-4 h-4" />,
-      badge: spec?.externalDocs ? 1 : 0,
-      description: 'View external documentation',
-    },
-    {
-      id: 'examples',
-      label: 'Examples',
-      icon: <PlayCircle className="w-4 h-4" />,
-      description: 'Explore API usage examples',
-    },
-  ];
-
-  const activeTabData = tabs.find(tab => tab.id === activeTab);
-
   return (
-    <div className={cn('flex flex-col h-full max-w-full', className)}>
-      {/* Header */}
-      <div className="border-b bg-background/95 backdrop-blur supports-[backdrop-filter]:bg-background/60">
-        {/* API Info */}
-        <div className="p-4">
-          <div className="flex items-center gap-3">
-            <div className="w-10 h-10 rounded-lg bg-primary/10 flex items-center justify-center">
-              <Globe className="w-5 h-5 text-primary" />
-            </div>
-            <div className="flex-1 min-w-0">
-              <h1 className="text-lg font-semibold truncate">
-                {spec.info?.title || 'API Documentation'}
-              </h1>
-              <div className="flex items-center gap-3 mt-0.5">
-                {spec.info?.version && (
-                  <div className="flex items-center gap-2">
-                    <GitBranch className="w-3.5 h-3.5 text-muted-foreground shrink-0" />
-                    <span className="text-xs text-muted-foreground truncate">
-                      v{spec.info.version}
-                    </span>
-                  </div>
-                )}
-                {spec.info?.license && (
-                  <div className="flex items-center gap-2">
-                    <Shield className="w-3.5 h-3.5 text-muted-foreground shrink-0" />
-                    <a
-                      href={spec.info.license.url}
-                      target="_blank"
-                      rel="noopener noreferrer"
-                      className="text-xs text-muted-foreground hover:text-foreground truncate"
-                    >
-                      {spec.info.license.name}
-                    </a>
-                  </div>
-                )}
-              </div>
-            </div>
-            <div className="flex items-center gap-2">
-              <Tooltip content="Settings">
-                <button className="p-2 rounded-md text-muted-foreground hover:text-foreground hover:bg-muted/50 transition-colors">
-                  <Settings2 className="w-4 h-4" />
+    <div className={cn('flex flex-col h-full max-w-full bg-[#1e1e1e] text-gray-300', className)}>
+      {/* Compact Header */}
+      <div className="flex flex-col border-b border-[#2d2d2d]">
+        {/* Title Bar */}
+        <div className="flex items-center px-3 py-1.5 gap-2 border-b border-[#2d2d2d] bg-[#252526]">
+          <h1 className="text-sm font-medium text-gray-300 flex items-center gap-2">
+            <span className="truncate">{spec.info?.title || 'API Documentation'}</span>
+            <span className="text-xs text-gray-500 font-normal">v{spec.info?.version || '1.0.0'}</span>
+          </h1>
+          
+          {spec.servers && spec.servers.length > 0 && (
+            <div className="relative ml-auto" ref={serverMenuRef}>
+              <Tooltip content="Select server">
+                <button
+                  onClick={() => setShowServerMenu(!showServerMenu)}
+                  className="flex items-center gap-1.5 px-2 py-1 text-xs rounded hover:bg-[#2d2d2d] text-gray-400 hover:text-gray-300"
+                >
+                  <Globe className="h-3.5 w-3.5" />
+                  <span className="font-mono truncate max-w-[120px]">
+                    {environment?.server?.url || spec.servers[0].url}
+                  </span>
+                  <ChevronDown className={cn('h-3.5 w-3.5 transition-transform', showServerMenu && 'rotate-180')} />
                 </button>
               </Tooltip>
-              <Tooltip content="Share API">
-                <button className="p-2 rounded-md text-muted-foreground hover:text-foreground hover:bg-muted/50 transition-colors">
-                  <Share2 className="w-4 h-4" />
-                </button>
-              </Tooltip>
-              {spec.externalDocs?.url && (
-                <Tooltip content="View Documentation">
-                  <a
-                    href={spec.externalDocs.url}
-                    target="_blank"
-                    rel="noopener noreferrer"
-                    className="p-2 rounded-md text-muted-foreground hover:text-foreground hover:bg-muted/50 transition-colors"
-                  >
-                    <ExternalLink className="w-4 h-4" />
-                  </a>
-                </Tooltip>
+              {showServerMenu && (
+                <div className="absolute right-0 mt-1 w-64 rounded border border-[#2d2d2d] bg-[#1e1e1e] shadow-lg z-50">
+                  <div className="p-1">
+                    {spec.servers.map((server: any, index: number) => (
+                      <button
+                        key={index}
+                        onClick={() => {
+                          onServerChange?.(server.url);
+                          setShowServerMenu(false);
+                        }}
+                        className={cn(
+                          'flex items-center gap-2 w-full px-2 py-1.5 text-xs rounded text-gray-300 hover:bg-[#2d2d2d] transition-colors',
+                          environment?.server?.url === server.url && 'bg-[#2d2d2d]'
+                        )}
+                      >
+                        <Globe className="h-3.5 w-3.5 text-gray-400" />
+                        <span className="font-mono truncate">{server.url}</span>
+                      </button>
+                    ))}
+                  </div>
+                </div>
               )}
-            </div>
-          </div>
-          {spec.info?.description && (
-            <div className="mt-3 text-muted-foreground text-sm break-words line-clamp-2">
-              {spec.info.description}
             </div>
           )}
         </div>
 
-        {/* Server Selection */}
-        {spec.servers && spec.servers.length > 0 && (
-          <div className="px-4 pb-4">
-            <div className="flex items-center gap-2">
-              <div className="flex-1 relative" ref={serverMenuRef}>
+        {/* Search and Navigation Bar */}
+        <div className="flex flex-col gap-2 p-2">
+          {/* Quick Actions */}
+          <div className="flex items-center gap-1 overflow-x-auto scrollbar-none">
+            <button
+              onClick={() => setActiveTab('endpoints')}
+              className={cn(
+                'flex items-center gap-1.5 px-2 py-1 text-xs rounded transition-colors flex-shrink-0',
+                activeTab === 'endpoints'
+                  ? 'bg-blue-500/20 text-blue-400'
+                  : 'text-gray-400 hover:text-gray-300 hover:bg-[#2d2d2d]'
+              )}
+            >
+              <FileCode className="h-3.5 w-3.5" />
+              <span>Endpoints</span>
+              {spec?.paths && (
+                <span className={cn(
+                  'px-1 rounded text-[10px]',
+                  activeTab === 'endpoints' ? 'bg-blue-500/20' : 'bg-[#2d2d2d]'
+                )}>{Object.keys(spec.paths).length}</span>
+              )}
+            </button>
+
+            <button
+              onClick={() => setActiveTab('validation')}
+              className={cn(
+                'flex items-center gap-1.5 px-2 py-1 text-xs rounded transition-colors flex-shrink-0',
+                activeTab === 'validation'
+                  ? 'bg-amber-500/20 text-amber-400'
+                  : 'text-gray-400 hover:text-gray-300 hover:bg-[#2d2d2d]'
+              )}
+            >
+              <AlertTriangle className="h-3.5 w-3.5" />
+              <span>Validation</span>
+              {validationErrors.length > 0 && (
+                <span className={cn(
+                  'px-1 rounded text-[10px]',
+                  activeTab === 'validation' ? 'bg-amber-500/20' : 'bg-[#2d2d2d]'
+                )}>{validationErrors.length}</span>
+              )}
+            </button>
+
+            <button
+              onClick={() => setActiveTab('schemas')}
+              className={cn(
+                'flex items-center gap-1.5 px-2 py-1 text-xs rounded transition-colors flex-shrink-0',
+                activeTab === 'schemas'
+                  ? 'bg-purple-500/20 text-purple-400'
+                  : 'text-gray-400 hover:text-gray-300 hover:bg-[#2d2d2d]'
+              )}
+            >
+              <Database className="h-3.5 w-3.5" />
+              <span>Schemas</span>
+              {spec?.components?.schemas && (
+                <span className={cn(
+                  'px-1 rounded text-[10px]',
+                  activeTab === 'schemas' ? 'bg-purple-500/20' : 'bg-[#2d2d2d]'
+                )}>{Object.keys(spec.components.schemas).length}</span>
+              )}
+            </button>
+          </div>
+
+          {/* Search and Filter */}
+          <div className="flex items-center gap-1.5">
+            <div className="relative flex-1">
+              <Search className="absolute left-2 top-1/2 -translate-y-1/2 h-3.5 w-3.5 text-gray-500" />
+              <input
+                type="text"
+                value={searchQuery}
+                onChange={(e) => setSearchQuery(e.target.value)}
+                placeholder="Search..."
+                className="w-full pl-7 pr-8 py-1 text-xs bg-[#252526] border border-transparent rounded placeholder-gray-500 focus:border-[#2d2d2d] focus:outline-none focus:ring-1 focus:ring-[#2d2d2d]"
+              />
+              {searchQuery && (
                 <button
-                  onClick={() => setShowServerMenu(!showServerMenu)}
-                  className="w-full flex items-center gap-2 h-9 px-3 rounded-md border bg-background/50 text-sm hover:bg-muted/50 transition-colors"
+                  onClick={() => setSearchQuery('')}
+                  className="absolute right-1.5 top-1/2 -translate-y-1/2 p-0.5 rounded hover:bg-[#2d2d2d] text-gray-400 hover:text-gray-300"
                 >
-                  <Server className="w-4 h-4 text-muted-foreground shrink-0" />
-                  <span className="flex-1 truncate text-left">
-                    {environment?.server?.description || environment?.server?.url || spec.servers[0].description || spec.servers[0].url}
-                  </span>
-                  <ChevronDown className={cn(
-                    'w-4 h-4 text-muted-foreground transition-transform duration-200',
-                    showServerMenu && 'rotate-180'
-                  )} />
+                  <X className="h-3 w-3" />
                 </button>
-                {showServerMenu && (
-                  <div className="absolute left-0 right-0 mt-1 rounded-md border bg-popover/95 backdrop-blur-sm p-1 shadow-lg ring-1 ring-black/5 z-50">
-                    {spec.servers.map((server: any, index: number) => (
-                      <div
-                        key={index}
-                        className="group relative"
-                      >
-                        <button
-                          onClick={() => {
-                            if (onServerChange) {
-                              onServerChange(server);
-                            }
-                            setShowServerMenu(false);
-                          }}
-                          className={cn(
-                            'w-full flex items-start gap-2 p-2 rounded-sm text-sm hover:bg-muted/80 transition-colors',
-                            environment?.server?.url === server.url && 'bg-muted/50'
-                          )}
-                        >
-                          <Server className="w-4 h-4 text-muted-foreground mt-0.5 shrink-0" />
-                          <div className="flex-1 text-left">
-                            <div className="font-medium truncate">
-                              {server.description || server.url}
-                            </div>
-                            <div className="text-xs text-muted-foreground truncate mt-0.5">
-                              {server.url}
-                            </div>
-                          </div>
-                        </button>
-                        <div className="absolute right-2 top-2 opacity-0 group-hover:opacity-100 transition-opacity">
-                          <Tooltip content={copiedUrl === server.url ? 'Copied!' : 'Copy URL'}>
-                            <button
-                              onClick={() => copyServerUrl(server.url)}
-                              className="p-1 rounded-sm hover:bg-muted text-muted-foreground hover:text-foreground transition-colors"
-                            >
-                              {copiedUrl === server.url ? (
-                                <Check className="w-3.5 h-3.5" />
-                              ) : (
-                                <Copy className="w-3.5 h-3.5" />
-                              )}
-                            </button>
-                          </Tooltip>
-                        </div>
+              )}
+            </div>
+
+            <div className="relative flex-shrink-0" ref={filterMenuRef}>
+              <Tooltip content="Filter options">
+                <button
+                  onClick={() => setShowFilters(!showFilters)}
+                  className={cn(
+                    'p-1 rounded transition-colors',
+                    showFilters || Object.values(filters).some(f => f.length > 0)
+                      ? 'bg-blue-500/20 text-blue-400'
+                      : 'text-gray-400 hover:text-gray-300 hover:bg-[#2d2d2d]'
+                  )}
+                >
+                  <Filter className="h-4 w-4" />
+                </button>
+              </Tooltip>
+
+              {showFilters && (
+                <div className="absolute right-0 mt-1 w-64 rounded border border-[#2d2d2d] bg-[#1e1e1e] shadow-lg z-50">
+                  <div className="p-2 space-y-3">
+                    {/* Methods */}
+                    <div className="space-y-1.5">
+                      <div className="flex items-center gap-1.5 text-xs text-gray-400">
+                        <Hash className="h-3.5 w-3.5" />
+                        <span>Methods</span>
                       </div>
-                    ))}
+                      <div className="flex flex-wrap gap-1">
+                        {availableFilters.methods.map(method => (
+                          <button
+                            key={method}
+                            onClick={() => setFilters(prev => ({
+                              ...prev,
+                              method: prev.method.includes(method)
+                                ? prev.method.filter(m => m !== method)
+                                : [...prev.method, method]
+                            }))}
+                            className={cn(
+                              'px-1.5 py-0.5 text-[10px] rounded border transition-colors',
+                              filters.method.includes(method)
+                                ? 'bg-blue-500/20 text-blue-400 border-blue-500/20'
+                                : 'text-gray-400 border-[#2d2d2d] hover:bg-[#2d2d2d]'
+                            )}
+                          >
+                            {method}
+                          </button>
+                        ))}
+                      </div>
+                    </div>
+
+                    {/* Tags */}
+                    <div className="space-y-1.5">
+                      <div className="flex items-center gap-1.5 text-xs text-gray-400">
+                        <Tag className="h-3.5 w-3.5" />
+                        <span>Tags</span>
+                      </div>
+                      <div className="flex flex-wrap gap-1">
+                        {availableFilters.tags.map(tag => (
+                          <button
+                            key={tag}
+                            onClick={() => setFilters(prev => ({
+                              ...prev,
+                              tags: prev.tags.includes(tag)
+                                ? prev.tags.filter(t => t !== tag)
+                                : [...prev.tags, tag]
+                            }))}
+                            className={cn(
+                              'px-1.5 py-0.5 text-[10px] rounded border transition-colors',
+                              filters.tags.includes(tag)
+                                ? 'bg-purple-500/20 text-purple-400 border-purple-500/20'
+                                : 'text-gray-400 border-[#2d2d2d] hover:bg-[#2d2d2d]'
+                            )}
+                          >
+                            {tag}
+                          </button>
+                        ))}
+                      </div>
+                    </div>
+
+                    {/* Status Codes */}
+                    <div className="space-y-1.5">
+                      <div className="flex items-center gap-1.5 text-xs text-gray-400">
+                        <Clock className="h-3.5 w-3.5" />
+                        <span>Status Codes</span>
+                      </div>
+                      <div className="flex flex-wrap gap-1">
+                        {availableFilters.statuses.map(status => (
+                          <button
+                            key={status}
+                            onClick={() => setFilters(prev => ({
+                              ...prev,
+                              status: prev.status.includes(status)
+                                ? prev.status.filter(s => s !== status)
+                                : [...prev.status, status]
+                            }))}
+                            className={cn(
+                              'px-1.5 py-0.5 text-[10px] rounded border transition-colors',
+                              filters.status.includes(status)
+                                ? status.startsWith('2')
+                                  ? 'bg-green-500/20 text-green-400 border-green-500/20'
+                                  : status.startsWith('4')
+                                  ? 'bg-amber-500/20 text-amber-400 border-amber-500/20'
+                                  : 'bg-red-500/20 text-red-400 border-red-500/20'
+                                : 'text-gray-400 border-[#2d2d2d] hover:bg-[#2d2d2d]'
+                            )}
+                          >
+                            {status}
+                          </button>
+                        ))}
+                      </div>
+                    </div>
+
+                    {/* Actions */}
+                    <div className="flex items-center justify-between pt-2 border-t border-[#2d2d2d]">
+                      <button
+                        onClick={() => setFilters({ method: [], tags: [], status: [] })}
+                        className="flex items-center gap-1.5 px-2 py-1 text-xs rounded text-gray-400 hover:text-gray-300 hover:bg-[#2d2d2d]"
+                      >
+                        <XCircle className="h-3.5 w-3.5" />
+                        <span>Clear all</span>
+                      </button>
+                      <button
+                        onClick={() => setShowFilters(false)}
+                        className="flex items-center gap-1.5 px-2 py-1 text-xs rounded text-blue-400 hover:text-blue-300 hover:bg-[#2d2d2d]"
+                      >
+                        <CheckCircle2 className="h-3.5 w-3.5" />
+                        <span>Apply filters</span>
+                      </button>
+                    </div>
                   </div>
-                )}
-              </div>
+                </div>
+              )}
             </div>
           </div>
-        )}
-
-        {/* Tabs */}
-        <div className="flex items-center gap-1 px-4 pb-4">
-          {tabs.map((tab) => (
-            <Tooltip key={tab.id} content={tab.description}>
-              <button
-                onClick={() => setActiveTab(tab.id)}
-                className={cn(
-                  'flex items-center gap-2 px-3 py-1.5 rounded-md transition-all duration-200',
-                  'text-sm hover:shadow-sm',
-                  activeTab === tab.id
-                    ? 'bg-primary/10 text-primary hover:bg-primary/20'
-                    : 'text-muted-foreground hover:bg-muted/50 hover:text-foreground'
-                )}
-              >
-                <div className="relative">
-                  {tab.icon}
-                  {tab.badge !== undefined && tab.badge > 0 && (
-                    <span className="absolute -top-1 -right-1 w-3.5 h-3.5 flex items-center justify-center rounded-full bg-primary text-[10px] text-primary-foreground animate-in fade-in-0 zoom-in-75 duration-200">
-                      {tab.badge}
-                    </span>
-                  )}
-                </div>
-                <span className="font-medium">
-                  {tab.label}
-                </span>
-              </button>
-            </Tooltip>
-          ))}
         </div>
       </div>
 
@@ -368,28 +387,15 @@ export const APIDocumentation: React.FC<APIDocumentationProps> = ({
           <ValidationPanel messages={validationErrors} className="p-4" />
         )}
         {activeTab === 'endpoints' && (
-          <APIEndpoints spec={spec} searchQuery={searchQuery} className="p-4" />
+          <APIEndpoints
+            spec={spec}
+            searchQuery={searchQuery}
+            filters={filters}
+            className="p-4"
+          />
         )}
         {activeTab === 'schemas' && (
           <APISchemas spec={spec} className="p-4" />
-        )}
-        {activeTab === 'security' && (
-          <APISecurity spec={spec} className="p-4" />
-        )}
-        {activeTab === 'servers' && (
-          <APIServers spec={spec} className="p-4" />
-        )}
-        {activeTab === 'webhooks' && (
-          <APIWebhooks spec={spec} className="p-4" />
-        )}
-        {activeTab === 'tags' && (
-          <APITags spec={spec} className="p-4" />
-        )}
-        {activeTab === 'docs' && (
-          <APIExternalDocs spec={spec} className="p-4" />
-        )}
-        {activeTab === 'examples' && (
-          <APIExample spec={spec} className="p-4" />
         )}
       </div>
     </div>

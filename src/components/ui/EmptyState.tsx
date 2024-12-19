@@ -1,39 +1,60 @@
 import React from 'react';
-import { cn } from '../../lib/utils';
+import { cn } from '@/lib/theme';
+import { Button } from './Button';
 
-interface EmptyStateProps {
+export interface EmptyStateProps {
   icon?: React.ReactNode;
   title: string;
   description?: string;
-  action?: React.ReactNode;
+  action?: {
+    label: string;
+    onClick: () => void;
+  };
   className?: string;
 }
 
-export const EmptyState: React.FC<EmptyStateProps> = ({
+export function EmptyState({
   icon,
   title,
   description,
   action,
-  className
-}) => {
+  className,
+}: EmptyStateProps) {
   return (
-    <div className={cn('flex flex-col items-center justify-center p-8 text-center', className)}>
+    <div
+      className={cn(
+        'flex h-[450px] flex-col items-center justify-center gap-4 p-8 text-center',
+        'animate-in fade-in-50 duration-500',
+        className
+      )}
+    >
       {icon && (
-        <div className="mb-4 text-muted-foreground">
+        <div className="rounded-full bg-gray-100 p-4 dark:bg-gray-800">
           {icon}
         </div>
       )}
-      <h3 className="text-lg font-semibold">{title}</h3>
-      {description && (
-        <p className="mt-2 text-sm text-muted-foreground">{description}</p>
-      )}
+      <div className="max-w-sm space-y-2">
+        <h3 className="text-lg font-medium text-gray-900 dark:text-gray-100">
+          {title}
+        </h3>
+        {description && (
+          <p className="text-sm text-gray-500 dark:text-gray-400">
+            {description}
+          </p>
+        )}
+      </div>
       {action && (
-        <div className="mt-4">
-          {action}
-        </div>
+        <Button
+          variant="primary"
+          size="lg"
+          onClick={action.onClick}
+          className="mt-4"
+        >
+          {action.label}
+        </Button>
       )}
     </div>
   );
-};
+}
 
 export default EmptyState; 
