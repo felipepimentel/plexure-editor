@@ -1,0 +1,260 @@
+import React from 'react';
+import { cn } from '../lib/utils';
+import {
+  AlertCircle,
+  CheckCircle2,
+  ChevronDown,
+  ChevronRight,
+  XCircle,
+  AlertTriangle,
+  Info,
+} from 'lucide-react';
+import { Tooltip } from './ui/TooltipComponent';
+
+interface ValidationPanelProps {
+  errors?: Array<{
+    type: 'error' | 'warning';
+    message: string;
+    path?: string;
+    line?: number;
+    column?: number;
+  }>;
+  className?: string;
+}
+
+interface ValidationTabProps {
+  label: string;
+  count: number;
+  active: boolean;
+  onClick: () => void;
+  variant: 'all' | 'error' | 'warning';
+}
+
+const ValidationTab: React.FC<ValidationTabProps> = ({
+  label,
+  count,
+  active,
+  onClick,
+  variant,
+}) => {
+  const getIcon = () => {
+    switch (variant) {
+      case 'all':
+        return count === 0 ? (
+          <CheckCircle2 className="w-4 h-4 text-success" />
+        ) : (
+          <AlertCircle className="w-4 h-4 text-muted-foreground" />
+        );
+      case 'error':
+        return <XCircle className="w-4 h-4 text-destructive" />;
+      case 'warning':
+        return <AlertTriangle className="w-4 h-4 text-warning" />;
+      default:
+        return null;
+    }
+  };
+
+  return (
+    <button
+      onClick={onClick}
+      className={cn(
+        'flex items-center gap-1.5 px-2 py-1.5 text-sm rounded-md transition-colors min-w-[80px] flex-1 justify-center',
+        active ? 'bg-accent text-accent-foreground' : 'text-muted-foreground hover:bg-accent/50'
+      )}
+    >
+      {getIcon()}
+      <span className="truncate">{label}</span>
+      {count > 0 && (
+        <span className={cn(
+          'px-1.5 py-0.5 rounded-full text-xs font-medium shrink-0',
+          variant === 'error' ? 'bg-destructive/10 text-destructive' :
+          variant === 'warning' ? 'bg-warning/10 text-warning' :
+          'bg-muted text-muted-foreground'
+        )}>
+          {count}
+        </span>
+      )}
+    </button>
+  );
+};
+
+const ValidationItem: React.FC<{
+  type: 'error' | 'warning';
+  message: string;
+  path?: string;
+  line?: number;
+  column?: number;
+  expanded?: boolean;
+  onToggle?: () => void;
+}> = ({
+  type,
+  message,
+  path,
+  line,
+  column,
+  expanded,
+  onToggle,
+}) => {
+  const hasDetails = path || line || column;
+
+  return (
+    <div className={cn(
+      'border rounded-lg overflow-hidden transition-colors',
+      type === 'error' ? 'border-destructive/50' : 'border-warning/50'
+    )}>
+      <button
+        onClick={onToggle}
+        className="w-full flex items-start gap-2 p-3 text-left hover:bg-accent/50 group"
+      >
+        {type === 'error' ? (
+          <XCircle className="w-4 h-4 text-destructive shrink-0 mt-0.5" />
+        ) : (
+          <AlertTriangle className="w-4 h-4 text-warning shrink-0 mt-0.5" />
+        )}
+        <span className="flex-1 text-sm break-words">{message}</span>
+        {hasDetails && (
+          <ChevronRight
+            className={cn(
+              'w-4 h-4 text-muted-foreground transition-transform shrink-0 mt-0.5 group-hover:text-foreground',
+              expanded && 'rotate-90'
+            )}
+          />
+        )}
+      </button>
+
+      {expanded && hasDetails && (
+        <div className="px-3 pb-3 space-y-2 border-t">
+          {path && (
+            <div className="flex items-start gap-2 text-xs text-muted-foreground">
+              <Info className="w-3 h-3 mt-0.5" />
+              <div className="flex-1 min-w-0">
+                <span className="block mb-1">Path:</span>
+                <code className="px-1.5 py-1 rounded bg-muted font-mono block overflow-x-auto whitespace-pre">{path}</code>
+              </div>
+            </div>
+          )}
+          {(line || column) && (
+            <div className="flex items-center gap-2 text-xs text-muted-foreground">
+              <Info className="w-3 h-3" />
+              <span>Location: </span>
+              <code className="px-1.5 py-0.5 rounded bg-muted font-mono">
+                {line && `Line ${line}`}{column && `, Column ${column}`}
+              </code>
+            </div>
+          )}
+        </div>
+      )}
+    </div>
+  );
+};
+
+export const ValidationPanel: React.FC<ValidationPanelProps> = ({
+  errors = [],
+  className,
+}) => {
+  const [activeTab, setActiveTab] = React.useState<'all' | 'error' | 'warning'>('all');
+  const [expandedItems, setExpandedItems] = React.useState<Set<number>>(new Set());
+
+  const toggleItem = (index: number) => {
+    setExpandedItems(prev => {
+      const next = new Set(prev);
+      if (next.has(index)) {
+        next.delete(index);
+      } else {
+        next.add(index);
+      }
+      return next;
+    });
+  };
+
+  const errorCount = errors.filter(e => e.type === 'error').length;
+  const warningCount = errors.filter(e => e.type === 'warning').length;
+
+  const filteredErrors = React.useMemo(() => {
+    if (activeTab === 'all') return errors;
+    return errors.filter(e => e.type === activeTab);
+  }, [errors, activeTab]);
+
+  return (
+    <div className={cn('flex flex-col h-full max-w-full', className)}>
+      {/* Header */}
+      <div className="shrink-0 border-b">
+        <div className="p-3">
+          <div className="flex items-center justify-between gap-2">
+            <h2 className="text-lg font-semibold">Validation</h2>
+            {errors.length > 0 && (
+              <div className="flex gap-1.5 text-xs">
+                <span className="flex items-center gap-1">
+                  <XCircle className="w-3.5 h-3.5 text-destructive" />
+                  {errorCount}
+                </span>
+                <span className="flex items-center gap-1">
+                  <AlertTriangle className="w-3.5 h-3.5 text-warning" />
+                  {warningCount}
+                </span>
+              </div>
+            )}
+          </div>
+          <p className="text-sm text-muted-foreground mt-1 line-clamp-1">
+            {errors.length === 0 ? (
+              "Your API specification looks good!"
+            ) : (
+              `Found ${errorCount} error${errorCount !== 1 ? 's' : ''} and ${warningCount} warning${warningCount !== 1 ? 's' : ''}`
+            )}
+          </p>
+        </div>
+
+        {/* Tabs */}
+        <div className="grid grid-cols-3 gap-1.5 px-3 pb-3">
+          <ValidationTab
+            label="All"
+            count={errors.length}
+            active={activeTab === 'all'}
+            onClick={() => setActiveTab('all')}
+            variant="all"
+          />
+          <ValidationTab
+            label="Errors"
+            count={errorCount}
+            active={activeTab === 'error'}
+            onClick={() => setActiveTab('error')}
+            variant="error"
+          />
+          <ValidationTab
+            label="Warnings"
+            count={warningCount}
+            active={activeTab === 'warning'}
+            onClick={() => setActiveTab('warning')}
+            variant="warning"
+          />
+        </div>
+      </div>
+
+      {/* Content */}
+      <div className="flex-1 min-h-0 overflow-auto p-3">
+        {errors.length === 0 ? (
+          <div className="flex flex-col items-center justify-center h-full text-center p-4">
+            <CheckCircle2 className="w-12 h-12 text-success mb-4" />
+            <h3 className="text-lg font-medium mb-2">No validation issues found</h3>
+            <p className="text-sm text-muted-foreground">
+              Your API specification looks good!
+            </p>
+          </div>
+        ) : (
+          <div className="space-y-2">
+            {filteredErrors.map((error, index) => (
+              <ValidationItem
+                key={index}
+                {...error}
+                expanded={expandedItems.has(index)}
+                onToggle={() => toggleItem(index)}
+              />
+            ))}
+          </div>
+        )}
+      </div>
+    </div>
+  );
+};
+
+export default ValidationPanel;

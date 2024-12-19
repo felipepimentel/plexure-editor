@@ -1,6 +1,8 @@
-import { defineConfig } from "vite";
-import react from "@vitejs/plugin-react";
-import path from "path";
+/// <reference types="vite/client" />
+
+import { defineConfig } from 'vite'
+import react from '@vitejs/plugin-react'
+import path from 'path'
 
 // https://vitejs.dev/config/
 export default defineConfig({
@@ -11,8 +13,8 @@ export default defineConfig({
     },
   },
   server: {
-    port: 3000,
-    host: true,
+    port: 5173,
+    open: true,
   },
   build: {
     outDir: 'dist',
@@ -20,12 +22,16 @@ export default defineConfig({
     rollupOptions: {
       output: {
         manualChunks: {
-          'monaco-editor': ['monaco-editor'],
+          'react-vendor': ['react', 'react-dom'],
+          'monaco-editor': ['@monaco-editor/react'],
         },
       },
     },
   },
-  worker: {
-    format: 'es',
+  define: {
+    // Handle browser polyfills
+    'process.env': {},
+    'process.platform': JSON.stringify('browser'),
+    'process.version': JSON.stringify(''),
   },
-});
+})

@@ -1,65 +1,187 @@
 import React from 'react';
 import { X } from 'lucide-react';
-import { BaseModalProps, BaseModalActionsProps } from '@types/ui';
-import { theme } from '@constants/theme';
+import { cn } from '../../lib/utils';
 
-export function BaseModal({
-  children,
-  title,
+interface ModalProps {
+  isOpen: boolean;
+  onClose: () => void;
+  title?: string;
+  description?: string;
+  children: React.ReactNode;
+  footer?: React.ReactNode;
+  size?: 'sm' | 'md' | 'lg' | 'xl' | 'full';
+  className?: string;
+  showClose?: boolean;
+  preventClose?: boolean;
+  position?: 'center' | 'top';
+}
+
+export const Modal: React.FC<ModalProps> = ({
   isOpen,
   onClose,
-  darkMode,
-  size = 'md'
-}: BaseModalProps) {
+  title,
+  description,
+  children,
+  footer,
+  size = 'md',
+  className,
+  showClose = true,
+  preventClose = false,
+  position = 'center',
+}) => {
+  const [isClosing, setIsClosing] = React.useState(false);
+
+  React.useEffect(() => {
+    if (isOpen) {
+      setIsClosing(false);
+      document.body.style.overflow = 'hidden';
+    }
+    return () => {
+      document.body.style.overflow = '';
+    };
+  }, [isOpen]);
+
+  const handleClose = () => {
+    if (preventClose) return;
+    setIsClosing(true);
+    setTimeout(onClose, 200);
+  };
+
+  const handleBackdropClick = (e: React.MouseEvent) => {
+    if (e.target === e.currentTarget) {
+      handleClose();
+    }
+  };
+
+  const handleEscape = (e: KeyboardEvent) => {
+    if (e.key === 'Escape') {
+      handleClose();
+    }
+  };
+
+  React.useEffect(() => {
+    if (isOpen) {
+      document.addEventListener('keydown', handleEscape);
+      return () => document.removeEventListener('keydown', handleEscape);
+    }
+  }, [isOpen]);
+
   if (!isOpen) return null;
 
-  const mode = darkMode ? 'dark' : 'light';
-  const themeMode = theme[mode];
-
-  const modalSizeClasses = {
-    sm: 'max-w-md',
-    md: 'max-w-lg',
-    lg: 'max-w-2xl'
-  }[size];
+  const sizeClasses = {
+    sm: 'max-w-sm',
+    md: 'max-w-md',
+    lg: 'max-w-lg',
+    xl: 'max-w-xl',
+    full: 'max-w-[calc(100vw-2rem)] max-h-[calc(100vh-2rem)]',
+  };
 
   return (
-    <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50">
-      <div className={`w-full ${modalSizeClasses} mx-4 rounded-lg shadow-lg ${themeMode.bg.primary}`}>
-        {title && (
-          <div className={`flex items-center justify-between p-4 border-b ${themeMode.border.primary}`}>
-            <h3 className={`font-semibold ${themeMode.text.primary}`}>
-              {title}
-            </h3>
-            <button
-              onClick={onClose}
-              className={`p-1 rounded ${themeMode.hover.bg}`}
-            >
-              <X className={`w-4 h-4 ${themeMode.text.tertiary}`} />
-            </button>
+    <div
+      className={cn(
+        'fixed inset-0 z-50',
+        'flex items-start justify-center',
+        position === 'center' && 'items-center',
+        position === 'top' && 'pt-16',
+        'bg-background/80 backdrop-blur-sm',
+        'animate-in fade-in duration-200',
+        isClosing && 'animate-out fade-out duration-200'
+      )}
+      onClick={handleBackdropClick}
+    >
+      <div
+        className={cn(
+          'relative w-full mx-4',
+          sizeClasses[size],
+          'bg-card border rounded-lg shadow-lg',
+          'animate-in zoom-in-95 duration-200',
+          isClosing && 'animate-out zoom-out-95 duration-200',
+          className
+        )}
+      >
+        {/* Header */}
+        {(title || showClose) && (
+          <div className="flex items-center justify-between p-4 border-b">
+            <div>
+              {title && (
+                <h2 className="text-lg font-semibold leading-none tracking-tight">
+                  {title}
+                </h2>
+              )}
+              {description && (
+                <p className="text-sm text-muted-foreground mt-1.5">
+                  {description}
+                </p>
+              )}
+            </div>
+            {showClose && !preventClose && (
+              <button
+                onClick={handleClose}
+                className="p-1.5 rounded-md text-muted-foreground hover:bg-accent"
+              >
+                <X className="w-4 h-4" />
+              </button>
+            )}
           </div>
         )}
-        <div className="p-4">
+
+        {/* Content */}
+        <div className={cn(
+          'p-4',
+          size === 'full' && 'overflow-auto'
+        )}>
           {children}
         </div>
+
+        {/* Footer */}
+        {footer && (
+          <div className="flex items-center justify-end gap-2 p-4 border-t bg-muted/50">
+            {footer}
+          </div>
+        )}
       </div>
     </div>
   );
+};
+
+interface ModalButtonProps extends React.ButtonHTMLAttributes<HTMLButtonElement> {
+  variant?: 'primary' | 'secondary' | 'destructive';
+  size?: 'sm' | 'md' | 'lg';
 }
 
-export function BaseModalActions({
-  children,
-  darkMode,
-  align = 'right'
-}: BaseModalActionsProps) {
-  const alignmentClasses = {
-    left: 'justify-start',
-    center: 'justify-center',
-    right: 'justify-end'
-  }[align];
+export const ModalButton: React.FC<ModalButtonProps> = ({
+  variant = 'secondary',
+  size = 'md',
+  className,
+  ...props
+}) => {
+  const variantClasses = {
+    primary: 'bg-primary text-primary-foreground hover:bg-primary/90',
+    secondary: 'bg-secondary text-secondary-foreground hover:bg-secondary/80',
+    destructive: 'bg-destructive text-destructive-foreground hover:bg-destructive/90',
+  };
+
+  const sizeClasses = {
+    sm: 'px-3 py-1.5 text-xs',
+    md: 'px-4 py-2 text-sm',
+    lg: 'px-6 py-3 text-base',
+  };
 
   return (
-    <div className={`mt-6 flex items-center gap-2 ${alignmentClasses}`}>
-      {children}
-    </div>
+    <button
+      className={cn(
+        'inline-flex items-center justify-center font-medium',
+        'rounded-md transition-colors',
+        'focus-visible:outline-none focus-visible:ring-2',
+        'focus-visible:ring-ring focus-visible:ring-offset-2',
+        'disabled:pointer-events-none disabled:opacity-50',
+        variantClasses[variant],
+        sizeClasses[size],
+        className
+      )}
+      {...props}
+    />
   );
-} 
+};
+
+export default Modal; 
