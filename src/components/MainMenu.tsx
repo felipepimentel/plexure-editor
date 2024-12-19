@@ -23,13 +23,10 @@ import {
   EyeOff,
   PanelLeft,
   PanelLeftClose,
-  MoreHorizontal,
-  Download,
-  Upload,
-  Trash,
-  Copy,
-  Clipboard,
-  Check
+  ChevronDown,
+  Command,
+  Share2,
+  Maximize2
 } from 'lucide-react';
 import { Tooltip } from './ui/TooltipComponent';
 
@@ -63,222 +60,301 @@ export const MainMenu: React.FC<MainMenuProps> = ({
   const [showFileMenu, setShowFileMenu] = React.useState(false);
   const [showViewMenu, setShowViewMenu] = React.useState(false);
   const [showHelpMenu, setShowHelpMenu] = React.useState(false);
-  const [showThemeMenu, setShowThemeMenu] = React.useState(false);
-  const [showCopied, setShowCopied] = React.useState(false);
+  const [searchOpen, setSearchOpen] = React.useState(false);
 
-  const handleCopyUrl = () => {
-    navigator.clipboard.writeText(window.location.href);
-    setShowCopied(true);
-    setTimeout(() => setShowCopied(false), 2000);
-  };
-
+  // Close menus when clicking outside
   React.useEffect(() => {
     const handleClickOutside = () => {
       setShowFileMenu(false);
       setShowViewMenu(false);
       setShowHelpMenu(false);
-      setShowThemeMenu(false);
     };
 
     document.addEventListener('click', handleClickOutside);
     return () => document.removeEventListener('click', handleClickOutside);
   }, []);
 
-  const MenuItem = React.forwardRef<
-    HTMLButtonElement,
-    React.ButtonHTMLAttributes<HTMLButtonElement> & {
-      icon?: React.ReactNode;
-      shortcut?: string;
-    }
-  >(({ className, children, icon, shortcut, ...props }, ref) => (
+  const MenuButton = ({ label, isOpen, onClick }: { label: string; isOpen: boolean; onClick: (e: React.MouseEvent) => void }) => (
     <button
-      ref={ref}
+      onClick={onClick}
       className={cn(
-        'flex items-center w-full gap-2 px-2 py-1.5 text-sm rounded-sm',
-        'hover:bg-muted transition-colors',
-        className
+        'flex items-center gap-1.5 px-3 py-1.5 text-sm font-medium transition-all duration-200',
+        'hover:bg-muted/50 rounded-lg',
+        isOpen && 'bg-primary/10 text-primary'
       )}
-      {...props}
     >
-      {icon && <span className="w-4 h-4">{icon}</span>}
-      <span className="flex-1">{children}</span>
-      {shortcut && (
-        <kbd className="ml-auto text-xs text-muted-foreground">
-          {shortcut}
-        </kbd>
-      )}
+      {label}
+      <ChevronDown className={cn('h-4 w-4 transition-transform', isOpen && 'rotate-180')} />
     </button>
-  ));
-  MenuItem.displayName = 'MenuItem';
-
-  const MenuButton = React.forwardRef<
-    HTMLButtonElement,
-    React.ButtonHTMLAttributes<HTMLButtonElement>
-  >(({ className, children, ...props }, ref) => (
-    <button
-      ref={ref}
-      className={cn(
-        'px-3 py-1.5 text-sm rounded-sm',
-        'hover:bg-muted transition-colors',
-        className
-      )}
-      {...props}
-    >
-      {children}
-    </button>
-  ));
-  MenuButton.displayName = 'MenuButton';
+  );
 
   return (
-    <div className="flex items-center gap-1 p-1 border-b bg-background/95 backdrop-blur supports-[backdrop-filter]:bg-background/60">
-      {/* File menu */}
-      <div className="relative">
-        <MenuButton
-          onClick={(e) => {
-            e.stopPropagation();
-            setShowFileMenu(!showFileMenu);
-          }}
-        >
-          File
-        </MenuButton>
-        {showFileMenu && (
-          <div className="absolute left-0 top-full mt-1 w-56 rounded-md border bg-popover p-1 shadow-md">
-            <MenuItem
-              icon={<Plus />}
-              onClick={onNewFile}
-              shortcut="⌘N"
-            >
-              New File
-            </MenuItem>
-            <MenuItem
-              icon={<FolderOpen />}
-              onClick={onOpenFile}
-              shortcut="⌘O"
-            >
-              Open File...
-            </MenuItem>
-            <MenuItem
-              icon={<Save />}
-              onClick={onSaveFile}
-              shortcut="⌘S"
-            >
-              Save
-            </MenuItem>
-            <div className="h-px bg-border my-1" />
-            <MenuItem
-              icon={<FileDown />}
-              onClick={onExportYAML}
-            >
-              Export as YAML
-            </MenuItem>
-            <MenuItem
-              icon={<FileJson />}
-              onClick={onExportJSON}
-            >
-              Export as JSON
-            </MenuItem>
-          </div>
-        )}
-      </div>
-
-      {/* View menu */}
-      <div className="relative">
-        <MenuButton
-          onClick={(e) => {
-            e.stopPropagation();
-            setShowViewMenu(!showViewMenu);
-          }}
-        >
-          View
-        </MenuButton>
-        {showViewMenu && (
-          <div className="absolute left-0 top-full mt-1 w-56 rounded-md border bg-popover p-1 shadow-md">
-            <MenuItem
-              icon={showSidebar ? <PanelLeftClose /> : <PanelLeft />}
-              onClick={onToggleSidebar}
-              shortcut="⌘B"
-            >
-              {showSidebar ? 'Hide Sidebar' : 'Show Sidebar'}
-            </MenuItem>
-            <MenuItem
-              icon={showPreview ? <EyeOff /> : <Eye />}
-              onClick={onTogglePreview}
-              shortcut="⌘P"
-            >
-              {showPreview ? 'Hide Preview' : 'Show Preview'}
-            </MenuItem>
-            <div className="h-px bg-border my-1" />
-            <div className="px-2 py-1.5 text-xs text-muted-foreground">
-              Theme
+    <div className="flex flex-col bg-background/95 backdrop-blur supports-[backdrop-filter]:bg-background/60 border-b">
+      {/* Main menu bar */}
+      <div className="flex items-center h-14 px-4">
+        {/* Left section - Logo and main menus */}
+        <div className="flex items-center gap-2">
+          <button
+            onClick={onToggleSidebar}
+            className={cn(
+              'p-2 rounded-lg transition-all duration-200 hover:scale-105',
+              showSidebar ? 'bg-primary/10 text-primary shadow-sm' : 'hover:bg-muted/80'
+            )}
+          >
+            {showSidebar ? <X className="h-5 w-5" /> : <Menu className="h-5 w-5" />}
+          </button>
+          
+          <div className="flex items-center gap-3 pl-1 pr-4 border-r">
+            <div className="flex items-center justify-center w-8 h-8 rounded-xl bg-primary/10">
+              <FileCode className="h-5 w-5 text-primary" />
             </div>
-            <MenuItem
-              icon={<Sun />}
-              onClick={() => onThemeChange('light')}
-              className={theme === 'light' ? 'bg-muted' : undefined}
-            >
-              Light
-            </MenuItem>
-            <MenuItem
-              icon={<Moon />}
-              onClick={() => onThemeChange('dark')}
-              className={theme === 'dark' ? 'bg-muted' : undefined}
-            >
-              Dark
-            </MenuItem>
-            <MenuItem
-              icon={<Monitor />}
-              onClick={() => onThemeChange('system')}
-              className={theme === 'system' ? 'bg-muted' : undefined}
-            >
-              System
-            </MenuItem>
+            <span className="text-lg font-semibold tracking-tight">OpenAPI Editor</span>
           </div>
-        )}
-      </div>
 
-      {/* Help menu */}
-      <div className="relative">
-        <MenuButton
-          onClick={(e) => {
-            e.stopPropagation();
-            setShowHelpMenu(!showHelpMenu);
-          }}
-        >
-          Help
-        </MenuButton>
-        {showHelpMenu && (
-          <div className="absolute left-0 top-full mt-1 w-56 rounded-md border bg-popover p-1 shadow-md">
-            <MenuItem
-              icon={<Book />}
-              onClick={() => window.open('https://swagger.io/docs/specification/about/', '_blank')}
-            >
-              OpenAPI Documentation
-            </MenuItem>
-            <MenuItem
-              icon={<Github />}
-              onClick={() => window.open('https://github.com/your-repo', '_blank')}
-            >
-              GitHub Repository
-            </MenuItem>
-            <MenuItem
-              icon={<Keyboard />}
-              onClick={() => {
-                // TODO: Show keyboard shortcuts
-              }}
-              shortcut="⌘K"
-            >
-              Keyboard Shortcuts
-            </MenuItem>
-            <div className="h-px bg-border my-1" />
-            <MenuItem
-              icon={showCopied ? <Check /> : <Clipboard />}
-              onClick={handleCopyUrl}
-            >
-              {showCopied ? 'Copied!' : 'Copy URL'}
-            </MenuItem>
+          {/* Main menus */}
+          <nav className="flex items-center gap-1">
+            <div className="relative">
+              <MenuButton
+                label="File"
+                isOpen={showFileMenu}
+                onClick={(e) => {
+                  e.stopPropagation();
+                  setShowFileMenu(!showFileMenu);
+                  setShowViewMenu(false);
+                  setShowHelpMenu(false);
+                }}
+              />
+              {showFileMenu && (
+                <div className="absolute left-0 mt-1 w-56 rounded-xl border bg-popover/95 backdrop-blur-sm p-1.5 shadow-lg ring-1 ring-black/5 z-50">
+                  <button
+                    onClick={() => {
+                      onNewFile();
+                      setShowFileMenu(false);
+                    }}
+                    className="flex items-center gap-3 w-full px-3 py-2 text-sm rounded-lg hover:bg-muted/80 transition-colors"
+                  >
+                    <Plus className="h-4 w-4" />
+                    <span className="flex-1">New File</span>
+                    <kbd className="px-2 py-0.5 text-xs font-medium bg-muted rounded-md">⌘N</kbd>
+                  </button>
+                  <button
+                    onClick={() => {
+                      onOpenFile();
+                      setShowFileMenu(false);
+                    }}
+                    className="flex items-center gap-3 w-full px-3 py-2 text-sm rounded-lg hover:bg-muted/80 transition-colors"
+                  >
+                    <FolderOpen className="h-4 w-4" />
+                    <span className="flex-1">Open File</span>
+                    <kbd className="px-2 py-0.5 text-xs font-medium bg-muted rounded-md">⌘O</kbd>
+                  </button>
+                  <button
+                    onClick={() => {
+                      onSaveFile();
+                      setShowFileMenu(false);
+                    }}
+                    className="flex items-center gap-3 w-full px-3 py-2 text-sm rounded-lg hover:bg-muted/80 transition-colors"
+                  >
+                    <Save className="h-4 w-4" />
+                    <span className="flex-1">Save</span>
+                    <kbd className="px-2 py-0.5 text-xs font-medium bg-muted rounded-md">⌘S</kbd>
+                  </button>
+                  <div className="h-px bg-border my-1" />
+                  <button
+                    onClick={() => {
+                      onExportYAML();
+                      setShowFileMenu(false);
+                    }}
+                    className="flex items-center gap-3 w-full px-3 py-2 text-sm rounded-lg hover:bg-muted/80 transition-colors"
+                  >
+                    <FileDown className="h-4 w-4" />
+                    Export as YAML
+                  </button>
+                  <button
+                    onClick={() => {
+                      onExportJSON();
+                      setShowFileMenu(false);
+                    }}
+                    className="flex items-center gap-3 w-full px-3 py-2 text-sm rounded-lg hover:bg-muted/80 transition-colors"
+                  >
+                    <FileJson className="h-4 w-4" />
+                    Export as JSON
+                  </button>
+                </div>
+              )}
+            </div>
+
+            <div className="relative">
+              <MenuButton
+                label="View"
+                isOpen={showViewMenu}
+                onClick={(e) => {
+                  e.stopPropagation();
+                  setShowViewMenu(!showViewMenu);
+                  setShowFileMenu(false);
+                  setShowHelpMenu(false);
+                }}
+              />
+              {showViewMenu && (
+                <div className="absolute left-0 mt-1 w-56 rounded-xl border bg-popover/95 backdrop-blur-sm p-1.5 shadow-lg ring-1 ring-black/5 z-50">
+                  <button
+                    onClick={() => {
+                      onToggleSidebar();
+                      setShowViewMenu(false);
+                    }}
+                    className="flex items-center gap-3 w-full px-3 py-2 text-sm rounded-lg hover:bg-muted/80 transition-colors"
+                  >
+                    {showSidebar ? <PanelLeftClose className="h-4 w-4" /> : <PanelLeft className="h-4 w-4" />}
+                    <span className="flex-1">Toggle Sidebar</span>
+                    <kbd className="px-2 py-0.5 text-xs font-medium bg-muted rounded-md">⌘B</kbd>
+                  </button>
+                  <button
+                    onClick={() => {
+                      onTogglePreview();
+                      setShowViewMenu(false);
+                    }}
+                    className="flex items-center gap-3 w-full px-3 py-2 text-sm rounded-lg hover:bg-muted/80 transition-colors"
+                  >
+                    {showPreview ? <EyeOff className="h-4 w-4" /> : <Eye className="h-4 w-4" />}
+                    <span className="flex-1">Toggle Preview</span>
+                    <kbd className="px-2 py-0.5 text-xs font-medium bg-muted rounded-md">⌘P</kbd>
+                  </button>
+                  <button
+                    onClick={() => setShowViewMenu(false)}
+                    className="flex items-center gap-3 w-full px-3 py-2 text-sm rounded-lg hover:bg-muted/80 transition-colors"
+                  >
+                    <Maximize2 className="h-4 w-4" />
+                    Toggle Full Screen
+                  </button>
+                  <div className="h-px bg-border my-1" />
+                  <div className="px-3 py-1.5 text-xs text-muted-foreground font-medium">Theme</div>
+                  <button
+                    onClick={() => {
+                      onThemeChange('light');
+                      setShowViewMenu(false);
+                    }}
+                    className={cn(
+                      'flex items-center gap-3 w-full px-3 py-2 text-sm rounded-lg transition-colors',
+                      theme === 'light' ? 'bg-primary/10 text-primary' : 'hover:bg-muted/80'
+                    )}
+                  >
+                    <Sun className="h-4 w-4" />
+                    Light
+                  </button>
+                  <button
+                    onClick={() => {
+                      onThemeChange('dark');
+                      setShowViewMenu(false);
+                    }}
+                    className={cn(
+                      'flex items-center gap-3 w-full px-3 py-2 text-sm rounded-lg transition-colors',
+                      theme === 'dark' ? 'bg-primary/10 text-primary' : 'hover:bg-muted/80'
+                    )}
+                  >
+                    <Moon className="h-4 w-4" />
+                    Dark
+                  </button>
+                  <button
+                    onClick={() => {
+                      onThemeChange('system');
+                      setShowViewMenu(false);
+                    }}
+                    className={cn(
+                      'flex items-center gap-3 w-full px-3 py-2 text-sm rounded-lg transition-colors',
+                      theme === 'system' ? 'bg-primary/10 text-primary' : 'hover:bg-muted/80'
+                    )}
+                  >
+                    <Monitor className="h-4 w-4" />
+                    System
+                  </button>
+                </div>
+              )}
+            </div>
+
+            <div className="relative">
+              <MenuButton
+                label="Help"
+                isOpen={showHelpMenu}
+                onClick={(e) => {
+                  e.stopPropagation();
+                  setShowHelpMenu(!showHelpMenu);
+                  setShowFileMenu(false);
+                  setShowViewMenu(false);
+                }}
+              />
+              {showHelpMenu && (
+                <div className="absolute left-0 mt-1 w-56 rounded-xl border bg-popover/95 backdrop-blur-sm p-1.5 shadow-lg ring-1 ring-black/5 z-50">
+                  <a
+                    href="https://swagger.io/docs/specification/about/"
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    className="flex items-center gap-3 px-3 py-2 text-sm rounded-lg hover:bg-muted/80 transition-colors"
+                  >
+                    <Book className="h-4 w-4" />
+                    OpenAPI Documentation
+                  </a>
+                  <a
+                    href="https://github.com/your-repo"
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    className="flex items-center gap-3 px-3 py-2 text-sm rounded-lg hover:bg-muted/80 transition-colors"
+                  >
+                    <Github className="h-4 w-4" />
+                    GitHub Repository
+                  </a>
+                  <button
+                    onClick={() => setShowHelpMenu(false)}
+                    className="flex items-center gap-3 w-full px-3 py-2 text-sm rounded-lg hover:bg-muted/80 transition-colors"
+                  >
+                    <Keyboard className="h-4 w-4" />
+                    <span className="flex-1">Keyboard Shortcuts</span>
+                    <kbd className="px-2 py-0.5 text-xs font-medium bg-muted rounded-md">⌘K</kbd>
+                  </button>
+                  <div className="h-px bg-border my-1" />
+                  <button
+                    onClick={() => setShowHelpMenu(false)}
+                    className="flex items-center gap-3 w-full px-3 py-2 text-sm rounded-lg hover:bg-muted/80 transition-colors"
+                  >
+                    <FileQuestion className="h-4 w-4" />
+                    Quick Start Guide
+                  </button>
+                  <button
+                    onClick={() => setShowHelpMenu(false)}
+                    className="flex items-center gap-3 w-full px-3 py-2 text-sm rounded-lg hover:bg-muted/80 transition-colors"
+                  >
+                    <LifeBuoy className="h-4 w-4" />
+                    Support
+                  </button>
+                </div>
+              )}
+            </div>
+          </nav>
+        </div>
+
+        {/* Right section - Quick actions */}
+        <div className="flex items-center gap-2 ml-auto">
+          <div className="flex items-center gap-1.5 px-2 py-1.5 bg-muted/30 rounded-xl backdrop-blur-sm">
+            <Tooltip content="Command Palette (⌘K)">
+              <button
+                onClick={() => setSearchOpen(true)}
+                className="p-2 rounded-lg hover:bg-background/80 transition-all duration-200 hover:scale-105 hover:shadow-sm"
+              >
+                <Command className="h-4 w-4" />
+              </button>
+            </Tooltip>
+            
+            <Tooltip content="Share">
+              <button
+                className="p-2 rounded-lg hover:bg-background/80 transition-all duration-200 hover:scale-105 hover:shadow-sm"
+              >
+                <Share2 className="h-4 w-4" />
+              </button>
+            </Tooltip>
           </div>
-        )}
+        </div>
       </div>
     </div>
   );
-}; 
+};
+
+export default MainMenu; 

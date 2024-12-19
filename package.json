@@ -21,6 +21,7 @@
     "react-dom": "^18.2.0",
     "react-resizable-panels": "^0.0.55",
     "tailwind-merge": "^2.1.0",
+    "tailwindcss-animate": "^1.0.7",
     "yaml": "^2.3.4"
   },
   "devDependencies": {
