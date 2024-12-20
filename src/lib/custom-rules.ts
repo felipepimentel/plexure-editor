@@ -1,25 +1,11 @@
 import { OpenAPIV3 } from 'openapi-types';
 
-export interface CustomRule {
-  id: string;
-  name: string;
-  description: string;
-  category: 'security' | 'naming' | 'structure' | 'documentation' | 'governance' | 'custom';
-  severity: 'error' | 'warning' | 'info';
-  enabled: boolean;
-  validate: (spec: OpenAPIV3.Document) => ValidationResult[];
-  fix?: (spec: OpenAPIV3.Document) => OpenAPIV3.Document;
-  aiPrompt?: string; // Guidance for the LLM when generating/modifying specs
-  examples?: {
-    valid: string[];
-    invalid: string[];
-  };
-  metadata?: Record<string, any>;
-}
+export type ValidationSeverity = 'error' | 'warning' | 'info';
+export type RuleCategory = 'naming' | 'security' | 'documentation' | 'structure' | 'governance' | 'custom';
 
 export interface ValidationResult {
   ruleId: string;
-  type: 'error' | 'warning' | 'info';
+  type: ValidationSeverity;
   message: string;
   path?: string;
   line?: number;
@@ -29,95 +15,88 @@ export interface ValidationResult {
   context?: Record<string, any>;
 }
 
-export interface RuleGroup {
+export interface RuleConfig {
+  enabled: boolean;
+  severity?: ValidationSeverity;
+  options?: Record<string, any>;
+}
+
+export interface CustomRule {
   id: string;
   name: string;
   description: string;
-  rules: CustomRule[];
+  category: RuleCategory;
+  severity: ValidationSeverity;
   enabled: boolean;
-  metadata?: Record<string, any>;
+  validate: (spec: OpenAPIV3.Document, config?: RuleConfig) => ValidationResult[];
+  fix?: (spec: OpenAPIV3.Document, config?: RuleConfig) => OpenAPIV3.Document;
+  options?: {
+    [key: string]: {
+      type: 'string' | 'number' | 'boolean' | 'array' | 'object';
+      description: string;
+      default?: any;
+      enum?: any[];
+      required?: boolean;
+    };
+  };
+  aiPrompt?: string;
+  examples?: {
+    valid: string[];
+    invalid: string[];
+  };
 }
 
 export class RuleEngine {
   private rules: Map<string, CustomRule> = new Map();
-  private groups: Map<string, RuleGroup> = new Map();
+  private config: Map<string, RuleConfig> = new Map();
 
   constructor() {
-    // Register built-in rules
-    this.registerBuiltInRules();
+    // Initialize with default configuration
+    this.loadDefaultConfig();
   }
 
-  private registerBuiltInRules() {
-    // Example built-in rules
-    this.addRule({
-      id: 'naming/pascal-case-schemas',
-      name: 'Pascal Case Schema Names',
-      description: 'Schema names should use PascalCase',
-      category: 'naming',
-      severity: 'warning',
-      enabled: true,
-      validate: (spec) => {
-        const results: ValidationResult[] = [];
-        if (spec.components?.schemas) {
-          Object.keys(spec.components.schemas).forEach(schemaName => {
-            if (!/^[A-Z][a-zA-Z0-9]*$/.test(schemaName)) {
-              results.push({
-                ruleId: 'naming/pascal-case-schemas',
-                type: 'warning',
-                message: `Schema name "${schemaName}" should use PascalCase`,
-                path: `#/components/schemas/${schemaName}`,
-                suggestions: [
-                  schemaName.replace(/(?:^|[-_])(\w)/g, (_, c) => c.toUpperCase())
-                ]
-              });
-            }
-          });
-        }
-        return results;
-      },
-      aiPrompt: 'When generating schema names, always use PascalCase (e.g., UserProfile, OrderItem).',
-      examples: {
-        valid: ['UserProfile', 'OrderItem', 'PaymentMethod'],
-        invalid: ['userProfile', 'order_item', 'payment-method']
-      }
-    });
+  private loadDefaultConfig() {
+    // Load from environment or default settings
+    // This could be extended to load from a config file
   }
 
   addRule(rule: CustomRule) {
     this.rules.set(rule.id, rule);
-  }
-
-  removeRule(ruleId: string) {
-    this.rules.delete(ruleId);
-  }
-
-  addGroup(group: RuleGroup) {
-    this.groups.set(group.id, group);
-    group.rules.forEach(rule => this.addRule(rule));
-  }
-
-  removeGroup(groupId: string) {
-    const group = this.groups.get(groupId);
-    if (group) {
-      group.rules.forEach(rule => this.removeRule(rule.id));
-      this.groups.delete(groupId);
+    if (!this.config.has(rule.id)) {
+      this.config.set(rule.id, {
+        enabled: rule.enabled,
+        severity: rule.severity,
+        options: {}
+      });
     }
+  }
+
+  configureRule(ruleId: string, config: Partial<RuleConfig>) {
+    const existingConfig = this.config.get(ruleId) || { enabled: true, options: {} };
+    this.config.set(ruleId, {
+      ...existingConfig,
+      ...config
+    });
   }
 
   validateSpec(spec: OpenAPIV3.Document): ValidationResult[] {
     const results: ValidationResult[] = [];
-    
-    for (const rule of this.rules.values()) {
-      if (rule.enabled) {
+
+    for (const [ruleId, rule] of this.rules.entries()) {
+      const config = this.config.get(ruleId);
+      if (config?.enabled) {
         try {
-          const ruleResults = rule.validate(spec);
-          results.push(...ruleResults);
+          const ruleResults = rule.validate(spec, config);
+          results.push(...ruleResults.map(result => ({
+            ...result,
+            type: config.severity || result.type
+          })));
         } catch (error) {
-          console.error(`Error validating rule ${rule.id}:`, error);
+          console.error(`Error running rule ${ruleId}:`, error);
           results.push({
-            ruleId: rule.id,
+            ruleId,
             type: 'error',
-            message: `Rule validation failed: ${error.message}`,
+            message: `Rule execution failed: ${error instanceof Error ? error.message : 'Unknown error'}`
           });
         }
       }
@@ -126,75 +105,39 @@ export class RuleEngine {
     return results;
   }
 
+  fixSpec(spec: OpenAPIV3.Document): OpenAPIV3.Document {
+    let modifiedSpec = { ...spec };
+
+    for (const [ruleId, rule] of this.rules.entries()) {
+      const config = this.config.get(ruleId);
+      if (config?.enabled && rule.fix) {
+        try {
+          modifiedSpec = rule.fix(modifiedSpec, config);
+        } catch (error) {
+          console.error(`Error running fix for rule ${ruleId}:`, error);
+        }
+      }
+    }
+
+    return modifiedSpec;
+  }
+
+  getRule(ruleId: string): CustomRule | undefined {
+    return this.rules.get(ruleId);
+  }
+
+  getRules(): CustomRule[] {
+    return Array.from(this.rules.values());
+  }
+
+  getRuleConfig(ruleId: string): RuleConfig | undefined {
+    return this.config.get(ruleId);
+  }
+
   getAIPrompts(): string[] {
-    const prompts: string[] = [];
-    for (const rule of this.rules.values()) {
-      if (rule.enabled && rule.aiPrompt) {
-        prompts.push(rule.aiPrompt);
-      }
-    }
-    return prompts;
-  }
-
-  exportRules(): string {
-    return JSON.stringify({
-      rules: Array.from(this.rules.values()),
-      groups: Array.from(this.groups.values())
-    }, null, 2);
-  }
-
-  importRules(json: string) {
-    try {
-      const data = JSON.parse(json);
-      
-      // Clear existing rules and groups
-      this.rules.clear();
-      this.groups.clear();
-
-      // Register built-in rules first
-      this.registerBuiltInRules();
-
-      // Import custom rules and groups
-      if (data.rules) {
-        data.rules.forEach((rule: CustomRule) => this.addRule(rule));
-      }
-      if (data.groups) {
-        data.groups.forEach((group: RuleGroup) => this.addGroup(group));
-      }
-    } catch (error) {
-      throw new Error(`Failed to import rules: ${error.message}`);
-    }
-  }
-
-  createRuleFromTemplate(template: {
-    id: string;
-    name: string;
-    description: string;
-    category: CustomRule['category'];
-    severity: CustomRule['severity'];
-    validateFn: string;
-    fixFn?: string;
-    aiPrompt?: string;
-    examples?: CustomRule['examples'];
-  }): CustomRule {
-    try {
-      const validateFn = new Function('spec', template.validateFn) as (spec: OpenAPIV3.Document) => ValidationResult[];
-      const fixFn = template.fixFn ? new Function('spec', template.fixFn) as (spec: OpenAPIV3.Document) => OpenAPIV3.Document : undefined;
-
-      return {
-        id: template.id,
-        name: template.name,
-        description: template.description,
-        category: template.category,
-        severity: template.severity,
-        enabled: true,
-        validate: validateFn,
-        fix: fixFn,
-        aiPrompt: template.aiPrompt,
-        examples: template.examples
-      };
-    } catch (error) {
-      throw new Error(`Failed to create rule from template: ${error.message}`);
-    }
+    return Array.from(this.rules.values())
+      .filter(rule => this.config.get(rule.id)?.enabled && rule.aiPrompt)
+      .map(rule => rule.aiPrompt!)
+      .filter(Boolean);
   }
 } 

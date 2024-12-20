@@ -1,88 +1,118 @@
 import { parse } from 'yaml';
-import type { ValidationMessage } from './types';
+import { OpenAPIV3 } from 'openapi-types';
+import { ValidationMessage } from './types';
+import { RuleEngine } from './custom-rules';
+import { defaultRules } from './default-rules';
+import { RuleConfigManager } from './rule-config';
 
-export async function validateContent(content: string) {
-  const messages: ValidationMessage[] = [];
-  let parsedSpec = null;
+export class ValidationManager {
+  private ruleEngine: RuleEngine;
+  private configManager: RuleConfigManager;
 
-  try {
-    // Parse YAML
-    parsedSpec = parse(content);
+  constructor(configFile?: string) {
+    this.ruleEngine = new RuleEngine();
+    this.configManager = new RuleConfigManager(configFile);
 
-    // Basic OpenAPI validation
-    if (!parsedSpec.openapi) {
-      messages.push({
-        id: 'openapi-version',
-        type: 'error',
-        message: 'Missing OpenAPI version'
-      });
-    }
-
-    if (!parsedSpec.info) {
-      messages.push({
-        id: 'info',
-        type: 'error',
-        message: 'Missing info object'
-      });
-    } else {
-      if (!parsedSpec.info.title) {
-        messages.push({
-          id: 'info-title',
-          type: 'error',
-          message: 'Missing API title'
-        });
+    // Register default rules
+    defaultRules.forEach(rule => {
+      this.ruleEngine.addRule(rule);
+      const config = this.configManager.getRuleConfig(rule.id);
+      if (config) {
+        this.ruleEngine.configureRule(rule.id, config);
       }
-      if (!parsedSpec.info.version) {
-        messages.push({
-          id: 'info-version',
-          type: 'error',
-          message: 'Missing API version'
-        });
-      }
-    }
-
-    if (!parsedSpec.paths) {
-      messages.push({
-        id: 'paths',
-        type: 'warning',
-        message: 'No paths defined'
-      });
-    } else {
-      // Validate each path
-      Object.entries(parsedSpec.paths).forEach(([path, pathObj]: [string, any]) => {
-        if (!path.startsWith('/')) {
-          messages.push({
-            id: `path-${path}`,
-            type: 'error',
-            message: `Path "${path}" must start with /`,
-            path: `paths.${path}`
-          });
-        }
-
-        // Validate operations
-        const operations = ['get', 'post', 'put', 'delete', 'patch', 'options', 'head', 'trace'];
-        operations.forEach(op => {
-          if (pathObj[op]) {
-            if (!pathObj[op].responses) {
-              messages.push({
-                id: `${path}-${op}-responses`,
-                type: 'error',
-                message: `Missing responses for ${op.toUpperCase()} ${path}`,
-                path: `paths.${path}.${op}`
-              });
-            }
-          }
-        });
-      });
-    }
-
-  } catch (error) {
-    messages.push({
-      id: 'yaml-syntax',
-      type: 'error',
-      message: error instanceof Error ? error.message : 'Invalid YAML syntax'
     });
   }
 
-  return { messages, parsedSpec };
+  async validateContent(content: string): Promise<{ messages: ValidationMessage[]; parsedSpec: OpenAPIV3.Document | null }> {
+    const messages: ValidationMessage[] = [];
+    let parsedSpec: OpenAPIV3.Document | null = null;
+
+    try {
+      // Parse YAML
+      parsedSpec = parse(content) as OpenAPIV3.Document;
+
+      // Run validation rules
+      const validationResults = this.ruleEngine.validateSpec(parsedSpec);
+
+      // Convert validation results to messages
+      messages.push(...validationResults.map(result => ({
+        id: result.ruleId,
+        type: result.type === 'info' ? 'warning' : result.type, // Map 'info' to 'warning' for backward compatibility
+        message: result.message,
+        path: result.path,
+        source: result.source
+      })));
+
+    } catch (error) {
+      messages.push({
+        id: 'yaml-syntax',
+        type: 'error',
+        message: error instanceof Error ? error.message : 'Invalid YAML syntax'
+      });
+    }
+
+    return { messages, parsedSpec };
+  }
+
+  async fixContent(content: string): Promise<string> {
+    try {
+      // Parse YAML
+      const spec = parse(content) as OpenAPIV3.Document;
+
+      // Apply fixes
+      const fixedSpec = this.ruleEngine.fixSpec(spec);
+
+      // Convert back to YAML
+      return JSON.stringify(fixedSpec, null, 2);
+    } catch (error) {
+      throw new Error(`Failed to fix content: ${error instanceof Error ? error.message : 'Unknown error'}`);
+    }
+  }
+
+  getRuleEngine(): RuleEngine {
+    return this.ruleEngine;
+  }
+
+  getConfigManager(): RuleConfigManager {
+    return this.configManager;
+  }
+
+  addCustomRule(rule: OpenAPIV3.Document): void {
+    // In a real implementation, this would validate and compile the rule
+    // For now, we'll just log that it's not implemented
+    console.warn('Adding custom rules is not implemented yet');
+  }
+
+  exportConfig(): string {
+    return this.configManager.exportConfig();
+  }
+
+  importConfig(configJson: string): void {
+    this.configManager.importConfig(configJson);
+    
+    // Update rule engine with new configs
+    Object.entries(this.configManager.getAllConfigs()).forEach(([ruleId, config]) => {
+      this.ruleEngine.configureRule(ruleId, config);
+    });
+  }
+}
+
+// Create a singleton instance for global use
+export const validationManager = new ValidationManager();
+
+// Export convenience functions that use the singleton
+export async function validateContent(content: string) {
+  return validationManager.validateContent(content);
+}
+
+export async function fixContent(content: string) {
+  return validationManager.fixContent(content);
+}
+
+export function exportValidationConfig() {
+  return validationManager.exportConfig();
+}
+
+export function importValidationConfig(configJson: string) {
+  return validationManager.importConfig(configJson);
 }
