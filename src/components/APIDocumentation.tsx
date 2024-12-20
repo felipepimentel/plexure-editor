@@ -19,7 +19,7 @@ import { cn } from '../lib/utils';
 import { APIEndpoints } from './APIEndpoints';
 import { APISchemas } from './APISchemas';
 import { Tooltip } from './ui/TooltipComponent';
-import ValidationPanel from './ValidationPanel';
+import { ValidationPanel } from './ValidationPanel';
 
 interface APIDocumentationProps {
   spec: any;

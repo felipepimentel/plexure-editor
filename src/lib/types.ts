@@ -28,6 +28,13 @@ export interface ValidationOptions {
   includeSuggestions?: boolean;
 }
 
+declare global {
+  interface Window {
+    applyAiFix: (messageId: string) => Promise<void>;
+    dismissAiFix: () => void;
+  }
+}
+
 export interface Message {
   id: string;
   content: string;

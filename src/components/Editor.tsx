@@ -1,10 +1,10 @@
-import React, { useCallback, useEffect, useState } from 'react'
-import { Editor as MonacoEditor } from '@monaco-editor/react'
-import { Loader2, Settings2, Wrench, Eye, EyeOff, Copy, Check } from 'lucide-react'
 import { cn } from '@/lib/theme'
+import { useToast } from '@/lib/toast-context'
+import { Editor as MonacoEditor } from '@monaco-editor/react'
+import { Check, Copy, Eye, EyeOff, Loader2, Settings2 } from 'lucide-react'
+import { useCallback, useEffect, useState } from 'react'
 import { Button } from './ui/Button'
 import { Modal } from './ui/Modal'
-import { useToast } from '@/lib/toast-context'
 
 export interface EditorProps {
   content: string

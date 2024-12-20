@@ -1,25 +1,25 @@
-import React from 'react';
 import Editor from '@monaco-editor/react';
 import {
-  Maximize2,
-  Minimize2,
-  FileJson,
-  ChevronRight,
-  Plus,
-  Save,
-  Upload,
-  Download,
-  RefreshCw,
-  File,
-  Type,
-  LayoutGrid,
-  Eye,
-  EyeOff,
+    ChevronRight,
+    Download,
+    Eye,
+    EyeOff,
+    File,
+    FileJson,
+    LayoutGrid,
+    Maximize2,
+    Minimize2,
+    Plus,
+    RefreshCw,
+    Save,
+    Type,
+    Upload,
 } from 'lucide-react';
+import { editor } from 'monaco-editor';
+import React from 'react';
 import { FileManager } from '../../lib/file-manager';
-import { cn } from '../../lib/utils';
 import { monacoOptions } from '../../lib/monaco-config';
-import { parse } from 'yaml';
+import { cn } from '../../lib/utils';
 import { validateContent } from '../../lib/validation';
 import { ToolbarButton } from '../ui/ToolbarButton';
 import { ToolbarGroup } from '../ui/ToolbarGroup';
@@ -31,6 +31,7 @@ interface APIEditorProps {
   environment: any;
   showPreview: boolean;
   onTogglePreview: () => void;
+  onEditorMount: (editor: editor.IStandaloneCodeEditor) => void;
 }
 
 export const APIEditor: React.FC<APIEditorProps> = ({
@@ -40,6 +41,7 @@ export const APIEditor: React.FC<APIEditorProps> = ({
   environment,
   showPreview,
   onTogglePreview,
+  onEditorMount
 }) => {
   const [isLoading, setIsLoading] = React.useState(true);
   const [currentFile, setCurrentFile] = React.useState<any>(null);
@@ -168,6 +170,24 @@ export const APIEditor: React.FC<APIEditorProps> = ({
       onChange(value);
     }
   }, [fileManager, onChange]);
+
+  const handleEditorMount = React.useCallback((editor: editor.IStandaloneCodeEditor) => {
+    // Configure editor
+    editor.updateOptions({
+      minimap: { enabled: false },
+      lineNumbers: 'on',
+      roundedSelection: false,
+      scrollBeyondLastLine: false,
+      readOnly: false,
+      theme: isDarkMode ? 'vs-dark' : 'vs-light',
+      fontSize: 13,
+      tabSize: 2,
+      glyphMargin: true,
+    });
+
+    // Call parent's onEditorMount
+    onEditorMount(editor);
+  }, [isDarkMode, onEditorMount]);
 
   if (!fileManager || isLoading) {
     return (
@@ -308,6 +328,7 @@ export const APIEditor: React.FC<APIEditorProps> = ({
           value={editorValue}
           onChange={handleEditorChange}
           theme={isDarkMode ? 'vs-dark' : 'vs-light'}
+          onMount={handleEditorMount}
           options={{
             ...monacoOptions,
             fontSize,

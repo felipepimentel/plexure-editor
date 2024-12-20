@@ -14,23 +14,20 @@ import {
     MoreVertical,
     Share2
 } from 'lucide-react';
+import { editor } from 'monaco-editor';
 import React from 'react';
 import { Panel, PanelGroup, PanelResizeHandle } from 'react-resizable-panels';
 import { FileManager } from '../lib/file-manager';
+import { Message, ValidationMessage } from '../lib/types';
 import { cn } from '../lib/utils';
 import { APIDocumentation } from './APIDocumentation';
 import { ChatPanel } from './ChatPanel';
 import { APIEditor } from './Editor/APIEditor';
 import { Tooltip } from './ui/TooltipComponent';
-import ValidationPanel from './ValidationPanel';
+import { ValidationPanel } from './ValidationPanel';
 
 interface EditorPanelsProps {
-  messages?: Array<{
-    id: string;
-    content: string;
-    role: 'user' | 'assistant';
-    timestamp: Date;
-  }>;
+  messages: Message[];
   onSendMessage: (message: string) => void;
   onChange: (value: string | undefined) => void;
   isDarkMode: boolean;
@@ -38,14 +35,11 @@ interface EditorPanelsProps {
   fileManager: FileManager | null;
   showPreview: boolean;
   onTogglePreview: () => void;
-  validationMessages: Array<{
-    id: string;
-    type: 'error' | 'warning';
-    message: string;
-    path?: string;
-  }>;
+  validationMessages: ValidationMessage[];
   isValidating: boolean;
   parsedSpec: any;
+  editorInstance?: editor.IStandaloneCodeEditor;
+  onEditorMount: (editor: editor.IStandaloneCodeEditor) => void;
 }
 
 export const EditorPanels: React.FC<EditorPanelsProps> = ({
@@ -57,13 +51,28 @@ export const EditorPanels: React.FC<EditorPanelsProps> = ({
   fileManager,
   showPreview,
   onTogglePreview,
-  validationMessages,
+  validationMessages = [],
   isValidating,
   parsedSpec,
+  editorInstance,
+  onEditorMount
 }) => {
   const [activePanel, setActivePanel] = React.useState<'chat' | 'editor' | 'preview' | 'validation'>('editor');
   const [isMaximized, setIsMaximized] = React.useState<string | null>(null);
   const [showPanelMenu, setShowPanelMenu] = React.useState<string | null>(null);
+
+  const handleEditorMount = React.useCallback((editor: editor.IStandaloneCodeEditor) => {
+    console.log('Editor mounted:', editor); // Debug log
+    if (editor) {
+      onEditorMount(editor);
+    }
+  }, [onEditorMount]);
+
+  React.useEffect(() => {
+    if (editorInstance) {
+      console.log('Editor instance in EditorPanels:', editorInstance);
+    }
+  }, [editorInstance]);
 
   const PanelHeader = ({ 
     icon: Icon, 
@@ -219,6 +228,7 @@ export const EditorPanels: React.FC<EditorPanelsProps> = ({
                 fileManager={fileManager}
                 showPreview={showPreview}
                 onTogglePreview={onTogglePreview}
+                onEditorMount={handleEditorMount}
               />
             </div>
           </div>
@@ -288,7 +298,8 @@ export const EditorPanels: React.FC<EditorPanelsProps> = ({
               <ValidationPanel
                 messages={validationMessages}
                 isLoading={isValidating}
-                currentContent={fileManager?.getCurrentFile()?.content}
+                currentContent={fileManager?.getCurrentFile()?.content || ''}
+                editorInstance={editorInstance}
                 onApplyFix={(newContent) => {
                   if (fileManager) {
                     const file = fileManager.getCurrentFile();
@@ -354,6 +365,7 @@ export const EditorPanels: React.FC<EditorPanelsProps> = ({
                   fileManager={fileManager}
                   showPreview={showPreview}
                   onTogglePreview={onTogglePreview}
+                  onEditorMount={handleEditorMount}
                 />
               </div>
             </div>
@@ -401,7 +413,8 @@ export const EditorPanels: React.FC<EditorPanelsProps> = ({
                 <ValidationPanel
                   messages={validationMessages}
                   isLoading={isValidating}
-                  currentContent={fileManager?.getCurrentFile()?.content}
+                  currentContent={fileManager?.getCurrentFile()?.content || ''}
+                  editorInstance={editorInstance}
                   onApplyFix={(newContent) => {
                     if (fileManager) {
                       const file = fileManager.getCurrentFile();

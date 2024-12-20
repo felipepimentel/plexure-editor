@@ -1,6 +1,22 @@
 import { OpenAPIV3 } from 'openapi-types';
 
-export type ValidationSeverity = 'error' | 'warning' | 'info';
+export interface ValidationMessage {
+  id: string;
+  type: 'error' | 'warning' | 'info';
+  message: string;
+  path?: string;
+  context?: {
+    schemaName?: string;
+    method?: string;
+  };
+}
+
+export enum ValidationSeverity {
+  Error = 'error',
+  Warning = 'warning',
+  Info = 'info'
+}
+
 export type RuleCategory = 'naming' | 'security' | 'documentation' | 'structure' | 'governance' | 'custom';
 
 export interface ValidationResult {

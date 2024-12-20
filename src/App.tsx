@@ -1,12 +1,13 @@
+import { editor } from "monaco-editor";
 import React from "react";
 import { EditorPanels } from "./components/EditorPanels";
 import { MainMenu } from "./components/MainMenu";
-import { FileManager } from "./lib/file-manager";
-import { validateContent } from "./lib/validation";
-import { DEFAULT_CONTENT } from "./lib/constants";
 import { TooltipProvider } from "./components/ui/TooltipComponent";
 import { handleSendMessage } from "./lib/chat";
+import { DEFAULT_CONTENT } from "./lib/constants";
+import { FileManager } from "./lib/file-manager";
 import type { Message, ValidationMessage } from "./lib/types";
+import { validateContent } from "./lib/validation";
 
 const App: React.FC = () => {
   const [theme, setTheme] = React.useState("system");
@@ -17,6 +18,7 @@ const App: React.FC = () => {
   const [validationMessages, setValidationMessages] = React.useState<ValidationMessage[]>([]);
   const [isValidating, setIsValidating] = React.useState(false);
   const [parsedSpec, setParsedSpec] = React.useState<any>(null);
+  const [editorInstance, setEditorInstance] = React.useState<editor.IStandaloneCodeEditor | undefined>();
 
   React.useEffect(() => {
     const fm = new FileManager();
@@ -84,6 +86,27 @@ const App: React.FC = () => {
     await handleSendMessage(messages, message, setMessages);
   };
 
+  const handleApplyFix = React.useCallback((newContent: string) => {
+    if (!fileManager) return;
+    
+    const currentFile = fileManager.getCurrentFile();
+    if (!currentFile) return;
+
+    fileManager.updateFileContent(currentFile.id, newContent);
+    validateContent(newContent);
+  }, [fileManager]);
+
+  const handleEditorMount = React.useCallback((editor: editor.IStandaloneCodeEditor) => {
+    console.log('Editor instance set:', editor);
+    setEditorInstance(editor);
+  }, []);
+
+  React.useEffect(() => {
+    if (editorInstance) {
+      console.log('Editor instance available:', editorInstance);
+    }
+  }, [editorInstance]);
+
   return (
     <TooltipProvider>
       <div className="h-screen flex flex-col bg-[#0D1117] text-gray-300">
@@ -104,11 +127,7 @@ const App: React.FC = () => {
           messages={messages}
           onSendMessage={handleChatMessage}
           onChange={handleEditorChange}
-          isDarkMode={
-            theme === "dark" ||
-            (theme === "system" &&
-              window.matchMedia("(prefers-color-scheme: dark)").matches)
-          }
+          isDarkMode={theme === "dark" || (theme === "system" && window.matchMedia("(prefers-color-scheme: dark)").matches)}
           environment={{}}
           fileManager={fileManager}
           showPreview={showPreview}
@@ -116,6 +135,8 @@ const App: React.FC = () => {
           validationMessages={validationMessages}
           isValidating={isValidating}
           parsedSpec={parsedSpec}
+          editorInstance={editorInstance}
+          onEditorMount={handleEditorMount}
         />
       </div>
     </TooltipProvider>
