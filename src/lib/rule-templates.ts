@@ -1,324 +1,309 @@
-import { CustomRule } from './custom-rules';
+import { OpenAPIV3 } from 'openapi-types';
+import { RuleBuilder } from './rule-builder';
 
-export const ruleTemplates: CustomRule[] = [
+export const ruleTemplates = {
   // Naming Conventions
-  {
-    id: 'naming/pascal-case-schemas',
-    name: 'Pascal Case Schema Names',
-    description: 'Schema names should use PascalCase',
-    category: 'naming',
-    severity: 'warning',
-    enabled: true,
-    validate: (spec) => {
+  namingConventions: {
+    pascalCaseSchemas: () => new RuleBuilder({
+      id: 'naming/pascal-case-schemas',
+      name: 'Pascal Case Schema Names',
+      description: 'Schema names should use PascalCase',
+      category: 'naming',
+      severity: 'warning',
+      validate: '',
+      examples: {
+        valid: ['UserProfile', 'OrderItem', 'PaymentMethod'],
+        invalid: ['userProfile', 'order_item', 'payment-method']
+      }
+    }).withSchemaPattern(/^[A-Z][a-zA-Z0-9]*$/),
+
+    camelCaseProperties: () => new RuleBuilder({
+      id: 'naming/camel-case-properties',
+      name: 'Camel Case Properties',
+      description: 'Property names should use camelCase',
+      category: 'naming',
+      severity: 'warning',
+      validate: '',
+      examples: {
+        valid: ['firstName', 'lastName', 'emailAddress'],
+        invalid: ['FirstName', 'last_name', 'EMAIL_ADDRESS']
+      }
+    }).withSchemaValidation((schemaName, schema) => {
       const results = [];
-      if (spec.components?.schemas) {
-        Object.keys(spec.components.schemas).forEach(schemaName => {
-          if (!/^[A-Z][a-zA-Z0-9]*$/.test(schemaName)) {
+      if (schema.properties) {
+        Object.keys(schema.properties).forEach(propName => {
+          if (!/^[a-z][a-zA-Z0-9]*$/.test(propName)) {
             results.push({
-              ruleId: 'naming/pascal-case-schemas',
+              ruleId: 'naming/camel-case-properties',
               type: 'warning',
-              message: `Schema name "${schemaName}" should use PascalCase`,
-              path: `#/components/schemas/${schemaName}`,
-              suggestions: [
-                schemaName.replace(/(?:^|[-_])(\w)/g, (_, c) => c.toUpperCase())
-              ]
+              message: `Property "${propName}" in schema "${schemaName}" should use camelCase`,
+              path: `#/components/schemas/${schemaName}/properties/${propName}`
             });
           }
         });
       }
       return results;
-    },
-    fix: (spec) => {
-      if (spec.components?.schemas) {
-        const newSchemas = {};
-        Object.entries(spec.components.schemas).forEach(([name, schema]) => {
-          const pascalName = name.replace(/(?:^|[-_])(\w)/g, (_, c) => c.toUpperCase());
-          newSchemas[pascalName] = schema;
-        });
-        spec.components.schemas = newSchemas;
+    }),
+
+    camelCaseParameters: () => new RuleBuilder({
+      id: 'naming/camel-case-parameters',
+      name: 'Camel Case Parameters',
+      description: 'Operation parameters should use camelCase',
+      category: 'naming',
+      severity: 'warning',
+      validate: '',
+      examples: {
+        valid: ['userId', 'orderStatus', 'pageSize'],
+        invalid: ['UserID', 'ORDER_STATUS', 'page-size']
       }
-      return spec;
-    },
-    aiPrompt: 'When generating schema names, always use PascalCase (e.g., UserProfile, OrderItem).',
-    examples: {
-      valid: ['UserProfile', 'OrderItem', 'PaymentMethod'],
-      invalid: ['userProfile', 'order_item', 'payment-method']
-    }
-  },
-
-  // Security
-  {
-    id: 'security/require-auth',
-    name: 'Require Authentication',
-    description: 'All endpoints should require authentication except those explicitly marked as public',
-    category: 'security',
-    severity: 'error',
-    enabled: true,
-    validate: (spec) => {
+    }).withOperationValidation((path, method, operation) => {
       const results = [];
-      const paths = spec.paths || {};
-      
-      Object.entries(paths).forEach(([path, pathItem]) => {
-        Object.entries(pathItem || {}).forEach(([method, operation]) => {
-          if (method === 'parameters') return;
-          
-          const op = operation as any;
-          const isPublic = op['x-public'] === true;
-          const hasAuth = op.security && op.security.length > 0;
-          
-          if (!isPublic && !hasAuth) {
-            results.push({
-              ruleId: 'security/require-auth',
-              type: 'error',
-              message: `Endpoint ${method.toUpperCase()} ${path} requires authentication`,
-              path: `#/paths/${path}/${method}`,
-              suggestions: [
-                'Add security requirement to the operation',
-                'Mark the endpoint as public using x-public: true'
-              ]
-            });
+      const parameters = [
+        ...(operation.parameters || []),
+        ...Object.values(operation.requestBody?.content || {}).flatMap(content => {
+          if (content.schema && 'properties' in content.schema) {
+            return Object.keys(content.schema.properties || {});
           }
-        });
-      });
-      
-      return results;
-    },
-    aiPrompt: 'All API endpoints should require authentication by default. Use x-public: true to explicitly mark public endpoints.',
-    examples: {
-      valid: [
-        '{"security": [{"bearerAuth": []}]}',
-        '{"x-public": true}'
-      ],
-      invalid: [
-        '{"security": []}',
-        '{}'
-      ]
-    }
-  },
+          return [];
+        })
+      ];
 
-  // Documentation
-  {
-    id: 'docs/require-description',
-    name: 'Require Descriptions',
-    description: 'All schemas and endpoints should have descriptions',
-    category: 'documentation',
-    severity: 'warning',
-    enabled: true,
-    validate: (spec) => {
-      const results = [];
-      
-      // Check schemas
-      if (spec.components?.schemas) {
-        Object.entries(spec.components.schemas).forEach(([name, schema]: [string, any]) => {
-          if (!schema.description) {
-            results.push({
-              ruleId: 'docs/require-description',
-              type: 'warning',
-              message: `Schema "${name}" is missing a description`,
-              path: `#/components/schemas/${name}`,
-              suggestions: [
-                'Add a clear and concise description of what this schema represents'
-              ]
-            });
-          }
-        });
-      }
-      
-      // Check endpoints
-      const paths = spec.paths || {};
-      Object.entries(paths).forEach(([path, pathItem]) => {
-        Object.entries(pathItem || {}).forEach(([method, operation]) => {
-          if (method === 'parameters') return;
-          
-          const op = operation as any;
-          if (!op.description && !op.summary) {
-            results.push({
-              ruleId: 'docs/require-description',
-              type: 'warning',
-              message: `Operation ${method.toUpperCase()} ${path} is missing a description`,
-              path: `#/paths/${path}/${method}`,
-              suggestions: [
-                'Add a description explaining what this endpoint does',
-                'Add a summary for a brief overview'
-              ]
-            });
-          }
-        });
-      });
-      
-      return results;
-    },
-    aiPrompt: 'Always include clear descriptions for schemas and endpoints to improve API documentation.',
-    examples: {
-      valid: [
-        '{"description": "A user profile containing basic information"}',
-        '{"summary": "Create a new user", "description": "Creates a new user account with the provided information"}'
-      ],
-      invalid: [
-        '{}',
-        '{"summary": ""}'
-      ]
-    }
-  },
-
-  // Structure
-  {
-    id: 'structure/consistent-response',
-    name: 'Consistent Response Structure',
-    description: 'All responses should follow a consistent structure with data and metadata',
-    category: 'structure',
-    severity: 'warning',
-    enabled: true,
-    validate: (spec) => {
-      const results = [];
-      const paths = spec.paths || {};
-      
-      Object.entries(paths).forEach(([path, pathItem]) => {
-        Object.entries(pathItem || {}).forEach(([method, operation]) => {
-          if (method === 'parameters') return;
-          
-          const op = operation as any;
-          if (op.responses) {
-            Object.entries(op.responses).forEach(([code, response]: [string, any]) => {
-              if (code.startsWith('2') && response.content?.['application/json']?.schema) {
-                const schema = response.content['application/json'].schema;
-                
-                // Check if response follows standard structure
-                const hasData = schema.properties?.data;
-                const hasMetadata = schema.properties?.metadata;
-                
-                if (!hasData || !hasMetadata) {
-                  results.push({
-                    ruleId: 'structure/consistent-response',
-                    type: 'warning',
-                    message: `Response for ${method.toUpperCase()} ${path} should follow standard structure with data and metadata`,
-                    path: `#/paths/${path}/${method}/responses/${code}`,
-                    suggestions: [
-                      'Use standard response structure: { data: T, metadata: { ... } }'
-                    ]
-                  });
-                }
-              }
-            });
-          }
-        });
-      });
-      
-      return results;
-    },
-    fix: (spec) => {
-      const paths = spec.paths || {};
-      
-      Object.entries(paths).forEach(([path, pathItem]) => {
-        Object.entries(pathItem || {}).forEach(([method, operation]) => {
-          if (method === 'parameters') return;
-          
-          const op = operation as any;
-          if (op.responses) {
-            Object.entries(op.responses).forEach(([code, response]: [string, any]) => {
-              if (code.startsWith('2') && response.content?.['application/json']?.schema) {
-                const schema = response.content['application/json'].schema;
-                
-                if (!schema.properties?.data || !schema.properties?.metadata) {
-                  const originalSchema = { ...schema };
-                  response.content['application/json'].schema = {
-                    type: 'object',
-                    required: ['data', 'metadata'],
-                    properties: {
-                      data: originalSchema,
-                      metadata: {
-                        type: 'object',
-                        properties: {
-                          timestamp: {
-                            type: 'string',
-                            format: 'date-time'
-                          },
-                          requestId: {
-                            type: 'string'
-                          }
-                        }
-                      }
-                    }
-                  };
-                }
-              }
-            });
-          }
-        });
-      });
-      
-      return spec;
-    },
-    aiPrompt: 'All API responses should follow a consistent structure with data and metadata fields.',
-    examples: {
-      valid: [
-        '{"data": {...}, "metadata": {...}}',
-        '{"data": [], "metadata": {"total": 0, "page": 1}}'
-      ],
-      invalid: [
-        '[...]',
-        '{"items": [...]}',
-        '{"result": {...}}'
-      ]
-    }
-  },
-
-  // Governance
-  {
-    id: 'governance/version-policy',
-    name: 'Version Policy',
-    description: 'API version should follow semantic versioning and be included in the path',
-    category: 'governance',
-    severity: 'error',
-    enabled: true,
-    validate: (spec) => {
-      const results = [];
-      const paths = spec.paths || {};
-      
-      // Check API version format
-      if (!spec.info?.version || !/^\d+\.\d+\.\d+$/.test(spec.info.version)) {
-        results.push({
-          ruleId: 'governance/version-policy',
-          type: 'error',
-          message: 'API version should follow semantic versioning (MAJOR.MINOR.PATCH)',
-          path: '#/info/version',
-          suggestions: [
-            'Use semantic versioning format: MAJOR.MINOR.PATCH',
-            'Example: 1.0.0'
-          ]
-        });
-      }
-      
-      // Check version in paths
-      Object.keys(paths).forEach(path => {
-        if (!path.includes('/v1/') && !path.includes('/v2/')) {
+      parameters.forEach(param => {
+        const paramName = typeof param === 'string' ? param : param.name;
+        if (!/^[a-z][a-zA-Z0-9]*$/.test(paramName)) {
           results.push({
-            ruleId: 'governance/version-policy',
-            type: 'error',
-            message: `Path "${path}" should include version (e.g., /v1/)`,
-            path: `#/paths/${path}`,
-            suggestions: [
-              `Change to /v1${path}`,
-              `Change to /v2${path}`
-            ]
+            ruleId: 'naming/camel-case-parameters',
+            type: 'warning',
+            message: `Parameter "${paramName}" in ${method.toUpperCase()} ${path} should use camelCase`,
+            path: `#/paths/${path}/${method}/parameters/${paramName}`
           });
         }
       });
-      
+
       return results;
-    },
-    aiPrompt: 'Use semantic versioning for API version and include version in all paths (e.g., /v1/users).',
-    examples: {
-      valid: [
-        '/v1/users',
-        '/v2/orders',
-        'version: 1.0.0'
-      ],
-      invalid: [
-        '/users',
-        '/api/orders',
-        'version: 1'
-      ]
-    }
+    })
+  },
+
+  // Security
+  security: {
+    requireAuth: (options?: { allowedPublicPaths?: string[]; requiredScopes?: string[] }) => new RuleBuilder({
+      id: 'security/require-auth',
+      name: 'Require Authentication',
+      description: 'All endpoints should require authentication except those explicitly marked as public',
+      category: 'security',
+      severity: 'error',
+      validate: '',
+      examples: {
+        valid: ['{"security": [{"bearerAuth": []}]}', '{"tags": ["public"]}'],
+        invalid: ['{"security": []}', '{}']
+      }
+    })
+    .withOperationValidation((path, method, operation) => {
+      const results = [];
+      const isPublic = operation.tags?.includes('public');
+      const hasAuth = operation.security && operation.security.length > 0;
+      const isAllowedPath = options?.allowedPublicPaths?.some(p => path.startsWith(p));
+
+      if (!isPublic && !isAllowedPath && !hasAuth) {
+        results.push({
+          ruleId: 'security/require-auth',
+          type: 'error',
+          message: `Endpoint ${method.toUpperCase()} ${path} requires authentication`,
+          path: `#/paths/${path}/${method}`
+        });
+      }
+
+      return results;
+    })
+    .withSecurityValidation(options?.requiredScopes),
+
+    validateScopes: (requiredScopes: string[]) => new RuleBuilder({
+      id: 'security/validate-scopes',
+      name: 'Validate OAuth Scopes',
+      description: 'Ensure endpoints have the required OAuth scopes',
+      category: 'security',
+      severity: 'error',
+      validate: '',
+      examples: {
+        valid: ['{"security": [{"oauth2": ["read:users"]}]}'],
+        invalid: ['{"security": [{"oauth2": []}]}']
+      }
+    }).withSecurityValidation(requiredScopes)
+  },
+
+  // Documentation
+  documentation: {
+    requireDescription: (options?: { minLength?: number }) => new RuleBuilder({
+      id: 'documentation/require-description',
+      name: 'Require Description',
+      description: 'All schemas and operations should have descriptions',
+      category: 'documentation',
+      severity: 'warning',
+      validate: '',
+      examples: {
+        valid: ['{"description": "A detailed description"}'],
+        invalid: ['{}', '{"description": ""}']
+      }
+    })
+    .withSchemaValidation((schemaName, schema) => {
+      const results = [];
+      const minLength = options?.minLength || 10;
+
+      if (!schema.description || schema.description.length < minLength) {
+        results.push({
+          ruleId: 'documentation/require-description',
+          type: 'warning',
+          message: `Schema "${schemaName}" should have a description of at least ${minLength} characters`,
+          path: `#/components/schemas/${schemaName}`
+        });
+      }
+
+      return results;
+    })
+    .withOperationValidation((path, method, operation) => {
+      const results = [];
+      const minLength = options?.minLength || 10;
+
+      if (!operation.description || operation.description.length < minLength) {
+        results.push({
+          ruleId: 'documentation/require-description',
+          type: 'warning',
+          message: `Operation ${method.toUpperCase()} ${path} should have a description of at least ${minLength} characters`,
+          path: `#/paths/${path}/${method}`
+        });
+      }
+
+      return results;
+    }),
+
+    requireExamples: () => new RuleBuilder({
+      id: 'documentation/require-examples',
+      name: 'Require Examples',
+      description: 'Response schemas should include examples',
+      category: 'documentation',
+      severity: 'warning',
+      validate: '',
+      examples: {
+        valid: ['{"content": {"application/json": {"example": {...}}}}'],
+        invalid: ['{"content": {"application/json": {}}}']
+      }
+    })
+    .withOperationValidation((path, method, operation) => {
+      const results = [];
+
+      if (operation.responses) {
+        Object.entries(operation.responses).forEach(([code, response]) => {
+          if (response && typeof response === 'object' && 'content' in response) {
+            const resp = response as OpenAPIV3.ResponseObject;
+            Object.entries(resp.content || {}).forEach(([mediaType, content]) => {
+              if (!content.example && !content.examples) {
+                results.push({
+                  ruleId: 'documentation/require-examples',
+                  type: 'warning',
+                  message: `Response ${code} for ${method.toUpperCase()} ${path} (${mediaType}) should include examples`,
+                  path: `#/paths/${path}/${method}/responses/${code}/content/${mediaType}`
+                });
+              }
+            });
+          }
+        });
+      }
+
+      return results;
+    }),
+
+    requireParameterDescriptions: () => new RuleBuilder({
+      id: 'documentation/require-parameter-descriptions',
+      name: 'Require Parameter Descriptions',
+      description: 'All operation parameters should have descriptions',
+      category: 'documentation',
+      severity: 'warning',
+      validate: '',
+      examples: {
+        valid: ['{"parameters": [{"name": "userId", "description": "The unique identifier of the user"}]}'],
+        invalid: ['{"parameters": [{"name": "userId"}]}']
+      }
+    })
+    .withOperationValidation((path, method, operation) => {
+      const results = [];
+
+      (operation.parameters || []).forEach((param, index) => {
+        if (!param.description || param.description.trim().length === 0) {
+          results.push({
+            ruleId: 'documentation/require-parameter-descriptions',
+            type: 'warning',
+            message: `Parameter "${param.name}" in ${method.toUpperCase()} ${path} should have a description`,
+            path: `#/paths/${path}/${method}/parameters/${index}`
+          });
+        }
+      });
+
+      if (operation.requestBody && 'content' in operation.requestBody) {
+        const requestBody = operation.requestBody as OpenAPIV3.RequestBodyObject;
+        if (!requestBody.description || requestBody.description.trim().length === 0) {
+          results.push({
+            ruleId: 'documentation/require-parameter-descriptions',
+            type: 'warning',
+            message: `Request body in ${method.toUpperCase()} ${path} should have a description`,
+            path: `#/paths/${path}/${method}/requestBody`
+          });
+        }
+      }
+
+      return results;
+    })
+  },
+
+  // Structure
+  structure: {
+    consistentResponse: (template: any) => new RuleBuilder({
+      id: 'structure/consistent-response',
+      name: 'Consistent Response Structure',
+      description: 'Response objects should follow a consistent structure',
+      category: 'structure',
+      severity: 'warning',
+      validate: '',
+      examples: {
+        valid: ['{"data": {...}, "metadata": {...}}'],
+        invalid: ['[...]', '{"items": [...]}']
+      }
+    })
+    .withOperationValidation((path, method, operation) => {
+      const results = [];
+
+      if (operation.responses) {
+        Object.entries(operation.responses).forEach(([code, response]) => {
+          if (response && typeof response === 'object' && 'content' in response) {
+            const resp = response as OpenAPIV3.ResponseObject;
+            Object.entries(resp.content || {}).forEach(([mediaType, content]) => {
+              if (content.schema && !matchesTemplate(content.schema, template)) {
+                results.push({
+                  ruleId: 'structure/consistent-response',
+                  type: 'warning',
+                  message: `Response ${code} for ${method.toUpperCase()} ${path} does not match the required structure`,
+                  path: `#/paths/${path}/${method}/responses/${code}/content/${mediaType}/schema`
+                });
+              }
+            });
+          }
+        });
+      }
+
+      return results;
+    })
   }
-]; 
+};
+
+function matchesTemplate(schema: any, template: any): boolean {
+  if (typeof template !== typeof schema) return false;
+  if (Array.isArray(template) !== Array.isArray(schema)) return false;
+
+  if (typeof template === 'object' && template !== null) {
+    return Object.keys(template).every(key => {
+      if (!(key in schema)) return false;
+      return matchesTemplate(schema[key], template[key]);
+    });
+  }
+
+  return true;
+} 
