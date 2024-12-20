@@ -1,27 +1,25 @@
+import {
+    AlertTriangle,
+    CheckCircle2,
+    ChevronDown,
+    Clock,
+    Database,
+    FileCode,
+    Filter,
+    Globe,
+    Hash,
+    Info,
+    Search,
+    Tag,
+    X,
+    XCircle
+} from 'lucide-react';
 import React from 'react';
 import { cn } from '../lib/utils';
-import {
-  AlertTriangle,
-  Code2,
-  Boxes,
-  Info,
-  Search,
-  Filter,
-  X,
-  Globe,
-  FileCode,
-  Database,
-  ChevronDown,
-  Hash,
-  Tag,
-  Clock,
-  CheckCircle2,
-  XCircle
-} from 'lucide-react';
-import { ValidationPanel } from './ValidationPanel';
 import { APIEndpoints } from './APIEndpoints';
 import { APISchemas } from './APISchemas';
 import { Tooltip } from './ui/TooltipComponent';
+import ValidationPanel from './ValidationPanel';
 
 interface APIDocumentationProps {
   spec: any;

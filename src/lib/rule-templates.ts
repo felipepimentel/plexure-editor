@@ -291,6 +291,231 @@ export const ruleTemplates = {
 
       return results;
     })
+  },
+
+  // API Consistency
+  apiConsistency: {
+    resourceNaming: (options?: { allowedResources?: string[] }) => new RuleBuilder({
+      id: 'consistency/resource-naming',
+      name: 'Resource Naming Convention',
+      description: 'Ensure API resources follow RESTful naming conventions',
+      category: 'structure',
+      severity: 'warning',
+      validate: '',
+      examples: {
+        valid: ['/users', '/users/{id}', '/users/{userId}/orders'],
+        invalid: ['/getUsers', '/user', '/users/{userId}/getOrders']
+      }
+    })
+    .withOperationValidation((path, method, operation) => {
+      const results = [];
+      const pathSegments = path.split('/').filter(Boolean);
+      const allowedMethods = {
+        get: ['', '/{id}', '/search', '/count'],
+        post: ['', '/batch', '/import'],
+        put: ['/{id}'],
+        patch: ['/{id}'],
+        delete: ['/{id}', '/batch']
+      };
+
+      // Check if resource name is plural
+      pathSegments.forEach((segment, index) => {
+        if (!segment.startsWith('{') && !segment.endsWith('}')) {
+          if (!/s$/.test(segment)) {
+            results.push({
+              ruleId: 'consistency/resource-naming',
+              type: 'warning',
+              message: `Resource "${segment}" should be plural`,
+              path: `#/paths/${path}`,
+              suggestions: [
+                `Change "${segment}" to "${segment}s"`,
+                `Consider using a collective noun if appropriate`
+              ],
+              context: {
+                resourceName: segment,
+                suggestedName: `${segment}s`,
+                pathSegment: index,
+                fixable: true
+              }
+            });
+          }
+        }
+      });
+
+      // Check method-path consistency
+      const lastSegment = pathSegments[pathSegments.length - 1];
+      const allowedPatterns = allowedMethods[method.toLowerCase() as keyof typeof allowedMethods] || [];
+      const matchesPattern = allowedPatterns.some(pattern => {
+        const regex = new RegExp(`^${pattern.replace(/{id}/g, '{[^}]+}')}$`);
+        return regex.test('/' + lastSegment);
+      });
+
+      if (!matchesPattern) {
+        results.push({
+          ruleId: 'consistency/resource-naming',
+          type: 'warning',
+          message: `${method.toUpperCase()} operation path doesn't follow REST conventions`,
+          path: `#/paths/${path}/${method}`,
+          suggestions: [
+            `Consider using one of: ${allowedPatterns.join(', ')}`,
+            'Follow REST resource naming conventions'
+          ],
+          context: {
+            method,
+            path,
+            allowedPatterns,
+            fixable: false
+          }
+        });
+      }
+
+      return results;
+    }),
+
+    versionedEndpoints: () => new RuleBuilder({
+      id: 'consistency/versioned-endpoints',
+      name: 'Versioned Endpoints',
+      description: 'Ensure all endpoints are properly versioned',
+      category: 'structure',
+      severity: 'error',
+      validate: '',
+      examples: {
+        valid: ['/v1/users', '/v2/orders'],
+        invalid: ['/users', '/api/orders']
+      }
+    })
+    .withOperationValidation((path, method, operation) => {
+      const results = [];
+      const versionPattern = /^\/v\d+\//;
+
+      if (!versionPattern.test(path)) {
+        const suggestedPath = `/v1${path}`;
+        results.push({
+          ruleId: 'consistency/versioned-endpoints',
+          type: 'error',
+          message: `Endpoint ${method.toUpperCase()} ${path} is not versioned`,
+          path: `#/paths/${path}`,
+          suggestions: [
+            `Move to ${suggestedPath}`,
+            'Add version prefix to the path'
+          ],
+          context: {
+            currentPath: path,
+            suggestedPath,
+            fixable: true,
+            fix: {
+              type: 'movePath',
+              from: path,
+              to: suggestedPath
+            }
+          }
+        });
+      }
+
+      return results;
+    }),
+
+    consistentErrorResponses: () => new RuleBuilder({
+      id: 'consistency/error-responses',
+      name: 'Consistent Error Responses',
+      description: 'Ensure error responses follow a consistent structure',
+      category: 'structure',
+      severity: 'warning',
+      validate: '',
+      examples: {
+        valid: [
+          {
+            description: 'Error response',
+            content: {
+              'application/json': {
+                schema: {
+                  type: 'object',
+                  required: ['code', 'message'],
+                  properties: {
+                    code: { type: 'string' },
+                    message: { type: 'string' },
+                    details: { type: 'object' }
+                  }
+                }
+              }
+            }
+          }
+        ],
+        invalid: [
+          { description: 'Error', schema: { type: 'string' } },
+          { content: { 'application/json': { schema: { type: 'object' } } } }
+        ]
+      }
+    })
+    .withOperationValidation((path, method, operation) => {
+      const results = [];
+      const errorCodes = ['400', '401', '403', '404', '409', '422', '429', '500'];
+      const requiredErrorStructure = {
+        type: 'object',
+        required: ['code', 'message'],
+        properties: {
+          code: { type: 'string' },
+          message: { type: 'string' },
+          details: { type: 'object' }
+        }
+      };
+
+      if (operation.responses) {
+        Object.entries(operation.responses).forEach(([code, response]) => {
+          if (errorCodes.includes(code)) {
+            if (response && typeof response === 'object' && 'content' in response) {
+              const resp = response as OpenAPIV3.ResponseObject;
+              const jsonContent = resp.content?.['application/json'];
+
+              if (!jsonContent?.schema || !matchesTemplate(jsonContent.schema, requiredErrorStructure)) {
+                results.push({
+                  ruleId: 'consistency/error-responses',
+                  type: 'warning',
+                  message: `Error response ${code} for ${method.toUpperCase()} ${path} should follow standard error structure`,
+                  path: `#/paths/${path}/${method}/responses/${code}`,
+                  suggestions: [
+                    'Use standard error response structure',
+                    'Include code and message fields',
+                    'Add details object for additional information'
+                  ],
+                  context: {
+                    statusCode: code,
+                    currentSchema: jsonContent?.schema,
+                    requiredStructure: requiredErrorStructure,
+                    fixable: true,
+                    fix: {
+                      type: 'updateSchema',
+                      schema: requiredErrorStructure
+                    }
+                  }
+                });
+              }
+
+              // Check error description
+              if (!resp.description || resp.description.length < 10) {
+                results.push({
+                  ruleId: 'consistency/error-responses',
+                  type: 'warning',
+                  message: `Error response ${code} should have a clear description`,
+                  path: `#/paths/${path}/${method}/responses/${code}/description`,
+                  suggestions: [
+                    `Add a description explaining when this error occurs`,
+                    `Include possible resolution steps in the description`
+                  ],
+                  context: {
+                    statusCode: code,
+                    currentDescription: resp.description || '',
+                    fixable: true
+                  }
+                });
+              }
+            }
+          }
+        });
+      }
+
+      return results;
+    })
   }
 };
 

@@ -1,42 +1,28 @@
+import {
+    AlertTriangle,
+    Clock,
+    Code,
+    Eye,
+    FileJson,
+    FileText,
+    GitBranch,
+    Info,
+    Loader2,
+    Maximize2,
+    MessageSquare,
+    Minimize2,
+    MoreVertical,
+    Share2
+} from 'lucide-react';
 import React from 'react';
 import { Panel, PanelGroup, PanelResizeHandle } from 'react-resizable-panels';
+import { FileManager } from '../lib/file-manager';
+import { cn } from '../lib/utils';
+import { APIDocumentation } from './APIDocumentation';
 import { ChatPanel } from './ChatPanel';
 import { APIEditor } from './Editor/APIEditor';
-import { APIDocumentation } from './APIDocumentation';
-import { ValidationPanel } from './ValidationPanel';
-import { cn } from '../lib/utils';
-import { FileManager } from '../lib/file-manager';
-import {
-  MessageSquare,
-  FileText,
-  AlertTriangle,
-  Settings,
-  ChevronDown,
-  X,
-  Maximize2,
-  Minimize2,
-  Code,
-  FileJson,
-  GitBranch,
-  Clock,
-  Loader2,
-  Sparkles,
-  Globe,
-  Braces,
-  FileCode,
-  Eye,
-  EyeOff,
-  MoreVertical,
-  Layers,
-  Command,
-  Search,
-  Share2,
-  ExternalLink,
-  Copy,
-  ArrowRight,
-  Info
-} from 'lucide-react';
 import { Tooltip } from './ui/TooltipComponent';
+import ValidationPanel from './ValidationPanel';
 
 interface EditorPanelsProps {
   messages?: Array<{
@@ -302,6 +288,18 @@ export const EditorPanels: React.FC<EditorPanelsProps> = ({
               <ValidationPanel
                 messages={validationMessages}
                 isLoading={isValidating}
+                currentContent={fileManager?.getCurrentFile()?.content}
+                onApplyFix={(newContent) => {
+                  if (fileManager) {
+                    const file = fileManager.getCurrentFile();
+                    if (file) {
+                      file.content = newContent;
+                      file.modified = true;
+                      fileManager.updateCurrentFile(file);
+                      onChange(newContent);
+                    }
+                  }
+                }}
               />
             </div>
           </div>
@@ -403,6 +401,18 @@ export const EditorPanels: React.FC<EditorPanelsProps> = ({
                 <ValidationPanel
                   messages={validationMessages}
                   isLoading={isValidating}
+                  currentContent={fileManager?.getCurrentFile()?.content}
+                  onApplyFix={(newContent) => {
+                    if (fileManager) {
+                      const file = fileManager.getCurrentFile();
+                      if (file) {
+                        file.content = newContent;
+                        file.modified = true;
+                        fileManager.updateCurrentFile(file);
+                        onChange(newContent);
+                      }
+                    }
+                  }}
                 />
               </div>
             </div>

@@ -187,4 +187,11 @@ export class FileManager {
       console.error('Error formatting content:', error);
     }
   }
+
+  public updateCurrentFile(file: FileType): void {
+    if (this.currentFile && this.currentFile.name === file.name) {
+      this.currentFile = file;
+      this.notifyChange();
+    }
+  }
 }
