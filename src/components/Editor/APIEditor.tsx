@@ -4,6 +4,26 @@ import React, { forwardRef, useCallback, useEffect, useRef } from 'react';
 import { DEFAULT_CONTENT } from '../../lib/constants';
 import { ValidationMessage } from '../../lib/types';
 
+// Configure Monaco workers
+self.MonacoEnvironment = {
+  getWorker(_, label) {
+    const getWorkerModule = (moduleUrl: string) => {
+      return new Worker(new URL(moduleUrl, import.meta.url), {
+        type: 'module',
+        name: label
+      });
+    };
+
+    if (label === 'yaml') {
+      return getWorkerModule('/node_modules/monaco-yaml/yaml.worker.js');
+    }
+    if (label === 'json') {
+      return getWorkerModule('/node_modules/monaco-editor/esm/vs/language/json/json.worker.js');
+    }
+    return getWorkerModule('/node_modules/monaco-editor/esm/vs/editor/editor.worker.js');
+  }
+};
+
 // Event types
 type EditorEventType = 
   | { type: 'content:change', content: string }

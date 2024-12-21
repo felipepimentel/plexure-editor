@@ -1,5 +1,26 @@
 import { languages } from 'monaco-editor';
 
+// Configure Monaco workers
+if (typeof window !== 'undefined') {
+  // @ts-ignore
+  window.MonacoEnvironment = {
+    getWorkerUrl: function (_moduleId: string, label: string) {
+      const workerPath = label === 'yaml'
+        ? '/monaco-yaml/yaml.worker.js'
+        : label === 'json'
+          ? '/monaco-editor/esm/vs/language/json/json.worker.js'
+          : '/monaco-editor/esm/vs/editor/editor.worker.js';
+
+      return `data:text/javascript;charset=utf-8,${encodeURIComponent(`
+        self.MonacoEnvironment = {
+          baseUrl: '${window.location.origin}'
+        };
+        importScripts('${window.location.origin}${workerPath}');
+      `)}`;
+    }
+  };
+}
+
 export const openAPISnippets: languages.CompletionItem[] = [
   {
     label: 'path',
