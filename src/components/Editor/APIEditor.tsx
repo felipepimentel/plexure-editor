@@ -1,320 +1,176 @@
-import { Editor } from '@monaco-editor/react';
 import * as monaco from 'monaco-editor';
 import { editor } from 'monaco-editor';
-import React, { forwardRef, useRef } from 'react';
+import React, { forwardRef, useCallback, useEffect, useRef } from 'react';
 import { DEFAULT_CONTENT } from '../../lib/constants';
-import { FileManager } from '../../lib/file-manager';
+import { ValidationMessage } from '../../lib/types';
+
+// Event types
+type EditorEventType = 
+  | { type: 'content:change', content: string }
+  | { type: 'content:validate', messages: ValidationMessage[], parsedSpec: any }
+  | { type: 'editor:ready', instance: editor.IStandaloneCodeEditor }
+  | { type: 'diff:show', original: string, modified: string }
+  | { type: 'diff:apply', content: string }
+  | { type: 'diff:reject' };
 
 interface APIEditorProps {
-  fileManager: FileManager | null;
-  onChange: (value: string | undefined) => void;
-  isDarkMode: boolean;
-  environment: any;
-  showPreview: boolean;
-  onTogglePreview: () => void;
-  onEditorMount: (editor: editor.IStandaloneCodeEditor) => void;
-}
-
-interface IOverlayWidget extends editor.IOverlayWidget {
-  dispose?: () => void;
+  content?: string;
+  onChange?: (content: string) => void;
+  onMount?: (editor: editor.IStandaloneCodeEditor) => void;
+  onValidate?: (messages: ValidationMessage[], parsedSpec: any) => void;
+  isDarkMode?: boolean;
+  wordWrap?: 'on' | 'off';
 }
 
 export interface APIEditorRef {
-  showDiff: (originalContent: string, newContent: string, onApply: () => void, onReject: () => void) => void;
+  showDiff: (original: string, modified: string) => void;
+  addEventListener: (listener: (event: EditorEventType) => void) => () => void;
+  editor: editor.IStandaloneCodeEditor | null;
+}
+
+interface CustomOverlayWidget extends editor.IOverlayWidget {
+  domNode: HTMLDivElement;
 }
 
 export const APIEditor = forwardRef<APIEditorRef, APIEditorProps>(({
-  fileManager,
+  content = DEFAULT_CONTENT,
   onChange,
-  isDarkMode,
-  environment,
-  showPreview,
-  onTogglePreview,
-  onEditorMount
+  onMount,
+  onValidate,
+  isDarkMode = false,
+  wordWrap = 'on'
 }, ref) => {
-  const [isLoading, setIsLoading] = React.useState(true);
-  const [currentFile, setCurrentFile] = React.useState<any>(null);
-  const [editorValue, setEditorValue] = React.useState(DEFAULT_CONTENT);
-  const [showMinimap, setShowMinimap] = React.useState(false);
-  const [fontSize, setFontSize] = React.useState(14);
-  const [wordWrap, setWordWrap] = React.useState<'on' | 'off'>('on');
-  const [showLineNumbers, setShowLineNumbers] = React.useState(true);
-  const [isFullscreen, setIsFullscreen] = React.useState(false);
-  const [currentWidget, setCurrentWidget] = React.useState<IOverlayWidget | null>(null);
-  const [decorationIds, setDecorationIds] = React.useState<string[]>([]);
   const editorRef = useRef<editor.IStandaloneCodeEditor | null>(null);
+  const containerRef = useRef<HTMLDivElement>(null);
+  const decorationsRef = useRef<string[]>([]);
+  const eventListenersRef = useRef<Set<(event: EditorEventType) => void>>(new Set());
 
-  // Subscribe to file changes
-  React.useEffect(() => {
-    if (!fileManager) {
-      setEditorValue(DEFAULT_CONTENT);
-      return;
-    }
+  // Event handling
+  const emit = useCallback((event: EditorEventType) => {
+    eventListenersRef.current.forEach(listener => listener(event));
+  }, []);
 
-    const file = fileManager.getCurrentFile();
-    if (file) {
-      setEditorValue(file.content);
-    } else {
-      setEditorValue(DEFAULT_CONTENT);
-    }
+  const addEventListener = useCallback((listener: (event: EditorEventType) => void) => {
+    eventListenersRef.current.add(listener);
+    return () => {
+      eventListenersRef.current.delete(listener);
+    };
+  }, []);
 
-    const unsubscribe = fileManager.onChange((file) => {
-      if (file.content !== editorValue) {
-        setEditorValue(file.content);
-      }
+  // Editor initialization
+  useEffect(() => {
+    if (!containerRef.current) return;
+
+    const editor = monaco.editor.create(containerRef.current, {
+      value: content,
+      language: 'yaml',
+      theme: isDarkMode ? 'vs-dark' : 'vs',
+      wordWrap,
+      minimap: { enabled: false },
+      automaticLayout: true,
+      scrollBeyondLastLine: false,
+      lineNumbers: 'on',
+      renderValidationDecorations: 'on',
+      folding: true,
+      fontSize: 14,
+      tabSize: 2,
     });
+
+    editorRef.current = editor;
+
+    // Emit ready event
+    emit({ type: 'editor:ready', instance: editor });
+
+    // Content change handler
+    editor.onDidChangeModelContent(() => {
+      const newContent = editor.getValue();
+      emit({ type: 'content:change', content: newContent });
+      if (onChange) onChange(newContent);
+    });
+
+    if (onMount) {
+      onMount(editor);
+    }
 
     return () => {
-      unsubscribe();
+      editor.dispose();
+      editorRef.current = null;
     };
-  }, [fileManager]);
+  }, []);
 
-  const handleEditorDidMount = (editor: editor.IStandaloneCodeEditor) => {
-    editorRef.current = editor;
-    
-    // Configure editor
-    editor.updateOptions({
-      minimap: { enabled: showMinimap },
-      lineNumbers: showLineNumbers ? 'on' : 'off',
-      roundedSelection: false,
-      scrollBeyondLastLine: false,
-      readOnly: false,
-      theme: isDarkMode ? 'vs-dark' : 'vs-light',
-      fontSize,
-      wordWrap,
-      tabSize: 2,
-      glyphMargin: true,
-    });
+  // Theme update
+  useEffect(() => {
+    monaco.editor.setTheme(isDarkMode ? 'vs-dark' : 'vs');
+  }, [isDarkMode]);
 
-    onEditorMount(editor);
-  };
-
-  const handleEditorChange = React.useCallback((value: string | undefined) => {
-    if (!fileManager || value === undefined) return;
-    setEditorValue(value);
-    onChange(value);
-  }, [fileManager, onChange]);
-
-  const showDiff = React.useCallback((originalContent: string, newContent: string, onApply: () => void, onReject: () => void) => {
-    const editorInstance = editorRef.current;
-    if (!editorInstance) return;
-
-    // Get the current model
-    const model = editorInstance.getModel();
-    if (!model) return;
-
-    // Update editor content with suggestion to show the diff
-    model.pushEditOperations(
-      [],
-      [
-        {
-          range: model.getFullModelRange(),
-          text: newContent
-        }
-      ],
-      () => null
-    );
-
-    // Create inline diff decorations
-    const diffLines = newContent.split('\n');
-    const originalLines = originalContent.split('\n');
-    const decorations: monaco.editor.IModelDeltaDecoration[] = [];
-    
-    let currentLine = 1;
-    diffLines.forEach((line, index) => {
-      if (line !== originalLines[index]) {
-        decorations.push({
-          range: new monaco.Range(currentLine, 1, currentLine, 1),
-          options: {
-            isWholeLine: true,
-            className: 'diff-add-line',
-            glyphMarginClassName: 'diff-add-glyph',
-            glyphMarginHoverMessage: { value: 'Changed line' },
-            minimap: {
-              color: { id: 'diffEditor.insertedLineBackground' },
-              position: 1
-            },
-            linesDecorationsClassName: 'diff-add-line-number'
-          }
-        });
-      }
-      currentLine++;
-    });
-
-    // Add styles for the inline diff
-    if (!document.getElementById('monaco-inline-diff-styles')) {
-      const styleSheet = document.createElement('style');
-      styleSheet.id = 'monaco-inline-diff-styles';
-      styleSheet.textContent = `
-        .diff-add-line {
-          background-color: rgba(40, 167, 69, 0.1) !important;
-          border-left: 3px solid #28a745 !important;
-        }
-        .diff-add-glyph {
-          background-color: #28a745;
-          width: 3px !important;
-          margin-left: 3px;
-        }
-        .diff-add-line-number {
-          color: #28a745 !important;
-        }
-        .inline-fix-widget {
-          position: absolute;
-          top: 0;
-          right: 20px;
-          background-color: #252526;
-          border: 1px solid #454545;
-          border-radius: 3px;
-          padding: 8px;
-          margin: 4px;
-          z-index: 100;
-        }
-        .inline-fix-actions {
-          display: flex;
-          gap: 8px;
-          justify-content: flex-end;
-        }
-        .inline-fix-button {
-          padding: 4px 12px;
-          border-radius: 3px;
-          cursor: pointer;
-          border: none;
-          font-size: 12px;
-          font-weight: 500;
-          transition: all 150ms ease;
-        }
-        .inline-fix-apply {
-          background-color: #28a745;
-          color: white;
-        }
-        .inline-fix-apply:hover {
-          background-color: #218838;
-        }
-        .inline-fix-dismiss {
-          background-color: #3c3c3c;
-          color: #d4d4d4;
-        }
-        .inline-fix-dismiss:hover {
-          background-color: #4a4a4a;
-        }
-      `;
-      document.head.appendChild(styleSheet);
+  // Word wrap update
+  useEffect(() => {
+    if (editorRef.current) {
+      editorRef.current.updateOptions({ wordWrap });
     }
+  }, [wordWrap]);
 
-    // Clean up any existing widgets
-    if (currentWidget?.dispose) {
-      currentWidget.dispose();
-    }
+  // Diff handling
+  const showDiff = useCallback((original: string, modified: string) => {
+    if (!editorRef.current) return;
 
-    // Add the inline widget with the fix buttons
-    const inlineWidget: IOverlayWidget = {
+    // Clear previous decorations
+    decorationsRef.current = editorRef.current.deltaDecorations(decorationsRef.current, []);
+
+    const domNode = document.createElement('div');
+    domNode.className = 'inline-fix-widget';
+    domNode.innerHTML = `
+      <div class="inline-fix-actions">
+        <button class="inline-fix-button inline-fix-dismiss">Reject</button>
+        <button class="inline-fix-button inline-fix-apply">Apply Fix</button>
+      </div>
+    `;
+
+    // Create inline widget for diff actions
+    const widget: CustomOverlayWidget = {
+      domNode,
       getId: () => 'inline-fix-widget',
-      getDomNode: () => {
-        const container = document.createElement('div');
-        container.className = 'inline-fix-widget';
-        
-        const actionsDiv = document.createElement('div');
-        actionsDiv.className = 'inline-fix-actions';
-        
-        const rejectButton = document.createElement('button');
-        rejectButton.className = 'inline-fix-button inline-fix-dismiss';
-        rejectButton.textContent = 'Reject';
-        rejectButton.onclick = () => {
-          // Restore original content
-          model.pushEditOperations(
-            [],
-            [
-              {
-                range: model.getFullModelRange(),
-                text: originalContent
-              }
-            ],
-            () => null
-          );
-          
-          // Clean up
-          editorInstance.deltaDecorations(decorationIds, []);
-          editorInstance.removeOverlayWidget(inlineWidget);
-          setCurrentWidget(null);
-          setDecorationIds([]);
-          
-          // Remove diff styles
-          const styleSheet = document.getElementById('monaco-inline-diff-styles');
-          if (styleSheet) {
-            styleSheet.remove();
-          }
-          
-          onReject();
-        };
-        
-        const applyButton = document.createElement('button');
-        applyButton.className = 'inline-fix-button inline-fix-apply';
-        applyButton.textContent = 'Apply Fix';
-        applyButton.onclick = () => {
-          // Clean up
-          editorInstance.deltaDecorations(decorationIds, []);
-          editorInstance.removeOverlayWidget(inlineWidget);
-          setCurrentWidget(null);
-          setDecorationIds([]);
-          
-          // Remove diff styles
-          const styleSheet = document.getElementById('monaco-inline-diff-styles');
-          if (styleSheet) {
-            styleSheet.remove();
-          }
-          
-          onApply();
-        };
-        
-        actionsDiv.appendChild(rejectButton);
-        actionsDiv.appendChild(applyButton);
-        container.appendChild(actionsDiv);
-        
-        return container;
-      },
+      getDomNode: () => domNode,
       getPosition: () => ({
         preference: monaco.editor.OverlayWidgetPositionPreference.TOP_RIGHT_CORNER
       })
     };
 
-    // Apply new decorations and widget
-    const newDecorationIds = editorInstance.deltaDecorations([], decorations);
-    editorInstance.addOverlayWidget(inlineWidget);
-    
-    // Store references
-    setCurrentWidget(inlineWidget);
-    setDecorationIds(newDecorationIds);
-  }, [editorRef, currentWidget, decorationIds]);
+    // Add click handlers
+    const applyButton = domNode.querySelector('.inline-fix-apply');
+    const rejectButton = domNode.querySelector('.inline-fix-dismiss');
 
-  // Expose the showDiff method to parent components
+    if (applyButton) {
+      applyButton.addEventListener('click', () => {
+        emit({ type: 'diff:apply', content: modified });
+        editorRef.current?.removeOverlayWidget(widget);
+      });
+    }
+
+    if (rejectButton) {
+      rejectButton.addEventListener('click', () => {
+        emit({ type: 'diff:reject' });
+        editorRef.current?.removeOverlayWidget(widget);
+      });
+    }
+
+    // Add widget to editor
+    editorRef.current.addOverlayWidget(widget);
+
+    // Update content to show diff
+    editorRef.current.setValue(modified);
+  }, []);
+
+  // Expose methods via ref
   React.useImperativeHandle(ref, () => ({
-    showDiff
-  }), [showDiff]);
+    showDiff,
+    addEventListener,
+    editor: editorRef.current
+  }), [showDiff, addEventListener]);
 
-  const editorOptions: editor.IStandaloneEditorConstructionOptions = {
-    minimap: { enabled: showMinimap },
-    lineNumbers: showLineNumbers ? 'on' : 'off',
-    roundedSelection: false,
-    scrollBeyondLastLine: false,
-    readOnly: false,
-    fontSize,
-    wordWrap,
-    tabSize: 2,
-    glyphMargin: true,
-  };
+  return <div ref={containerRef} style={{ width: '100%', height: '100%' }} />;
+});
 
-  return (
-    <div className="flex flex-col h-full bg-background">
-      <div className="flex-1 relative">
-        <Editor
-          defaultLanguage="yaml"
-          value={editorValue}
-          onChange={handleEditorChange}
-          theme={isDarkMode ? 'vs-dark' : 'vs-light'}
-          onMount={handleEditorDidMount}
-          options={editorOptions}
-        />
-      </div>
-    </div>
-  );
-}); 
+APIEditor.displayName = 'APIEditor';
+
+export default APIEditor; 

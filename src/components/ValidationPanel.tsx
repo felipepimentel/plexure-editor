@@ -1,5 +1,4 @@
 import { AlertTriangle, ChevronDown, Info, Loader2, Wand2, XCircle } from "lucide-react";
-import { editor } from "monaco-editor";
 import React, { useCallback, useEffect, useState } from "react";
 import { aiFixService } from "../lib/ai-fix";
 import { ValidationMessage } from "../lib/types";
@@ -10,30 +9,17 @@ import { Tooltip } from "./ui/TooltipComponent";
 
 interface ValidationPanelProps {
   messages: ValidationMessage[];
-  isLoading?: boolean;
-  currentContent?: string;
-  editorInstance?: editor.IStandaloneCodeEditor;
-  onApplyFix?: (newContent: string) => void;
-  editorRef?: React.RefObject<APIEditorRef>;
-  onValidate?: (content: string) => Promise<void>;
-}
-
-interface IOverlayWidget extends editor.IOverlayWidget {
-  dispose?: () => void;
+  isValidating: boolean;
+  editorRef: React.RefObject<APIEditorRef>;
 }
 
 const ValidationPanel: React.FC<ValidationPanelProps> = ({
   messages = [],
-  isLoading = false,
-  currentContent,
-  editorInstance,
-  onApplyFix,
-  editorRef,
-  onValidate
+  isValidating,
+  editorRef
 }) => {
   const [expandedPaths, setExpandedPaths] = useState<Set<string>>(new Set());
   const [isAiFixing, setIsAiFixing] = useState<string | null>(null);
-  const [currentWidget, setCurrentWidget] = useState<IOverlayWidget | null>(null);
 
   // Group messages by path
   const groupedMessages = React.useMemo(() => {
@@ -46,62 +32,41 @@ const ValidationPanel: React.FC<ValidationPanelProps> = ({
     return groups;
   }, [messages]);
 
-  const handleAiFix = async (message: ValidationMessage) => {
-    if (!currentContent || !onApplyFix || !editorRef?.current) {
-      console.warn('Missing required props for AI fix');
-      return;
-    }
+  const handleAiFix = useCallback(async (message: ValidationMessage) => {
+    if (!editorRef.current?.editor) return;
 
     try {
       setIsAiFixing(message.id);
-      
+      const currentContent = editorRef.current.editor.getValue();
       const suggestion = await aiFixService.getSuggestion(currentContent, message);
-      
+
       if (!suggestion || suggestion.error) {
-        console.error('AI suggestion failed:', suggestion?.error);
+        console.warn('No suggestion available:', suggestion?.error);
         return;
       }
 
-      // Use the editor's showDiff method
-      editorRef.current.showDiff(
-        currentContent,
-        suggestion.suggestion,
-        async () => {
-          // On apply
-          await onApplyFix(suggestion.suggestion);
-          // Trigger validation after applying the fix
-          if (onValidate) {
-            await onValidate(suggestion.suggestion);
-          }
-        },
-        () => {
-          // On reject - nothing to do as the editor will handle restoring the content
+      // Show diff in editor
+      editorRef.current.showDiff(currentContent, suggestion.suggestion);
+
+      // Listen for diff events
+      const unsubscribe = editorRef.current.addEventListener((event) => {
+        if (event.type === 'diff:apply') {
+          // Update editor content
+          editorRef.current?.editor?.setValue(event.content);
+          unsubscribe();
+        } else if (event.type === 'diff:reject') {
+          // Restore original content
+          editorRef.current?.editor?.setValue(currentContent);
+          unsubscribe();
         }
-      );
+      });
 
     } catch (error) {
-      console.error('Failed to handle AI fix:', error);
+      console.error('Error getting AI fix:', error);
     } finally {
       setIsAiFixing(null);
     }
-  };
-
-  // Helper function to escape HTML
-  const escapeHtml = (unsafe: string) => {
-    return unsafe
-      .replace(/&/g, "&amp;")
-      .replace(/</g, "&lt;")
-      .replace(/>/g, "&gt;")
-      .replace(/"/g, "&quot;")
-      .replace(/'/g, "&#039;");
-  };
-
-  // Function to handle rejecting the fix
-  const handleRejectFix = React.useCallback(() => {
-    if (currentWidget?.dispose) {
-      currentWidget.dispose();
-    }
-  }, [currentWidget]);
+  }, [editorRef]);
 
   const togglePath = useCallback((path: string) => {
     setExpandedPaths(prev => {
@@ -133,51 +98,6 @@ const ValidationPanel: React.FC<ValidationPanelProps> = ({
       message.message.toLowerCase().includes('required')
     );
   };
-
-  // Set up global handlers for AI fix actions
-  React.useEffect(() => {
-    (window as any).applyAiFix = async (messageId: string) => {
-      if (!currentContent || !onApplyFix || !editorRef?.current) return;
-
-      try {
-        const message = messages.find(m => m.id === messageId);
-        if (!message) return;
-
-        const suggestion = await aiFixService.getSuggestion(currentContent, message);
-        if (!suggestion || suggestion.error) return;
-
-        // Apply the suggestion permanently
-        onApplyFix(suggestion.suggestion);
-        
-        // Trigger validation after applying the fix
-        if (onValidate) {
-          await onValidate(suggestion.suggestion);
-        }
-        
-        // Clean up the widget and decorations
-        if (currentWidget?.dispose) {
-          // Just remove the widget and decorations without restoring original content
-          editorRef.current.deltaDecorations([], []);
-          editorRef.current.removeOverlayWidget(currentWidget);
-          setCurrentWidget(null);
-        }
-      } catch (error) {
-        console.error('Failed to apply AI fix:', error);
-      }
-    };
-
-    (window as any).dismissAiFix = () => {
-      if (currentWidget?.dispose) {
-        currentWidget.dispose();
-        setCurrentWidget(null);
-      }
-    };
-
-    return () => {
-      delete (window as any).applyAiFix;
-      delete (window as any).dismissAiFix;
-    };
-  }, [messages, currentContent, onApplyFix, currentWidget, editorRef, onValidate]);
 
   return (
     <div className="flex flex-col h-full bg-background">
