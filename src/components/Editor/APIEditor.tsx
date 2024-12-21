@@ -1,26 +1,24 @@
 import Editor from '@monaco-editor/react';
 import {
-    ChevronRight,
-    Download,
-    Eye,
-    EyeOff,
-    File,
-    FileJson,
-    LayoutGrid,
-    Maximize2,
-    Minimize2,
-    Plus,
-    RefreshCw,
-    Save,
-    Type,
-    Upload,
+  ChevronRight,
+  Download,
+  Eye,
+  EyeOff,
+  File,
+  FileJson,
+  LayoutGrid,
+  Maximize2,
+  Minimize2,
+  Plus,
+  RefreshCw,
+  Save,
+  Type,
+  Upload,
 } from 'lucide-react';
 import { editor } from 'monaco-editor';
 import React from 'react';
 import { FileManager } from '../../lib/file-manager';
-import { monacoOptions } from '../../lib/monaco-config';
 import { cn } from '../../lib/utils';
-import { validateContent } from '../../lib/validation';
 import { ToolbarButton } from '../ui/ToolbarButton';
 import { ToolbarGroup } from '../ui/ToolbarGroup';
 
@@ -151,22 +149,19 @@ export const APIEditor: React.FC<APIEditorProps> = ({
     return () => document.removeEventListener('keydown', handleKeyDown);
   }, [fileManager, onTogglePreview]);
 
-  const handleEditorChange = React.useCallback(async (value: string | undefined) => {
+  const handleEditorChange = React.useCallback((value: string | undefined, event: any) => {
     if (!fileManager || value === undefined) return;
 
     setEditorValue(value);
 
     try {
-      const { messages, parsedSpec } = await validateContent(value);
-
-      // Mark file as dirty and notify parent
+      // Update file content and notify parent
       if (fileManager.getCurrentFile()) {
-        fileManager.getCurrentFile()!.content = value;
-        fileManager.markAsDirty();
+        fileManager.updateContent(value);
       }
       onChange(value);
     } catch (error) {
-      console.error('Error parsing YAML:', error);
+      console.error('Error updating content:', error);
       onChange(value);
     }
   }, [fileManager, onChange]);
@@ -188,6 +183,48 @@ export const APIEditor: React.FC<APIEditorProps> = ({
     // Call parent's onEditorMount
     onEditorMount(editor);
   }, [isDarkMode, onEditorMount]);
+
+  const editorOptions: editor.IStandaloneEditorConstructionOptions = {
+    fontSize,
+    wordWrap: wordWrap as 'on' | 'off',
+    minimap: { enabled: showMinimap },
+    lineNumbers: 'on',
+    quickSuggestions: false,
+    snippetSuggestions: 'none',
+    suggest: {
+      preview: false,
+      showWords: false,
+      showColors: false,
+      showIcons: false,
+      snippetsPreventQuickSuggestions: true
+    },
+    parameterHints: { enabled: false },
+    codeLens: false,
+    renderLineHighlight: 'all',
+    scrollBeyondLastLine: false,
+    automaticLayout: true,
+    padding: {
+      top: 16,
+      bottom: 16
+    },
+    folding: true,
+    foldingHighlight: true,
+    showFoldingControls: 'always',
+    bracketPairColorization: {
+      enabled: true
+    },
+    guides: {
+      bracketPairs: true,
+      indentation: true
+    },
+    scrollbar: {
+      vertical: 'auto',
+      horizontal: 'auto',
+      useShadows: true,
+      verticalScrollbarSize: 10,
+      horizontalScrollbarSize: 10
+    }
+  };
 
   if (!fileManager || isLoading) {
     return (
@@ -329,15 +366,7 @@ export const APIEditor: React.FC<APIEditorProps> = ({
           onChange={handleEditorChange}
           theme={isDarkMode ? 'vs-dark' : 'vs-light'}
           onMount={handleEditorMount}
-          options={{
-            ...monacoOptions,
-            fontSize,
-            wordWrap: wordWrap as 'on' | 'off',
-            minimap: {
-              enabled: showMinimap,
-            },
-            lineNumbers: showLineNumbers ? 'on' : 'off',
-          }}
+          options={editorOptions}
         />
       </div>
     </div>

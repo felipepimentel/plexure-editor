@@ -62,13 +62,23 @@ const ValidationPanel: React.FC<ValidationPanelProps> = ({
       const model = editorInstance.getModel();
       if (!model) return;
 
-      // Apply the suggested changes to the editor
-      const edit = {
-        range: model.getFullModelRange(),
-        text: suggestion.suggestion
-      };
-      
-      model.pushEditOperations([], [edit], () => null);
+      // Store original content for restoration
+      const originalContent = model.getValue();
+
+      // Update editor content with suggestion
+      model.pushEditOperations(
+        [],
+        [
+          {
+            range: model.getFullModelRange(),
+            text: suggestion.suggestion
+          }
+        ],
+        () => null
+      );
+
+      // Notify parent about the change
+      onApplyFix(suggestion.suggestion);
 
       // Create inline diff decorations
       const diffLines = suggestion.diff?.split('\n') || [];
@@ -229,10 +239,16 @@ const ValidationPanel: React.FC<ValidationPanelProps> = ({
           editorInstance.deltaDecorations(decorationIds, []);
           editorInstance.removeOverlayWidget(inlineWidget);
           // Restore original content
-          model.pushEditOperations([], [{
-            range: model.getFullModelRange(),
-            text: currentContent
-          }], () => null);
+          model.pushEditOperations(
+            [],
+            [
+              {
+                range: model.getFullModelRange(),
+                text: originalContent
+              }
+            ],
+            () => null
+          );
         }
       });
 
@@ -256,7 +272,7 @@ const ValidationPanel: React.FC<ValidationPanelProps> = ({
   // Set up global handlers for AI fix actions
   useEffect(() => {
     (window as any).applyAiFix = async (messageId: string) => {
-      if (!currentContent || !onApplyFix) return;
+      if (!currentContent || !onApplyFix || !editorInstance) return;
 
       try {
         const message = messages.find(m => m.id === messageId);
@@ -265,6 +281,23 @@ const ValidationPanel: React.FC<ValidationPanelProps> = ({
         const suggestion = await aiFixService.getSuggestion(currentContent, message);
         if (!suggestion || suggestion.error) return;
 
+        // Get the current model
+        const model = editorInstance.getModel();
+        if (!model) return;
+
+        // Apply the suggestion
+        model.pushEditOperations(
+          [],
+          [
+            {
+              range: model.getFullModelRange(),
+              text: suggestion.suggestion
+            }
+          ],
+          () => null
+        );
+
+        // Notify parent about the change
         onApplyFix(suggestion.suggestion);
         
         if (currentWidget?.dispose) {
@@ -285,7 +318,7 @@ const ValidationPanel: React.FC<ValidationPanelProps> = ({
       delete (window as any).applyAiFix;
       delete (window as any).dismissAiFix;
     };
-  }, [messages, currentContent, onApplyFix, currentWidget]);
+  }, [messages, currentContent, onApplyFix, currentWidget, editorInstance]);
 
   const togglePath = useCallback((path: string) => {
     setExpandedPaths(prev => {

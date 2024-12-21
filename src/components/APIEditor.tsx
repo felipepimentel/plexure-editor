@@ -1,28 +1,20 @@
-import React from 'react';
-import { cn } from '../lib/utils';
 import { Editor } from '@monaco-editor/react';
-import { FileManager } from '../lib/file-manager';
 import {
-  Save,
-  FileJson,
-  FileDown,
-  Minimize2,
-  Maximize2,
-  Columns,
-  Eye,
-  EyeOff,
-  Settings,
-  ChevronRight,
-  FileCode,
-  Folder,
-  FolderOpen,
-  Plus,
-  Trash,
-  Download,
-  Upload,
-  Check,
-  X
+    Columns,
+    Eye,
+    EyeOff,
+    FileCode,
+    FileDown,
+    FileJson,
+    FolderOpen,
+    Maximize2,
+    Minimize2,
+    Plus,
+    Save
 } from 'lucide-react';
+import React from 'react';
+import { FileManager } from '../lib/file-manager';
+import { cn } from '../lib/utils';
 import { Tooltip } from './ui/TooltipComponent';
 
 interface APIEditorProps {
@@ -44,15 +36,22 @@ export const APIEditor: React.FC<APIEditorProps> = ({
   const [showMinimap, setShowMinimap] = React.useState(true);
   const [wordWrap, setWordWrap] = React.useState('on');
   const [fontSize, setFontSize] = React.useState(14);
+  const [editorValue, setEditorValue] = React.useState('');
 
-  const handleEditorChange = (value: string | undefined) => {
-    if (value !== undefined) {
+  const handleEditorChange = React.useCallback(async (value: string | undefined) => {
+    if (!fileManager || value === undefined) return;
+
+    setEditorValue(value);
+
+    try {
+      // Update file content and notify parent
+      fileManager.updateContent(value);
       onChange(value);
-      if (fileManager) {
-        fileManager.updateCurrentFile(value);
-      }
+    } catch (error) {
+      console.error('Error updating content:', error);
+      onChange(value);
     }
-  };
+  }, [fileManager, onChange]);
 
   const editorOptions = {
     minimap: {
