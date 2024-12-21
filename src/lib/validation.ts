@@ -182,25 +182,131 @@ export class ValidationManager {
 // Create a singleton instance for global use
 export const validationManager = new ValidationManager();
 
-// Export convenience functions that use the singleton
-export async function validateContent(content: string, options: ValidationOptions = {}) {
+// Add OpenAPI validation function
+async function validateOpenAPI(content: string): Promise<ValidationResult> {
   try {
-    // First, check YAML syntax
     const spec = parse(content) as OpenAPIV3.Document;
-
     const messages: ValidationMessage[] = [];
 
-    // Run custom rules validation
-    const customResults = validationManager.getRuleEngine().validateSpec(spec);
-    messages.push(...customResults);
+    // Basic OpenAPI structure validation
+    if (!spec.openapi) {
+      messages.push({
+        id: 'missing-openapi-version',
+        type: 'error',
+        message: 'OpenAPI version is required'
+      });
+    }
 
-    // Run standard OpenAPI validation
-    const standardResults = await validateOpenAPI(content);
-    messages.push(...standardResults.messages);
+    if (!spec.info) {
+      messages.push({
+        id: 'missing-info',
+        type: 'error',
+        message: 'Info object is required'
+      });
+    }
 
-    // Run linting for basic OpenAPI structure
-    const lintResults = lintOpenAPI(content);
-    messages.push(...lintResults.messages);
+    if (!spec.paths) {
+      messages.push({
+        id: 'missing-paths',
+        type: 'error',
+        message: 'Paths object is required'
+      });
+    }
+
+    return {
+      messages,
+      valid: messages.length === 0
+    };
+  } catch (error) {
+    return {
+      messages: [{
+        id: 'openapi-validation-error',
+        type: 'error',
+        message: `OpenAPI validation error: ${error instanceof Error ? error.message : 'Unknown error'}`
+      }],
+      valid: false
+    };
+  }
+}
+
+// Add linting function for basic structure
+function lintOpenAPI(content: string): ValidationResult {
+  try {
+    const spec = parse(content) as OpenAPIV3.Document;
+    const messages: ValidationMessage[] = [];
+
+    // Check info object properties
+    if (spec.info) {
+      if (!spec.info.title) {
+        messages.push({
+          id: 'missing-title',
+          type: 'warning',
+          message: 'API title is recommended'
+        });
+      }
+      if (!spec.info.version) {
+        messages.push({
+          id: 'missing-version',
+          type: 'warning',
+          message: 'API version is recommended'
+        });
+      }
+    }
+
+    // Check paths
+    if (spec.paths) {
+      Object.entries(spec.paths).forEach(([path, pathItem]) => {
+        if (pathItem) {
+          Object.entries(pathItem).forEach(([method, operation]) => {
+            if (operation && typeof operation === 'object') {
+              if (!operation.responses) {
+                messages.push({
+                  id: 'missing-responses',
+                  type: 'error',
+                  message: `Operation ${method.toUpperCase()} ${path} is missing responses`,
+                  path: `paths.${path}.${method}`
+                });
+              }
+            }
+          });
+        }
+      });
+    }
+
+    return {
+      messages,
+      valid: messages.length === 0
+    };
+  } catch (error) {
+    return {
+      messages: [{
+        id: 'lint-error',
+        type: 'error',
+        message: `Linting error: ${error instanceof Error ? error.message : 'Unknown error'}`
+      }],
+      valid: false
+    };
+  }
+}
+
+// Update validateContent to use only necessary validations
+export async function validateContent(content: string, options: ValidationOptions = {}) {
+  try {
+    // Parse YAML and validate basic structure
+    const spec = parse(content) as OpenAPIV3.Document;
+    const messages: ValidationMessage[] = [];
+
+    // Run custom rules validation if enabled
+    if (options.customRules !== false) {
+      const customResults = validationManager.getRuleEngine().validateSpec(spec);
+      messages.push(...customResults);
+    }
+
+    // Run basic OpenAPI validation
+    if (options.standardRules !== false) {
+      const standardResults = await validateOpenAPI(content);
+      messages.push(...standardResults.messages);
+    }
 
     // Filter messages based on severity if specified
     const filteredMessages = options.severity 
