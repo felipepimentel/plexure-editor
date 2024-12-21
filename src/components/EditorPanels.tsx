@@ -20,6 +20,7 @@ import { Panel, PanelGroup, PanelResizeHandle } from 'react-resizable-panels';
 import { FileManager } from '../lib/file-manager';
 import { Message, ValidationMessage } from '../lib/types';
 import { cn } from '../lib/utils';
+import { validateContent } from '../lib/validation';
 import { APIDocumentation } from './APIDocumentation';
 import { ChatPanel } from './ChatPanel';
 import { APIEditor } from './Editor/APIEditor';
@@ -31,7 +32,7 @@ interface EditorPanelsProps {
   onSendMessage: (message: string) => void;
   onChange: (value: string | undefined) => void;
   isDarkMode: boolean;
-  environment: any;
+  environment: Record<string, string>;
   fileManager: FileManager | null;
   showPreview: boolean;
   onTogglePreview: () => void;
@@ -40,6 +41,7 @@ interface EditorPanelsProps {
   parsedSpec: any;
   editorInstance?: editor.IStandaloneCodeEditor;
   onEditorMount: (editor: editor.IStandaloneCodeEditor) => void;
+  onValidationUpdate: (messages: ValidationMessage[], parsedSpec: any) => void;
 }
 
 export const EditorPanels: React.FC<EditorPanelsProps> = ({
@@ -55,7 +57,8 @@ export const EditorPanels: React.FC<EditorPanelsProps> = ({
   isValidating,
   parsedSpec,
   editorInstance,
-  onEditorMount
+  onEditorMount,
+  onValidationUpdate
 }) => {
   const [activePanel, setActivePanel] = React.useState<'chat' | 'editor' | 'preview' | 'validation'>('editor');
   const [isMaximized, setIsMaximized] = React.useState<string | null>(null);
@@ -74,6 +77,44 @@ export const EditorPanels: React.FC<EditorPanelsProps> = ({
       console.log('Editor instance in EditorPanels:', editorInstance);
     }
   }, [editorInstance]);
+
+  const handleApplyFix = React.useCallback(async (newContent: string) => {
+    if (!fileManager) return;
+    
+    const currentFile = fileManager.getCurrentFile();
+    if (!currentFile) return;
+
+    // Update file content
+    fileManager.updateContent(newContent);
+    onChange(newContent);
+    
+    // Trigger validation with all rules
+    try {
+      const { messages, parsedSpec: newParsedSpec } = await validateContent(newContent, {
+        customRules: true,
+        standardRules: true,
+        includeSuggestions: true
+      });
+      if (typeof onValidationUpdate === 'function') {
+        onValidationUpdate(messages, newParsedSpec);
+      }
+    } catch (error) {
+      console.error("Validation error:", error);
+    }
+  }, [fileManager, onChange, onValidationUpdate]);
+
+  const handleValidate = React.useCallback(async (content: string) => {
+    try {
+      const { messages, parsedSpec: newParsedSpec } = await validateContent(content);
+      onChange(content);
+      // Update validation messages and parsed spec
+      if (typeof onValidationUpdate === 'function') {
+        onValidationUpdate(messages, newParsedSpec);
+      }
+    } catch (error) {
+      console.error("Validation error:", error);
+    }
+  }, [onChange, onValidationUpdate]);
 
   const PanelHeader = ({ 
     icon: Icon, 
@@ -303,17 +344,8 @@ export const EditorPanels: React.FC<EditorPanelsProps> = ({
                 currentContent={fileManager?.getCurrentFile()?.content || ''}
                 editorInstance={editorInstance}
                 editorRef={editorRef}
-                onApplyFix={(newContent) => {
-                  if (fileManager) {
-                    const file = fileManager.getCurrentFile();
-                    if (file) {
-                      file.content = newContent;
-                      file.modified = true;
-                      fileManager.updateCurrentFile(file);
-                      onChange(newContent);
-                    }
-                  }
-                }}
+                onApplyFix={handleApplyFix}
+                onValidate={handleValidate}
               />
             </div>
           </div>
@@ -420,17 +452,8 @@ export const EditorPanels: React.FC<EditorPanelsProps> = ({
                   currentContent={fileManager?.getCurrentFile()?.content || ''}
                   editorInstance={editorInstance}
                   editorRef={editorRef}
-                  onApplyFix={(newContent) => {
-                    if (fileManager) {
-                      const file = fileManager.getCurrentFile();
-                      if (file) {
-                        file.content = newContent;
-                        file.modified = true;
-                        fileManager.updateCurrentFile(file);
-                        onChange(newContent);
-                      }
-                    }
-                  }}
+                  onApplyFix={handleApplyFix}
+                  onValidate={handleValidate}
                 />
               </div>
             </div>

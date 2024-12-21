@@ -15,6 +15,7 @@ interface ValidationPanelProps {
   editorInstance?: editor.IStandaloneCodeEditor;
   onApplyFix?: (newContent: string) => void;
   editorRef?: React.RefObject<APIEditorRef>;
+  onValidate?: (content: string) => Promise<void>;
 }
 
 interface IOverlayWidget extends editor.IOverlayWidget {
@@ -27,7 +28,8 @@ const ValidationPanel: React.FC<ValidationPanelProps> = ({
   currentContent,
   editorInstance,
   onApplyFix,
-  editorRef
+  editorRef,
+  onValidate
 }) => {
   const [expandedPaths, setExpandedPaths] = useState<Set<string>>(new Set());
   const [isAiFixing, setIsAiFixing] = useState<string | null>(null);
@@ -64,9 +66,13 @@ const ValidationPanel: React.FC<ValidationPanelProps> = ({
       editorRef.current.showDiff(
         currentContent,
         suggestion.suggestion,
-        () => {
+        async () => {
           // On apply
-          onApplyFix(suggestion.suggestion);
+          await onApplyFix(suggestion.suggestion);
+          // Trigger validation after applying the fix
+          if (onValidate) {
+            await onValidate(suggestion.suggestion);
+          }
         },
         () => {
           // On reject - nothing to do as the editor will handle restoring the content
@@ -143,6 +149,11 @@ const ValidationPanel: React.FC<ValidationPanelProps> = ({
         // Apply the suggestion permanently
         onApplyFix(suggestion.suggestion);
         
+        // Trigger validation after applying the fix
+        if (onValidate) {
+          await onValidate(suggestion.suggestion);
+        }
+        
         // Clean up the widget and decorations
         if (currentWidget?.dispose) {
           // Just remove the widget and decorations without restoring original content
@@ -166,7 +177,7 @@ const ValidationPanel: React.FC<ValidationPanelProps> = ({
       delete (window as any).applyAiFix;
       delete (window as any).dismissAiFix;
     };
-  }, [messages, currentContent, onApplyFix, currentWidget, editorRef]);
+  }, [messages, currentContent, onApplyFix, currentWidget, editorRef, onValidate]);
 
   return (
     <div className="flex flex-col h-full bg-background">

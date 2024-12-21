@@ -184,7 +184,46 @@ export const validationManager = new ValidationManager();
 
 // Export convenience functions that use the singleton
 export async function validateContent(content: string, options: ValidationOptions = {}) {
-  return validationManager.validateContent(content, options);
+  try {
+    // First, check YAML syntax
+    const spec = parse(content) as OpenAPIV3.Document;
+
+    const messages: ValidationMessage[] = [];
+
+    // Run custom rules validation
+    const customResults = validationManager.getRuleEngine().validateSpec(spec);
+    messages.push(...customResults);
+
+    // Run standard OpenAPI validation
+    const standardResults = await validateOpenAPI(content);
+    messages.push(...standardResults.messages);
+
+    // Run linting for basic OpenAPI structure
+    const lintResults = lintOpenAPI(content);
+    messages.push(...lintResults.messages);
+
+    // Filter messages based on severity if specified
+    const filteredMessages = options.severity 
+      ? messages.filter(msg => msg.type === options.severity)
+      : messages;
+
+    return {
+      messages: filteredMessages,
+      parsedSpec: spec,
+      valid: filteredMessages.length === 0
+    };
+  } catch (error) {
+    console.error('Validation error:', error);
+    return {
+      messages: [{
+        id: 'parse-error',
+        type: 'error',
+        message: `Failed to parse OpenAPI specification: ${error instanceof Error ? error.message : 'Unknown error'}`
+      }],
+      parsedSpec: null,
+      valid: false
+    };
+  }
 }
 
 export async function fixContent(content: string) {

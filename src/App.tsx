@@ -86,14 +86,36 @@ const App: React.FC = () => {
     await handleSendMessage(messages, message, setMessages);
   };
 
-  const handleApplyFix = React.useCallback((newContent: string) => {
+  const handleApplyFix = React.useCallback(async (newContent: string) => {
     if (!fileManager) return;
     
     const currentFile = fileManager.getCurrentFile();
     if (!currentFile) return;
 
-    fileManager.updateFileContent(currentFile.id, newContent);
-    validateContent(newContent);
+    // Update file content
+    fileManager.updateContent(newContent);
+    
+    // Trigger validation with all rules
+    setIsValidating(true);
+    try {
+      const { messages, parsedSpec } = await validateContent(newContent, {
+        customRules: true,
+        standardRules: true,
+        includeSuggestions: true
+      });
+      setValidationMessages(messages);
+      setParsedSpec(parsedSpec);
+    } catch (error) {
+      console.error("Validation error:", error);
+      setValidationMessages([{
+        id: "error",
+        type: "error",
+        message: error instanceof Error ? error.message : "Unknown error"
+      }]);
+      setParsedSpec(null);
+    } finally {
+      setIsValidating(false);
+    }
   }, [fileManager]);
 
   const handleEditorMount = React.useCallback((editor: editor.IStandaloneCodeEditor) => {
@@ -106,6 +128,11 @@ const App: React.FC = () => {
       console.log('Editor instance available:', editorInstance);
     }
   }, [editorInstance]);
+
+  const handleValidationUpdate = React.useCallback((messages: ValidationMessage[], newParsedSpec: any) => {
+    setValidationMessages(messages);
+    setParsedSpec(newParsedSpec);
+  }, []);
 
   return (
     <TooltipProvider>
@@ -137,6 +164,7 @@ const App: React.FC = () => {
           parsedSpec={parsedSpec}
           editorInstance={editorInstance}
           onEditorMount={handleEditorMount}
+          onValidationUpdate={handleValidationUpdate}
         />
       </div>
     </TooltipProvider>
