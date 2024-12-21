@@ -24,7 +24,7 @@ import { APIDocumentation } from './APIDocumentation';
 import { ChatPanel } from './ChatPanel';
 import { APIEditor } from './Editor/APIEditor';
 import { Tooltip } from './ui/TooltipComponent';
-import { ValidationPanel } from './ValidationPanel';
+import ValidationPanel from './ValidationPanel';
 
 interface EditorPanelsProps {
   messages: Message[];

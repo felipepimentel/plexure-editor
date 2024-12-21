@@ -1,4 +1,3 @@
-import { Change, diffLines } from 'diff';
 import { AlertTriangle, ChevronDown, Info, Loader2, Wand2, XCircle } from "lucide-react";
 import * as monaco from "monaco-editor";
 import { editor } from "monaco-editor";
@@ -18,7 +17,19 @@ interface ValidationPanelProps {
   onApplyFix?: (newContent: string) => void;
 }
 
-export const ValidationPanel: React.FC<ValidationPanelProps> = ({
+interface Window {
+  applyAiFix: (messageId: string) => void;
+  dismissAiFix: () => void;
+}
+
+declare global {
+  interface Window {
+    applyAiFix: (messageId: string) => void;
+    dismissAiFix: () => void;
+  }
+}
+
+const ValidationPanel: React.FC<ValidationPanelProps> = ({
   messages = [],
   isLoading = false,
   currentContent,
@@ -27,6 +38,7 @@ export const ValidationPanel: React.FC<ValidationPanelProps> = ({
 }) => {
   const [expandedPaths, setExpandedPaths] = React.useState<Set<string>>(new Set());
   const [isAiFixing, setIsAiFixing] = React.useState<string | null>(null);
+  const [currentWidget, setCurrentWidget] = React.useState<monaco.editor.IOverlayWidget | null>(null);
 
   // Group messages by path
   const groupedMessages = React.useMemo(() => {
@@ -40,16 +52,8 @@ export const ValidationPanel: React.FC<ValidationPanelProps> = ({
   }, [messages]);
 
   const handleAiFix = async (message: ValidationMessage) => {
-    if (!currentContent) {
-      console.warn('Missing currentContent for AI fix');
-      return;
-    }
-    if (!onApplyFix) {
-      console.warn('Missing onApplyFix handler for AI fix');
-      return;
-    }
-    if (!editorInstance) {
-      console.warn('Missing editorInstance for AI fix');
+    if (!currentContent || !onApplyFix || !editorInstance) {
+      console.warn('Missing required props for AI fix');
       return;
     }
 
@@ -70,77 +74,223 @@ export const ValidationPanel: React.FC<ValidationPanelProps> = ({
         console.error('AI suggestion failed:', suggestion?.error);
         return;
       }
-      
-      const updatedSpec = await aiFixService.applyFix(spec, suggestion.fix);
-      const newContent = stringify(updatedSpec);
-      
-      // Show the diff preview
-      const diff = diffLines(currentContent, newContent);
-      
-      // Add decorations to show the diff
-      const decorations = diff.flatMap((change: Change, index: number) => {
-        if (!change.added && !change.removed) return [];
-        
-        const startLine = change.removed ? message.line || 1 : (message.line || 1) + 1;
-        const endLine = startLine + (change.count || 1);
-        
-        return [{
-          range: new monaco.Range(startLine, 1, endLine, 1),
-          options: {
-            isWholeLine: true,
-            className: change.added ? 'diff-added' : 'diff-removed',
-            glyphMarginClassName: change.added ? 'diff-added-gutter' : 'diff-removed-gutter',
-          }
-        }];
-      });
 
-      // Clear any existing decorations
-      editorInstance.deltaDecorations([], decorations);
+      // Find the range of lines to modify
+      const lines = currentContent.split('\n');
+      let startLine = Math.max(1, Math.min(message.line || 1, lines.length));
+      let endLine = startLine;
 
-      // Remove any existing widget
-      const existingWidget = editorInstance.getContentWidgets().find(w => w.getId() === 'ai-fix-widget');
-      if (existingWidget) {
-        editorInstance.removeContentWidget(existingWidget);
+      // Safely get the base indentation
+      const baseIndent = lines[startLine - 1] 
+        ? (lines[startLine - 1].match(/^\s*/) || [''])[0].length
+        : 0;
+      
+      // Look backwards for the block start
+      for (let i = startLine - 2; i >= 0; i--) {
+        const line = lines[i];
+        if (!line) continue;
+        
+        const indent = (line.match(/^\s*/) || [''])[0].length;
+        if (indent < baseIndent) {
+          startLine = i + 1;
+          break;
+        }
+      }
+      
+      // Look forwards for the block end
+      for (let i = startLine; i < lines.length; i++) {
+        const line = lines[i];
+        if (!line) continue;
+        
+        const indent = (line.match(/^\s*/) || [''])[0].length;
+        if (indent < baseIndent && i > startLine) {
+          endLine = i;
+          break;
+        }
       }
 
-      // Add the fix button to the editor
-      const widgetHtml = `
-        <div class="p-2 bg-background border rounded-md shadow-lg">
-          <div class="flex items-center gap-2 mb-2">
-            <span class="text-sm font-medium">Apply this fix?</span>
-            <span class="text-xs text-muted-foreground">${suggestion.suggestion}</span>
-          </div>
-          <div class="flex items-center gap-2">
-            <button onclick="window.applyAiFix('${message.id}')" class="px-3 py-1 text-xs font-medium bg-primary text-primary-foreground rounded-md hover:bg-primary/90">
-              Apply
-            </button>
-            <button onclick="window.dismissAiFix()" class="px-3 py-1 text-xs font-medium bg-muted text-muted-foreground rounded-md hover:bg-muted/90">
-              Dismiss
-            </button>
-          </div>
-        </div>
-      `;
+      // Create inline diff decorations
+      const diffLines = suggestion.diff?.split('\n') || [];
+      const decorations: monaco.editor.IModelDeltaDecoration[] = [];
+      
+      let currentLine = startLine;
+      diffLines.forEach(line => {
+        if (!line) return;
 
-      editorInstance.addContentWidget({
-        getId: () => 'ai-fix-widget',
+        if (line.startsWith('+')) {
+          decorations.push({
+            range: new monaco.Range(currentLine, 1, currentLine, 1),
+            options: {
+              isWholeLine: true,
+              className: 'diff-add-line',
+              glyphMarginClassName: 'diff-add-glyph',
+              glyphMarginHoverMessage: { value: 'Line to be added' },
+              minimap: {
+                color: { id: 'diffEditor.insertedLineBackground' },
+                position: 1
+              },
+              linesDecorationsClassName: 'diff-add-line-number'
+            }
+          });
+        } else if (line.startsWith('-')) {
+          decorations.push({
+            range: new monaco.Range(currentLine, 1, currentLine, 1),
+            options: {
+              isWholeLine: true,
+              className: 'diff-remove-line',
+              glyphMarginClassName: 'diff-remove-glyph',
+              glyphMarginHoverMessage: { value: 'Line to be removed' },
+              minimap: {
+                color: { id: 'diffEditor.removedLineBackground' },
+                position: 1
+              },
+              linesDecorationsClassName: 'diff-remove-line-number'
+            }
+          });
+        }
+        currentLine++;
+      });
+
+      // Add styles for the inline diff
+      if (!document.getElementById('monaco-inline-diff-styles')) {
+        const styleSheet = document.createElement('style');
+        styleSheet.id = 'monaco-inline-diff-styles';
+        styleSheet.textContent = `
+          .diff-add-line {
+            background-color: rgba(40, 167, 69, 0.1) !important;
+            border-left: 3px solid #28a745 !important;
+          }
+          .diff-add-glyph {
+            background-color: #28a745;
+            width: 3px !important;
+            margin-left: 3px;
+          }
+          .diff-add-line-number {
+            color: #28a745 !important;
+          }
+          .diff-remove-line {
+            background-color: rgba(220, 53, 69, 0.1) !important;
+            border-left: 3px solid #dc3545 !important;
+            text-decoration: line-through;
+            opacity: 0.7;
+          }
+          .diff-remove-glyph {
+            background-color: #dc3545;
+            width: 3px !important;
+            margin-left: 3px;
+          }
+          .diff-remove-line-number {
+            color: #dc3545 !important;
+          }
+          .inline-fix-widget {
+            background-color: #252526;
+            border: 1px solid #454545;
+            border-radius: 3px;
+            padding: 8px;
+            margin: 4px;
+            font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
+            font-size: 12px;
+            box-shadow: 0 2px 8px rgba(0, 0, 0, 0.15);
+          }
+          .inline-fix-actions {
+            display: flex;
+            gap: 8px;
+            margin-top: 8px;
+            justify-content: flex-end;
+          }
+          .inline-fix-button {
+            padding: 4px 12px;
+            border-radius: 3px;
+            cursor: pointer;
+            border: none;
+            font-size: 12px;
+            font-weight: 500;
+            transition: all 150ms ease;
+          }
+          .inline-fix-apply {
+            background-color: #28a745;
+            color: white;
+          }
+          .inline-fix-apply:hover {
+            background-color: #218838;
+          }
+          .inline-fix-dismiss {
+            background-color: #3c3c3c;
+            color: #d4d4d4;
+          }
+          .inline-fix-dismiss:hover {
+            background-color: #4a4a4a;
+          }
+        `;
+        document.head.appendChild(styleSheet);
+      }
+
+      // Clean up any existing widgets before adding new ones
+      if (currentWidget?.dispose) {
+        currentWidget.dispose();
+      }
+
+      // Add the inline widget with the fix buttons
+      const inlineWidget = {
+        getId: () => 'inline-fix-widget',
         getDomNode: () => {
           const container = document.createElement('div');
-          container.innerHTML = widgetHtml;
+          container.className = 'inline-fix-widget';
+          container.innerHTML = `
+            <div>${suggestion.suggestion}</div>
+            <div class="inline-fix-actions">
+              <button class="inline-fix-button inline-fix-apply" onclick="window.applyAiFix('${message.id}')">
+                Apply Fix
+              </button>
+              <button class="inline-fix-button inline-fix-dismiss" onclick="window.dismissAiFix()">
+                Dismiss
+              </button>
+            </div>
+          `;
           return container;
         },
         getPosition: () => ({
           position: {
-            lineNumber: message.line || 1,
+            lineNumber: Math.max(1, startLine),
             column: 1
           },
-          preference: [1]
+          preference: [
+            monaco.editor.ContentWidgetPositionPreference.ABOVE,
+            monaco.editor.ContentWidgetPositionPreference.EXACT
+          ]
         })
-      });
+      };
+
+      // Apply new decorations and widget
+      const decorationIds = editorInstance.deltaDecorations([], decorations);
+      editorInstance.addContentWidget(inlineWidget);
+      
+      // Store references for cleanup
+      setCurrentWidget({
+        dispose: () => {
+          editorInstance.deltaDecorations(decorationIds, []);
+          editorInstance.removeContentWidget(inlineWidget);
+        }
+      } as monaco.editor.IOverlayWidget);
+
+      // Reveal the relevant lines
+      editorInstance.revealLinesInCenter(startLine, endLine);
+
     } catch (error) {
-      console.error('Failed to get AI suggestion:', error);
+      console.error('Failed to handle AI fix:', error);
     } finally {
       setIsAiFixing(null);
     }
+  };
+
+  // Helper function to escape HTML
+  const escapeHtml = (unsafe: string) => {
+    return unsafe
+      .replace(/&/g, "&amp;")
+      .replace(/</g, "&lt;")
+      .replace(/>/g, "&gt;")
+      .replace(/"/g, "&quot;")
+      .replace(/'/g, "&#039;");
   };
 
   // Set up global handlers for AI fix actions
@@ -283,7 +433,7 @@ export const ValidationPanel: React.FC<ValidationPanelProps> = ({
                                     "h-7 px-2 transition-all",
                                     isAiFixing === message.id
                                       ? "bg-primary/20 text-primary"
-                                      : "bg-red-500/10 text-red-500 hover:bg-red-500/20"
+                                      : "bg-primary/10 text-primary hover:bg-primary/20"
                                   )}
                                 >
                                   {isAiFixing === message.id ? (
@@ -318,3 +468,5 @@ export const ValidationPanel: React.FC<ValidationPanelProps> = ({
     </div>
   );
 };
+
+export default ValidationPanel;

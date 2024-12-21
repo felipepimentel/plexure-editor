@@ -1,134 +1,134 @@
-import { ValidationMessage } from './types';
+import { ValidationMessage } from "./types";
 
-export interface AiFixSuggestion {
+interface AiFixSuggestion {
   suggestion: string;
-  fix: {
-    path: string;
-    oldValue: any;
-    newValue: any;
-  };
-  error?: boolean;
+  fix: string;
+  diff?: string;
+  error?: string;
 }
 
 export class AiFixService {
-  private static instance: AiFixService;
-
-  private constructor() {}
-
-  public static getInstance(): AiFixService {
-    if (!AiFixService.instance) {
-      AiFixService.instance = new AiFixService();
-    }
-    return AiFixService.instance;
-  }
-
-  public async getSuggestion(spec: any, message: ValidationMessage): Promise<AiFixSuggestion> {
+  async getSuggestion(spec: any, message: ValidationMessage): Promise<AiFixSuggestion> {
     try {
-      // Extract path from message
-      const path = message.path?.replace('#/', '') || '';
-      const pathParts = path.split('/');
-      const method = pathParts[pathParts.length - 1];
-      const endpoint = pathParts.slice(0, -1).join('/');
+      // Construct a clear prompt for the LLM
+      const prompt = `
+Fix the following OpenAPI validation error:
 
-      // Get current operation
-      const operation = this.getValueAtPath(spec, path);
+Error: ${message.message}
+Path: ${message.path}
+${message.context ? `Context: ${JSON.stringify(message.context, null, 2)}` : ''}
 
-      // Handle authentication errors
-      if (message.message.includes('requires authentication')) {
-        // Check for existing security schemes
-        const availableSchemes = spec.components?.securitySchemes ? Object.keys(spec.components.securitySchemes) : [];
-        const securityScheme = availableSchemes.length > 0 ? availableSchemes[0] : 'BearerAuth';
+Current specification:
+\`\`\`yaml
+${JSON.stringify(spec, null, 2)}
+\`\`\`
 
-        // Create new operation with security
-        const newOperation = {
-          ...operation,
-          security: [{ [securityScheme]: [] }]
-        };
+Please provide:
+1. A brief explanation of the fix
+2. The complete corrected YAML content
+3. A diff showing the changes (with - for removed lines and + for added lines)
 
-        // If no security schemes exist, add BearerAuth
-        if (availableSchemes.length === 0) {
-          if (!spec.components) spec.components = {};
-          if (!spec.components.securitySchemes) spec.components.securitySchemes = {};
-          
-          spec.components.securitySchemes.BearerAuth = {
-            type: 'http',
-            scheme: 'bearer',
-            bearerFormat: 'JWT'
-          };
-        }
+Format your response as:
+EXPLANATION: <brief explanation>
+CORRECTED_CONTENT: <complete corrected yaml>
+DIFF: <diff with +/- lines>
+`;
 
-        return {
-          suggestion: `Add ${securityScheme} security requirement to ${method.toUpperCase()} ${endpoint}`,
-          fix: {
-            path,
-            oldValue: operation,
-            newValue: newOperation
-          }
-        };
-      }
+      console.log('=== LLM Input ===');
+      console.log('Message:', message);
+      console.log('Spec:', spec);
+      console.log('Prompt:', prompt);
 
-      // Return a fallback suggestion
+      // For now, return a mock response - in production this would call the actual LLM
+      const mockResponse = this.getMockResponse(message, spec);
+      
+      console.log('=== LLM Output ===');
+      console.log('Response:', mockResponse);
+      
       return {
-        suggestion: "No automatic fix available for this error",
-        fix: {
-          path,
-          oldValue: operation,
-          newValue: operation
-        },
-        error: true
+        suggestion: mockResponse.explanation,
+        fix: mockResponse.correctedContent,
+        diff: mockResponse.diff
       };
     } catch (error) {
-      console.error("Failed to get AI suggestion:", error);
+      console.error('Error getting AI suggestion:', error);
       return {
-        suggestion: "Failed to generate fix",
-        fix: {
-          path: message.path || "",
-          oldValue: {},
-          newValue: {}
-        },
-        error: true
+        suggestion: 'Failed to generate suggestion',
+        fix: '',
+        error: error instanceof Error ? error.message : 'Unknown error'
       };
     }
   }
 
-  public async applyFix(spec: any, fix: AiFixSuggestion['fix']): Promise<any> {
+  async applyFix(spec: any, fix: string): Promise<any> {
     try {
-      const newSpec = JSON.parse(JSON.stringify(spec));
-      this.setValueAtPath(newSpec, fix.path, fix.newValue);
-      return newSpec;
+      console.log('=== Applying Fix ===');
+      console.log('Original spec:', spec);
+      console.log('Fix to apply:', fix);
+
+      // Parse the fix string as YAML/JSON
+      const result = JSON.parse(fix);
+      
+      console.log('=== Result ===');
+      console.log('Fixed spec:', result);
+      
+      return result;
     } catch (error) {
-      console.error("Failed to apply fix:", error);
+      console.error('Error applying fix:', error);
       throw error;
     }
   }
 
-  private getValueAtPath(obj: any, path: string): any {
-    if (!path) return obj;
-    const parts = path.split('/').filter(Boolean);
-    let current = obj;
-    for (const part of parts) {
-      if (!current || typeof current !== 'object') return undefined;
-      current = current[part];
-    }
-    return current;
-  }
+  private getMockResponse(message: ValidationMessage, spec: any) {
+    // Example mock response for authentication requirement
+    if (message.message.includes('requires authentication')) {
+      const correctedContent = {
+        ...spec,
+        components: {
+          ...spec.components,
+          securitySchemes: {
+            BearerAuth: {
+              type: 'http',
+              scheme: 'bearer',
+              bearerFormat: 'JWT'
+            }
+          }
+        },
+        security: [{ BearerAuth: [] }]
+      };
 
-  private setValueAtPath(obj: any, path: string, value: any): void {
-    if (!path) {
-      Object.assign(obj, value);
-      return;
+      return {
+        explanation: 'Adding Bearer authentication to secure the endpoint',
+        correctedContent: JSON.stringify(correctedContent, null, 2),
+        diff: `
+- paths:
+-   /hello:
+-     get:
+-       summary: Hello World
++ paths:
++   /hello:
++     get:
++       summary: Hello World
++       security:
++         - BearerAuth: []
++ components:
++   securitySchemes:
++     BearerAuth:
++       type: http
++       scheme: bearer
++       bearerFormat: JWT
++ security:
++   - BearerAuth: []`
+      };
     }
-    const parts = path.split('/').filter(Boolean);
-    const lastPart = parts.pop()!;
-    let current = obj;
-    for (const part of parts) {
-      if (!current[part] || typeof current[part] !== 'object') {
-        current[part] = {};
-      }
-      current = current[part];
-    }
-    current[lastPart] = value;
+
+    // Default mock response
+    return {
+      explanation: 'No automatic fix available for this error',
+      correctedContent: JSON.stringify(spec, null, 2),
+      diff: ''
+    };
   }
 }
 
-export const aiFixService = AiFixService.getInstance(); 
+export const aiFixService = new AiFixService(); 
