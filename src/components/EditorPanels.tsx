@@ -22,8 +22,8 @@ import { Message, ValidationMessage } from '../lib/types';
 import { cn } from '../lib/utils';
 import { validateContent } from '../lib/validation';
 import { APIDocumentation } from './APIDocumentation';
+import { APIEditor, APIEditorRef } from './APIEditor';
 import { ChatPanel } from './ChatPanel';
-import { APIEditor } from './Editor/APIEditor';
 import { Tooltip } from './ui/TooltipComponent';
 import ValidationPanel from './ValidationPanel';
 

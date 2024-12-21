@@ -1,8 +1,8 @@
 /// <reference types="vite/client" />
 
-import react from '@vitejs/plugin-react'
-import path from 'path'
-import { defineConfig } from 'vite'
+import react from '@vitejs/plugin-react';
+import path from 'path';
+import { defineConfig } from 'vite';
 
 // https://vitejs.dev/config/
 export default defineConfig({
@@ -13,32 +13,26 @@ export default defineConfig({
     },
   },
   server: {
-    port: 5173,
-    open: true,
+    headers: {
+      'Cross-Origin-Opener-Policy': 'same-origin',
+      'Cross-Origin-Embedder-Policy': 'require-corp'
+    }
   },
   build: {
-    outDir: 'dist',
-    sourcemap: true,
+    target: 'esnext',
     rollupOptions: {
       output: {
         manualChunks: {
-          'react-vendor': ['react', 'react-dom'],
           'monaco-editor': ['monaco-editor'],
-        },
-      },
+          'monaco-yaml': ['monaco-yaml']
+        }
+      }
     },
     worker: {
-      format: 'es',
-      plugins: []
+      format: 'es'
     }
   },
   optimizeDeps: {
-    include: ['monaco-editor/esm/vs/language/json/json.worker', 'monaco-editor/esm/vs/editor/editor.worker']
-  },
-  define: {
-    // Handle browser polyfills
-    'process.env': {},
-    'process.platform': JSON.stringify('browser'),
-    'process.version': JSON.stringify(''),
+    exclude: ['monaco-editor', 'monaco-yaml']
   }
-})
+});

@@ -1,22 +1,31 @@
 import { AlertTriangle, ChevronDown, Info, Loader2, Wand2, XCircle } from "lucide-react";
+import { editor } from 'monaco-editor';
 import React, { useCallback, useEffect, useState } from "react";
 import { aiFixService } from "../lib/ai-fix";
 import { ValidationMessage } from "../lib/types";
 import { cn } from "../lib/utils";
-import { APIEditorRef } from './Editor/APIEditor';
+import { APIEditorRef } from './APIEditor';
 import { Button } from "./ui/Button";
 import { Tooltip } from "./ui/TooltipComponent";
 
 interface ValidationPanelProps {
   messages: ValidationMessage[];
-  isValidating: boolean;
+  isLoading: boolean;
+  currentContent: string;
+  editorInstance?: editor.IStandaloneCodeEditor;
   editorRef: React.RefObject<APIEditorRef>;
+  onApplyFix: (newContent: string) => Promise<void>;
+  onValidate: (content: string) => Promise<void>;
 }
 
 const ValidationPanel: React.FC<ValidationPanelProps> = ({
   messages = [],
-  isValidating,
-  editorRef
+  isLoading,
+  currentContent,
+  editorInstance,
+  editorRef,
+  onApplyFix,
+  onValidate
 }) => {
   const [expandedPaths, setExpandedPaths] = useState<Set<string>>(new Set());
   const [isAiFixing, setIsAiFixing] = useState<string | null>(null);
@@ -99,6 +108,30 @@ const ValidationPanel: React.FC<ValidationPanelProps> = ({
     );
   };
 
+  const getMessageIcon = (type: ValidationMessage['type']) => {
+    switch (type) {
+      case 'error':
+        return <XCircle className="h-4 w-4 text-red-500" />;
+      case 'warning':
+        return <AlertTriangle className="h-4 w-4 text-yellow-500" />;
+      case 'info':
+        return <Info className="h-4 w-4 text-blue-500" />;
+      default:
+        return null;
+    }
+  };
+
+  const handleMessageClick = (message: ValidationMessage) => {
+    if (!editorInstance || !message.line) return;
+
+    editorInstance.revealLineInCenter(message.line);
+    editorInstance.setPosition({
+      lineNumber: message.line,
+      column: message.column || 1
+    });
+    editorInstance.focus();
+  };
+
   return (
     <div className="flex flex-col h-full bg-background">
       {/* Messages list */}
@@ -138,15 +171,7 @@ const ValidationPanel: React.FC<ValidationPanelProps> = ({
                       )}
                     >
                       <div className="flex-shrink-0 pt-0.5">
-                        {message.type === "error" && (
-                          <XCircle className="h-4 w-4 text-red-500" />
-                        )}
-                        {message.type === "warning" && (
-                          <AlertTriangle className="h-4 w-4 text-yellow-500" />
-                        )}
-                        {message.type === "info" && (
-                          <Info className="h-4 w-4 text-blue-500" />
-                        )}
+                        {getMessageIcon(message.type)}
                       </div>
                       <div className="flex-1 min-w-0">
                         <div className="flex items-start justify-between gap-4">

@@ -1,216 +1,204 @@
-import { Editor } from '@monaco-editor/react';
-import {
-    Columns,
-    Eye,
-    EyeOff,
-    FileCode,
-    FileDown,
-    FileJson,
-    FolderOpen,
-    Maximize2,
-    Minimize2,
-    Plus,
-    Save
-} from 'lucide-react';
-import React from 'react';
+import * as monaco from 'monaco-editor';
+import { editor } from 'monaco-editor';
+import React, { forwardRef, useCallback, useEffect, useRef } from 'react';
+import { DEFAULT_CONTENT } from '../lib/constants';
 import { FileManager } from '../lib/file-manager';
-import { cn } from '../lib/utils';
-import { Tooltip } from './ui/TooltipComponent';
+import { ValidationMessage } from '../lib/types';
 
-interface APIEditorProps {
-  onChange: (value: string) => void;
-  isDarkMode?: boolean;
-  fileManager: FileManager | null;
-  showPreview: boolean;
-  onTogglePreview: () => void;
-}
+// Configure Monaco workers
+if (typeof window !== 'undefined') {
+  // @ts-ignore
+  window.MonacoEnvironment = {
+    getWorker: function (moduleId: string, label: string) {
+      const getWorkerModule = (moduleUrl: string) => {
+        return new Worker(
+          new URL(moduleUrl, import.meta.url),
+          { type: 'module' }
+        );
+      };
 
-export const APIEditor: React.FC<APIEditorProps> = ({
-  onChange,
-  isDarkMode = false,
-  fileManager,
-  showPreview,
-  onTogglePreview
-}) => {
-  const [isFullscreen, setIsFullscreen] = React.useState(false);
-  const [showMinimap, setShowMinimap] = React.useState(true);
-  const [wordWrap, setWordWrap] = React.useState('on');
-  const [fontSize, setFontSize] = React.useState(14);
-  const [editorValue, setEditorValue] = React.useState('');
-
-  const handleEditorChange = React.useCallback(async (value: string | undefined) => {
-    if (!fileManager || value === undefined) return;
-
-    setEditorValue(value);
-
-    try {
-      // Update file content and notify parent
-      fileManager.updateContent(value);
-      onChange(value);
-    } catch (error) {
-      console.error('Error updating content:', error);
-      onChange(value);
-    }
-  }, [fileManager, onChange]);
-
-  const editorOptions = {
-    minimap: {
-      enabled: showMinimap
-    },
-    wordWrap: wordWrap as 'on' | 'off',
-    fontSize,
-    lineNumbers: 'on',
-    renderLineHighlight: 'all',
-    scrollBeyondLastLine: false,
-    automaticLayout: true,
-    padding: {
-      top: 16,
-      bottom: 16
-    },
-    folding: true,
-    foldingHighlight: true,
-    showFoldingControls: 'always',
-    bracketPairColorization: {
-      enabled: true
-    },
-    guides: {
-      bracketPairs: true,
-      indentation: true
+      if (label === 'yaml') {
+        return getWorkerModule('/node_modules/monaco-yaml/yaml.worker.js');
+      }
+      if (label === 'json') {
+        return getWorkerModule('/node_modules/monaco-editor/esm/vs/language/json/json.worker.js');
+      }
+      return getWorkerModule('/node_modules/monaco-editor/esm/vs/editor/editor.worker.js');
     }
   };
+}
 
-  return (
-    <div className={cn(
-      'flex flex-col h-full',
-      isFullscreen && 'fixed inset-0 z-50 bg-background'
-    )}>
-      {/* Toolbar */}
-      <div className="flex items-center justify-between gap-2 p-2 border-b">
-        {/* Left group */}
-        <div className="flex items-center gap-2">
-          <div className="flex items-center gap-1 px-2 py-1 rounded-md bg-muted">
-            <FileCode className="h-4 w-4 text-muted-foreground" />
-            <span className="text-sm font-medium">
-              {fileManager?.getCurrentFile()?.name || 'Untitled'}
-            </span>
-          </div>
-          <div className="h-4 border-l" />
-          <Tooltip content="New File">
-            <button
-              onClick={() => fileManager?.createNewFile()}
-              className="p-1.5 rounded-md hover:bg-muted"
-            >
-              <Plus className="h-4 w-4" />
-            </button>
-          </Tooltip>
-          <Tooltip content="Open File">
-            <button
-              onClick={() => fileManager?.openFile()}
-              className="p-1.5 rounded-md hover:bg-muted"
-            >
-              <FolderOpen className="h-4 w-4" />
-            </button>
-          </Tooltip>
-          <Tooltip content="Save">
-            <button
-              onClick={() => fileManager?.saveCurrentFile()}
-              className="p-1.5 rounded-md hover:bg-muted"
-            >
-              <Save className="h-4 w-4" />
-            </button>
-          </Tooltip>
-          <div className="h-4 border-l" />
-          <Tooltip content="Export as YAML">
-            <button
-              onClick={() => fileManager?.downloadYAML()}
-              className="p-1.5 rounded-md hover:bg-muted"
-            >
-              <FileDown className="h-4 w-4" />
-            </button>
-          </Tooltip>
-          <Tooltip content="Export as JSON">
-            <button
-              onClick={() => fileManager?.downloadJSON()}
-              className="p-1.5 rounded-md hover:bg-muted"
-            >
-              <FileJson className="h-4 w-4" />
-            </button>
-          </Tooltip>
-        </div>
+// Event types
+type EditorEventType = 
+  | { type: 'content:change', content: string }
+  | { type: 'content:validate', messages: ValidationMessage[], parsedSpec: any }
+  | { type: 'editor:ready', instance: editor.IStandaloneCodeEditor }
+  | { type: 'diff:show', original: string, modified: string }
+  | { type: 'diff:apply', content: string }
+  | { type: 'diff:reject' };
 
-        {/* Right group */}
-        <div className="flex items-center gap-2">
-          <Tooltip content="Toggle Minimap">
-            <button
-              onClick={() => setShowMinimap(!showMinimap)}
-              className={cn(
-                'p-1.5 rounded-md',
-                showMinimap ? 'bg-primary/10 text-primary' : 'hover:bg-muted'
-              )}
-            >
-              <Columns className="h-4 w-4" />
-            </button>
-          </Tooltip>
-          <Tooltip content="Toggle Word Wrap">
-            <button
-              onClick={() => setWordWrap(wordWrap === 'on' ? 'off' : 'on')}
-              className={cn(
-                'p-1.5 rounded-md',
-                wordWrap === 'on' ? 'bg-primary/10 text-primary' : 'hover:bg-muted'
-              )}
-            >
-              {wordWrap === 'on' ? (
-                <Minimize2 className="h-4 w-4" />
-              ) : (
-                <Maximize2 className="h-4 w-4" />
-              )}
-            </button>
-          </Tooltip>
-          <div className="h-4 border-l" />
-          <Tooltip content="Toggle Preview">
-            <button
-              onClick={onTogglePreview}
-              className={cn(
-                'p-1.5 rounded-md',
-                showPreview ? 'bg-primary/10 text-primary' : 'hover:bg-muted'
-              )}
-            >
-              {showPreview ? (
-                <Eye className="h-4 w-4" />
-              ) : (
-                <EyeOff className="h-4 w-4" />
-              )}
-            </button>
-          </Tooltip>
-          <Tooltip content="Toggle Fullscreen">
-            <button
-              onClick={() => setIsFullscreen(!isFullscreen)}
-              className={cn(
-                'p-1.5 rounded-md',
-                isFullscreen ? 'bg-primary/10 text-primary' : 'hover:bg-muted'
-              )}
-            >
-              {isFullscreen ? (
-                <Minimize2 className="h-4 w-4" />
-              ) : (
-                <Maximize2 className="h-4 w-4" />
-              )}
-            </button>
-          </Tooltip>
-        </div>
+interface APIEditorProps {
+  content?: string;
+  onChange?: (content: string) => void;
+  onMount?: (editor: editor.IStandaloneCodeEditor) => void;
+  onValidate?: (messages: ValidationMessage[], parsedSpec: any) => void;
+  isDarkMode?: boolean;
+  wordWrap?: 'on' | 'off';
+  environment?: Record<string, string>;
+  fileManager?: FileManager | null;
+  showPreview?: boolean;
+  onTogglePreview?: () => void;
+}
+
+export interface APIEditorRef {
+  showDiff: (original: string, modified: string) => void;
+  addEventListener: (listener: (event: EditorEventType) => void) => () => void;
+  editor: editor.IStandaloneCodeEditor | null;
+}
+
+interface CustomOverlayWidget extends editor.IOverlayWidget {
+  domNode: HTMLDivElement;
+}
+
+export const APIEditor = forwardRef<APIEditorRef, APIEditorProps>(({
+  content = DEFAULT_CONTENT,
+  onChange,
+  onMount,
+  onValidate,
+  isDarkMode = false,
+  wordWrap = 'on'
+}, ref) => {
+  const editorRef = useRef<editor.IStandaloneCodeEditor | null>(null);
+  const containerRef = useRef<HTMLDivElement>(null);
+  const decorationsRef = useRef<string[]>([]);
+  const eventListenersRef = useRef<Set<(event: EditorEventType) => void>>(new Set());
+
+  // Event handling
+  const emit = useCallback((event: EditorEventType) => {
+    eventListenersRef.current.forEach(listener => listener(event));
+  }, []);
+
+  const addEventListener = useCallback((listener: (event: EditorEventType) => void) => {
+    eventListenersRef.current.add(listener);
+    return () => {
+      eventListenersRef.current.delete(listener);
+    };
+  }, []);
+
+  // Editor initialization
+  useEffect(() => {
+    if (!containerRef.current) return;
+
+    const editor = monaco.editor.create(containerRef.current, {
+      value: content,
+      language: 'yaml',
+      theme: isDarkMode ? 'vs-dark' : 'vs',
+      wordWrap,
+      minimap: { enabled: false },
+      automaticLayout: true,
+      scrollBeyondLastLine: false,
+      lineNumbers: 'on',
+      renderValidationDecorations: 'on',
+      folding: true,
+      fontSize: 14,
+      tabSize: 2,
+    });
+
+    editorRef.current = editor;
+
+    // Emit ready event
+    emit({ type: 'editor:ready', instance: editor });
+
+    // Content change handler
+    editor.onDidChangeModelContent(() => {
+      const newContent = editor.getValue();
+      emit({ type: 'content:change', content: newContent });
+      if (onChange) onChange(newContent);
+    });
+
+    if (onMount) {
+      onMount(editor);
+    }
+
+    return () => {
+      editor.dispose();
+      editorRef.current = null;
+    };
+  }, []);
+
+  // Theme update
+  useEffect(() => {
+    monaco.editor.setTheme(isDarkMode ? 'vs-dark' : 'vs');
+  }, [isDarkMode]);
+
+  // Word wrap update
+  useEffect(() => {
+    if (editorRef.current) {
+      editorRef.current.updateOptions({ wordWrap });
+    }
+  }, [wordWrap]);
+
+  // Diff handling
+  const showDiff = useCallback((original: string, modified: string) => {
+    if (!editorRef.current) return;
+
+    // Clear previous decorations
+    decorationsRef.current = editorRef.current.deltaDecorations(decorationsRef.current, []);
+
+    const domNode = document.createElement('div');
+    domNode.className = 'inline-fix-widget';
+    domNode.innerHTML = `
+      <div class="inline-fix-actions">
+        <button class="inline-fix-button inline-fix-dismiss">Reject</button>
+        <button class="inline-fix-button inline-fix-apply">Apply Fix</button>
       </div>
+    `;
 
-      {/* Editor */}
-      <div className="flex-1 relative">
-        <Editor
-          defaultLanguage="yaml"
-          theme={isDarkMode ? 'vs-dark' : 'vs-light'}
-          value={fileManager?.getCurrentFile()?.content}
-          onChange={handleEditorChange}
-          options={editorOptions}
-          className="h-full w-full"
-        />
-      </div>
-    </div>
-  );
-}; 
+    // Create inline widget for diff actions
+    const widget: CustomOverlayWidget = {
+      domNode,
+      getId: () => 'inline-fix-widget',
+      getDomNode: () => domNode,
+      getPosition: () => ({
+        preference: monaco.editor.OverlayWidgetPositionPreference.TOP_RIGHT_CORNER
+      })
+    };
+
+    // Add click handlers
+    const applyButton = domNode.querySelector('.inline-fix-apply');
+    const rejectButton = domNode.querySelector('.inline-fix-dismiss');
+
+    if (applyButton) {
+      applyButton.addEventListener('click', () => {
+        emit({ type: 'diff:apply', content: modified });
+        editorRef.current?.removeOverlayWidget(widget);
+      });
+    }
+
+    if (rejectButton) {
+      rejectButton.addEventListener('click', () => {
+        emit({ type: 'diff:reject' });
+        editorRef.current?.removeOverlayWidget(widget);
+      });
+    }
+
+    // Add widget to editor
+    editorRef.current.addOverlayWidget(widget);
+
+    // Update content to show diff
+    editorRef.current.setValue(modified);
+  }, []);
+
+  // Expose methods via ref
+  React.useImperativeHandle(ref, () => ({
+    showDiff,
+    addEventListener,
+    editor: editorRef.current
+  }), [showDiff, addEventListener]);
+
+  return <div ref={containerRef} style={{ width: '100%', height: '100%' }} />;
+});
+
+APIEditor.displayName = 'APIEditor';
+
+export default APIEditor; 

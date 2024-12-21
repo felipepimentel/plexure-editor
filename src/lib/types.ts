@@ -1,18 +1,14 @@
+export type ValidationSeverity = 'error' | 'warning' | 'info' | 'hint';
+
 export interface ValidationMessage {
   id: string;
-  type: "error" | "warning" | "info";
+  type: ValidationSeverity;
   message: string;
-  path?: string;
   line?: number;
   column?: number;
+  endLine?: number;
+  endColumn?: number;
   source?: string;
-  suggestions?: string[];
-  context?: {
-    schemaName?: string;
-    path?: string;
-    method?: string;
-    [key: string]: any;
-  };
 }
 
 export interface ValidationResult {
