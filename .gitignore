@@ -25,3 +25,5 @@ dist-ssr
 
 temp_content*
 assistant_snippet*
+
+*.bak

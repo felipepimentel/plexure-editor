@@ -15,24 +15,14 @@ export default defineConfig({
   server: {
     headers: {
       'Cross-Origin-Opener-Policy': 'same-origin',
-      'Cross-Origin-Embedder-Policy': 'require-corp'
-    }
+      'Cross-Origin-Embedder-Policy': 'require-corp',
+    },
   },
   build: {
     target: 'esnext',
-    rollupOptions: {
-      output: {
-        manualChunks: {
-          'monaco-editor': ['monaco-editor'],
-          'monaco-yaml': ['monaco-yaml']
-        }
-      }
-    },
-    worker: {
-      format: 'es'
-    }
+    sourcemap: false, // Desativa a geração de source maps
   },
   optimizeDeps: {
-    exclude: ['monaco-editor', 'monaco-yaml']
-  }
+    exclude: [], // Remova 'monaco-editor' e 'monaco-yaml' da exclusão
+  },
 });

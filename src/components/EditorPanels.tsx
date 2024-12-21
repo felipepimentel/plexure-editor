@@ -1,18 +1,18 @@
 import {
-    AlertTriangle,
-    Clock,
-    Code,
-    Eye,
-    FileJson,
-    FileText,
-    GitBranch,
-    Info,
-    Loader2,
-    Maximize2,
-    MessageSquare,
-    Minimize2,
-    MoreVertical,
-    Share2
+  AlertTriangle,
+  Clock,
+  Code,
+  Eye,
+  FileJson,
+  FileText,
+  GitBranch,
+  Info,
+  Loader2,
+  Maximize2,
+  MessageSquare,
+  Minimize2,
+  MoreVertical,
+  Share2
 } from 'lucide-react';
 import { editor } from 'monaco-editor';
 import React from 'react';
@@ -210,9 +210,9 @@ export const EditorPanels: React.FC<EditorPanelsProps> = ({
       >
         {/* AI Chat Panel */}
         <Panel
-          defaultSize={25}
+          defaultSize={20}
           minSize={15}
-          maxSize={50}
+          maxSize={40}
           className="bg-background relative z-20"
         >
           <div className="h-full flex flex-col">
@@ -271,7 +271,7 @@ export const EditorPanels: React.FC<EditorPanelsProps> = ({
                 fileManager={fileManager}
                 showPreview={showPreview}
                 onTogglePreview={onTogglePreview}
-                onEditorMount={handleEditorMount}
+                onMount={handleEditorMount}
               />
             </div>
           </div>
@@ -401,7 +401,7 @@ export const EditorPanels: React.FC<EditorPanelsProps> = ({
                   fileManager={fileManager}
                   showPreview={showPreview}
                   onTogglePreview={onTogglePreview}
-                  onEditorMount={handleEditorMount}
+                  onMount={handleEditorMount}
                 />
               </div>
             </div>
