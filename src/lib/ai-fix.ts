@@ -1,134 +1,82 @@
-import { parse as parseYaml, stringify as stringifyYaml } from 'yaml';
+import { diffLines } from 'diff';
 import { ValidationMessage } from "./types";
 
 interface AiFixSuggestion {
   suggestion: string;
-  diff: string;
   error?: string;
+  diff?: string;
 }
 
-export class AiFixService {
-  async getSuggestion(yamlContent: string | any, message: ValidationMessage): Promise<AiFixSuggestion> {
+export const aiFixService = {
+  async getSuggestion(currentContent: string, message: ValidationMessage): Promise<AiFixSuggestion> {
     try {
-      // If yamlContent is not a string, stringify it
-      const currentYaml = typeof yamlContent === 'string' ? yamlContent : stringifyYaml(yamlContent);
-      
-      // Construct a direct prompt for the LLM
-      const prompt = `Fix OpenAPI validation error:
+      console.log('=== LLM Input ===\n', `Fix OpenAPI validation error:
 ${message.message}
 Path: ${message.path}
 
 Current YAML:
-${currentYaml}
+${currentContent}
 
-Return only the fixed YAML content.`;
+Return only the fixed YAML content.`);
 
-      console.log('=== LLM Input ===\n', prompt);
+      // Simulated LLM response for this example
+      const fixedContent = `openapi: 3.0.0
+info:
+  title: Sample API
+  description: A sample API to demonstrate OpenAPI features
+  version: 1.0.0
+servers:
+  - url: https://api.example.com/v1
+    description: Production server
+paths:
+  /hello:
+    get:
+      summary: Hello World
+      description: Returns a greeting message
+      responses:
+        "200":
+          description: Successful response
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  message:
+                    type: string
+                    example: Hello, World!
+components:
+  securitySchemes:
+    BearerAuth:
+      type: http
+      scheme: bearer
+      bearerFormat: JWT
+security:
+  - BearerAuth: []`;
 
-      // For now, return a mock response - in production this would call the actual LLM
-      const { suggestion, diff } = this.getMockResponse(message, currentYaml);
-      
-      console.log('=== LLM Output ===\n', suggestion);
-      
+      console.log('=== LLM Output ===\n', fixedContent);
+
+      // Generate a proper diff
+      const differences = diffLines(currentContent, fixedContent);
+      const diff = differences.map(part => {
+        if (part.added) {
+          return part.value.split('\n').map(line => line ? `+${line}` : '').join('\n');
+        }
+        if (part.removed) {
+          return part.value.split('\n').map(line => line ? `-${line}` : '').join('\n');
+        }
+        return part.value.split('\n').map(line => line ? ` ${line}` : '').join('\n');
+      }).join('');
+
       return {
-        suggestion,
+        suggestion: fixedContent,
         diff
       };
     } catch (error) {
-      console.error('Error getting AI suggestion:', error);
-      throw error;
-    }
-  }
-
-  private getMockResponse(message: ValidationMessage, currentYaml: string): { suggestion: string; diff: string } {
-    // Example mock response for authentication requirement
-    if (message.message.includes('requires authentication')) {
-      const spec = parseYaml(currentYaml);
-      const correctedSpec = {
-        ...spec,
-        components: {
-          ...spec.components,
-          securitySchemes: {
-            BearerAuth: {
-              type: 'http',
-              scheme: 'bearer',
-              bearerFormat: 'JWT'
-            }
-          }
-        },
-        security: [{ BearerAuth: [] }]
-      };
-
-      const suggestion = stringifyYaml(correctedSpec);
-      
-      // Create a proper unified diff
-      const diff = this.createUnifiedDiff(currentYaml, suggestion);
-
+      console.error('Failed to get AI suggestion:', error);
       return {
-        suggestion,
-        diff
+        suggestion: currentContent,
+        error: 'Failed to get AI suggestion'
       };
     }
-
-    // Default mock response - no changes
-    return {
-      suggestion: currentYaml,
-      diff: ''
-    };
   }
-
-  private createUnifiedDiff(original: string, modified: string): string {
-    const originalLines = original.split('\n');
-    const modifiedLines = modified.split('\n');
-    
-    // Find the first different line
-    let firstDiff = 0;
-    while (firstDiff < originalLines.length && firstDiff < modifiedLines.length 
-      && originalLines[firstDiff] === modifiedLines[firstDiff]) {
-      firstDiff++;
-    }
-    
-    // Find the last different line, searching backwards
-    let lastOriginalDiff = originalLines.length - 1;
-    let lastModifiedDiff = modifiedLines.length - 1;
-    while (lastOriginalDiff > firstDiff && lastModifiedDiff > firstDiff 
-      && originalLines[lastOriginalDiff] === modifiedLines[lastModifiedDiff]) {
-      lastOriginalDiff--;
-      lastModifiedDiff--;
-    }
-    
-    // Create the diff header
-    const diffLines = [
-      `@@ -${firstDiff + 1},${lastOriginalDiff - firstDiff + 1} +${firstDiff + 1},${lastModifiedDiff - firstDiff + 1} @@`
-    ];
-    
-    // Add context before (up to 3 lines)
-    const contextBefore = Math.max(0, firstDiff - 3);
-    for (let i = contextBefore; i < firstDiff; i++) {
-      diffLines.push(' ' + originalLines[i]);
-    }
-    
-    // Add the changes
-    for (let i = firstDiff; i <= lastOriginalDiff; i++) {
-      if (i < originalLines.length) {
-        diffLines.push('-' + originalLines[i]);
-      }
-    }
-    
-    for (let i = firstDiff; i <= lastModifiedDiff; i++) {
-      if (i < modifiedLines.length) {
-        diffLines.push('+' + modifiedLines[i]);
-      }
-    }
-    
-    // Add context after (up to 3 lines)
-    const contextAfter = Math.min(originalLines.length, lastOriginalDiff + 4);
-    for (let i = lastOriginalDiff + 1; i < contextAfter; i++) {
-      diffLines.push(' ' + originalLines[i]);
-    }
-    
-    return diffLines.join('\n');
-  }
-}
-
-export const aiFixService = new AiFixService(); 
+}; 
