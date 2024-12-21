@@ -1,8 +1,7 @@
 import { AlertTriangle, ChevronDown, Info, Loader2, Wand2, XCircle } from "lucide-react";
 import * as monaco from "monaco-editor";
 import { editor } from "monaco-editor";
-import React from "react";
-import { parse, stringify } from "yaml";
+import React, { useCallback, useEffect, useState } from "react";
 import { aiFixService } from "../lib/ai-fix";
 import { ValidationMessage } from "../lib/types";
 import { cn } from "../lib/utils";
@@ -17,16 +16,8 @@ interface ValidationPanelProps {
   onApplyFix?: (newContent: string) => void;
 }
 
-interface Window {
-  applyAiFix: (messageId: string) => void;
-  dismissAiFix: () => void;
-}
-
-declare global {
-  interface Window {
-    applyAiFix: (messageId: string) => void;
-    dismissAiFix: () => void;
-  }
+interface IOverlayWidget extends editor.IOverlayWidget {
+  dispose?: () => void;
 }
 
 const ValidationPanel: React.FC<ValidationPanelProps> = ({
@@ -36,9 +27,9 @@ const ValidationPanel: React.FC<ValidationPanelProps> = ({
   editorInstance,
   onApplyFix
 }) => {
-  const [expandedPaths, setExpandedPaths] = React.useState<Set<string>>(new Set());
-  const [isAiFixing, setIsAiFixing] = React.useState<string | null>(null);
-  const [currentWidget, setCurrentWidget] = React.useState<monaco.editor.IOverlayWidget | null>(null);
+  const [expandedPaths, setExpandedPaths] = useState<Set<string>>(new Set());
+  const [isAiFixing, setIsAiFixing] = useState<string | null>(null);
+  const [currentWidget, setCurrentWidget] = useState<IOverlayWidget | null>(null);
 
   // Group messages by path
   const groupedMessages = React.useMemo(() => {
@@ -60,60 +51,30 @@ const ValidationPanel: React.FC<ValidationPanelProps> = ({
     try {
       setIsAiFixing(message.id);
       
-      let spec;
-      try {
-        spec = parse(currentContent);
-      } catch (error) {
-        console.error('Failed to parse YAML content:', error);
-        return;
-      }
-
-      const suggestion = await aiFixService.getSuggestion(spec, message);
+      const suggestion = await aiFixService.getSuggestion(currentContent, message);
       
       if (!suggestion || suggestion.error) {
         console.error('AI suggestion failed:', suggestion?.error);
         return;
       }
 
-      // Find the range of lines to modify
-      const lines = currentContent.split('\n');
-      let startLine = Math.max(1, Math.min(message.line || 1, lines.length));
-      let endLine = startLine;
+      // Get the current model
+      const model = editorInstance.getModel();
+      if (!model) return;
 
-      // Safely get the base indentation
-      const baseIndent = lines[startLine - 1] 
-        ? (lines[startLine - 1].match(/^\s*/) || [''])[0].length
-        : 0;
+      // Apply the suggested changes to the editor
+      const edit = {
+        range: model.getFullModelRange(),
+        text: suggestion.suggestion
+      };
       
-      // Look backwards for the block start
-      for (let i = startLine - 2; i >= 0; i--) {
-        const line = lines[i];
-        if (!line) continue;
-        
-        const indent = (line.match(/^\s*/) || [''])[0].length;
-        if (indent < baseIndent) {
-          startLine = i + 1;
-          break;
-        }
-      }
-      
-      // Look forwards for the block end
-      for (let i = startLine; i < lines.length; i++) {
-        const line = lines[i];
-        if (!line) continue;
-        
-        const indent = (line.match(/^\s*/) || [''])[0].length;
-        if (indent < baseIndent && i > startLine) {
-          endLine = i;
-          break;
-        }
-      }
+      model.pushEditOperations([], [edit], () => null);
 
       // Create inline diff decorations
       const diffLines = suggestion.diff?.split('\n') || [];
       const decorations: monaco.editor.IModelDeltaDecoration[] = [];
       
-      let currentLine = startLine;
+      let currentLine = 1;
       diffLines.forEach(line => {
         if (!line) return;
 
@@ -124,7 +85,7 @@ const ValidationPanel: React.FC<ValidationPanelProps> = ({
               isWholeLine: true,
               className: 'diff-add-line',
               glyphMarginClassName: 'diff-add-glyph',
-              glyphMarginHoverMessage: { value: 'Line to be added' },
+              glyphMarginHoverMessage: { value: 'Added line' },
               minimap: {
                 color: { id: 'diffEditor.insertedLineBackground' },
                 position: 1
@@ -132,6 +93,7 @@ const ValidationPanel: React.FC<ValidationPanelProps> = ({
               linesDecorationsClassName: 'diff-add-line-number'
             }
           });
+          currentLine++;
         } else if (line.startsWith('-')) {
           decorations.push({
             range: new monaco.Range(currentLine, 1, currentLine, 1),
@@ -139,7 +101,7 @@ const ValidationPanel: React.FC<ValidationPanelProps> = ({
               isWholeLine: true,
               className: 'diff-remove-line',
               glyphMarginClassName: 'diff-remove-glyph',
-              glyphMarginHoverMessage: { value: 'Line to be removed' },
+              glyphMarginHoverMessage: { value: 'Removed line' },
               minimap: {
                 color: { id: 'diffEditor.removedLineBackground' },
                 position: 1
@@ -147,8 +109,10 @@ const ValidationPanel: React.FC<ValidationPanelProps> = ({
               linesDecorationsClassName: 'diff-remove-line-number'
             }
           });
+          currentLine++;
+        } else if (!line.startsWith('@')) {
+          currentLine++;
         }
-        currentLine++;
       });
 
       // Add styles for the inline diff
@@ -183,14 +147,15 @@ const ValidationPanel: React.FC<ValidationPanelProps> = ({
             color: #dc3545 !important;
           }
           .inline-fix-widget {
+            position: absolute;
+            top: 0;
+            right: 0;
             background-color: #252526;
             border: 1px solid #454545;
             border-radius: 3px;
             padding: 8px;
             margin: 4px;
-            font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
-            font-size: 12px;
-            box-shadow: 0 2px 8px rgba(0, 0, 0, 0.15);
+            z-index: 100;
           }
           .inline-fix-actions {
             display: flex;
@@ -231,50 +196,45 @@ const ValidationPanel: React.FC<ValidationPanelProps> = ({
       }
 
       // Add the inline widget with the fix buttons
-      const inlineWidget = {
+      const inlineWidget: IOverlayWidget = {
         getId: () => 'inline-fix-widget',
         getDomNode: () => {
           const container = document.createElement('div');
           container.className = 'inline-fix-widget';
           container.innerHTML = `
-            <div>${suggestion.suggestion}</div>
             <div class="inline-fix-actions">
+              <button class="inline-fix-button inline-fix-dismiss" onclick="window.dismissAiFix()">
+                Reject
+              </button>
               <button class="inline-fix-button inline-fix-apply" onclick="window.applyAiFix('${message.id}')">
                 Apply Fix
-              </button>
-              <button class="inline-fix-button inline-fix-dismiss" onclick="window.dismissAiFix()">
-                Dismiss
               </button>
             </div>
           `;
           return container;
         },
         getPosition: () => ({
-          position: {
-            lineNumber: Math.max(1, startLine),
-            column: 1
-          },
-          preference: [
-            monaco.editor.ContentWidgetPositionPreference.ABOVE,
-            monaco.editor.ContentWidgetPositionPreference.EXACT
-          ]
+          preference: monaco.editor.OverlayWidgetPositionPreference.TOP_RIGHT_CORNER
         })
       };
 
       // Apply new decorations and widget
       const decorationIds = editorInstance.deltaDecorations([], decorations);
-      editorInstance.addContentWidget(inlineWidget);
+      editorInstance.addOverlayWidget(inlineWidget);
       
       // Store references for cleanup
       setCurrentWidget({
+        ...inlineWidget,
         dispose: () => {
           editorInstance.deltaDecorations(decorationIds, []);
-          editorInstance.removeContentWidget(inlineWidget);
+          editorInstance.removeOverlayWidget(inlineWidget);
+          // Restore original content
+          model.pushEditOperations([], [{
+            range: model.getFullModelRange(),
+            text: currentContent
+          }], () => null);
         }
-      } as monaco.editor.IOverlayWidget);
-
-      // Reveal the relevant lines
-      editorInstance.revealLinesInCenter(startLine, endLine);
+      });
 
     } catch (error) {
       console.error('Failed to handle AI fix:', error);
@@ -294,42 +254,40 @@ const ValidationPanel: React.FC<ValidationPanelProps> = ({
   };
 
   // Set up global handlers for AI fix actions
-  React.useEffect(() => {
-    window.applyAiFix = async (messageId: string) => {
+  useEffect(() => {
+    (window as any).applyAiFix = async (messageId: string) => {
       if (!currentContent || !onApplyFix) return;
 
       try {
-        const spec = parse(currentContent);
         const message = messages.find(m => m.id === messageId);
         if (!message) return;
 
-        const suggestion = await aiFixService.getSuggestion(spec, message);
+        const suggestion = await aiFixService.getSuggestion(currentContent, message);
         if (!suggestion || suggestion.error) return;
 
-        const updatedSpec = await aiFixService.applyFix(spec, suggestion.fix);
-        onApplyFix(stringify(updatedSpec));
+        onApplyFix(suggestion.suggestion);
+        
+        if (currentWidget?.dispose) {
+          currentWidget.dispose();
+        }
       } catch (error) {
         console.error('Failed to apply AI fix:', error);
       }
     };
 
-    window.dismissAiFix = () => {
-      if (editorInstance) {
-        editorInstance.deltaDecorations([], []);
-        const widget = editorInstance.getContentWidgets().find(w => w.getId() === 'ai-fix-widget');
-        if (widget) {
-          editorInstance.removeContentWidget(widget);
-        }
+    (window as any).dismissAiFix = () => {
+      if (currentWidget?.dispose) {
+        currentWidget.dispose();
       }
     };
 
     return () => {
-      delete window.applyAiFix;
-      delete window.dismissAiFix;
+      delete (window as any).applyAiFix;
+      delete (window as any).dismissAiFix;
     };
-  }, [messages, currentContent, onApplyFix, editorInstance]);
+  }, [messages, currentContent, onApplyFix, currentWidget]);
 
-  const togglePath = (path: string) => {
+  const togglePath = useCallback((path: string) => {
     setExpandedPaths(prev => {
       const next = new Set(prev);
       if (next.has(path)) {
@@ -339,10 +297,10 @@ const ValidationPanel: React.FC<ValidationPanelProps> = ({
       }
       return next;
     });
-  };
+  }, []);
 
   // Initialize expanded paths with all paths that have errors
-  React.useEffect(() => {
+  useEffect(() => {
     setExpandedPaths(new Set(
       Object.entries(groupedMessages)
         .filter(([_, messages]) => messages.some(m => m.type === 'error'))
