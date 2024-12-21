@@ -60,6 +60,7 @@ export const EditorPanels: React.FC<EditorPanelsProps> = ({
   const [activePanel, setActivePanel] = React.useState<'chat' | 'editor' | 'preview' | 'validation'>('editor');
   const [isMaximized, setIsMaximized] = React.useState<string | null>(null);
   const [showPanelMenu, setShowPanelMenu] = React.useState<string | null>(null);
+  const editorRef = React.useRef<APIEditorRef>(null);
 
   const handleEditorMount = React.useCallback((editor: editor.IStandaloneCodeEditor) => {
     console.log('Editor mounted:', editor); // Debug log
@@ -222,6 +223,7 @@ export const EditorPanels: React.FC<EditorPanelsProps> = ({
             />
             <div className="flex-1">
               <APIEditor
+                ref={editorRef}
                 onChange={onChange}
                 isDarkMode={isDarkMode}
                 environment={environment}
@@ -300,6 +302,7 @@ export const EditorPanels: React.FC<EditorPanelsProps> = ({
                 isLoading={isValidating}
                 currentContent={fileManager?.getCurrentFile()?.content || ''}
                 editorInstance={editorInstance}
+                editorRef={editorRef}
                 onApplyFix={(newContent) => {
                   if (fileManager) {
                     const file = fileManager.getCurrentFile();
@@ -318,7 +321,7 @@ export const EditorPanels: React.FC<EditorPanelsProps> = ({
       </PanelGroup>
 
       {isMaximized && (
-        <div className="flex-1">
+        <div className="absolute inset-0 z-50 bg-background">
           {isMaximized === 'chat' && (
             <div className="h-full flex flex-col">
               <PanelHeader
@@ -359,6 +362,7 @@ export const EditorPanels: React.FC<EditorPanelsProps> = ({
               />
               <div className="flex-1">
                 <APIEditor
+                  ref={editorRef}
                   onChange={onChange}
                   isDarkMode={isDarkMode}
                   environment={environment}
@@ -415,6 +419,7 @@ export const EditorPanels: React.FC<EditorPanelsProps> = ({
                   isLoading={isValidating}
                   currentContent={fileManager?.getCurrentFile()?.content || ''}
                   editorInstance={editorInstance}
+                  editorRef={editorRef}
                   onApplyFix={(newContent) => {
                     if (fileManager) {
                       const file = fileManager.getCurrentFile();

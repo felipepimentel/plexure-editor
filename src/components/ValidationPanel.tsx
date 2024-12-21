@@ -1,10 +1,10 @@
 import { AlertTriangle, ChevronDown, Info, Loader2, Wand2, XCircle } from "lucide-react";
-import * as monaco from "monaco-editor";
 import { editor } from "monaco-editor";
 import React, { useCallback, useEffect, useState } from "react";
 import { aiFixService } from "../lib/ai-fix";
 import { ValidationMessage } from "../lib/types";
 import { cn } from "../lib/utils";
+import { APIEditorRef } from './Editor/APIEditor';
 import { Button } from "./ui/Button";
 import { Tooltip } from "./ui/TooltipComponent";
 
@@ -14,6 +14,7 @@ interface ValidationPanelProps {
   currentContent?: string;
   editorInstance?: editor.IStandaloneCodeEditor;
   onApplyFix?: (newContent: string) => void;
+  editorRef?: React.RefObject<APIEditorRef>;
 }
 
 interface IOverlayWidget extends editor.IOverlayWidget {
@@ -25,7 +26,8 @@ const ValidationPanel: React.FC<ValidationPanelProps> = ({
   isLoading = false,
   currentContent,
   editorInstance,
-  onApplyFix
+  onApplyFix,
+  editorRef
 }) => {
   const [expandedPaths, setExpandedPaths] = useState<Set<string>>(new Set());
   const [isAiFixing, setIsAiFixing] = useState<string | null>(null);
@@ -43,7 +45,7 @@ const ValidationPanel: React.FC<ValidationPanelProps> = ({
   }, [messages]);
 
   const handleAiFix = async (message: ValidationMessage) => {
-    if (!currentContent || !onApplyFix || !editorInstance) {
+    if (!currentContent || !onApplyFix || !editorRef?.current) {
       console.warn('Missing required props for AI fix');
       return;
     }
@@ -58,199 +60,18 @@ const ValidationPanel: React.FC<ValidationPanelProps> = ({
         return;
       }
 
-      // Get the current model
-      const model = editorInstance.getModel();
-      if (!model) return;
-
-      // Store original content for restoration
-      const originalContent = model.getValue();
-
-      // Update editor content with suggestion
-      model.pushEditOperations(
-        [],
-        [
-          {
-            range: model.getFullModelRange(),
-            text: suggestion.suggestion
-          }
-        ],
-        () => null
-      );
-
-      // Notify parent about the change
-      onApplyFix(suggestion.suggestion);
-
-      // Create inline diff decorations
-      const diffLines = suggestion.diff?.split('\n') || [];
-      const decorations: monaco.editor.IModelDeltaDecoration[] = [];
-      
-      let currentLine = 1;
-      diffLines.forEach(line => {
-        if (!line) return;
-
-        if (line.startsWith('+')) {
-          decorations.push({
-            range: new monaco.Range(currentLine, 1, currentLine, 1),
-            options: {
-              isWholeLine: true,
-              className: 'diff-add-line',
-              glyphMarginClassName: 'diff-add-glyph',
-              glyphMarginHoverMessage: { value: 'Added line' },
-              minimap: {
-                color: { id: 'diffEditor.insertedLineBackground' },
-                position: 1
-              },
-              linesDecorationsClassName: 'diff-add-line-number'
-            }
-          });
-          currentLine++;
-        } else if (line.startsWith('-')) {
-          decorations.push({
-            range: new monaco.Range(currentLine, 1, currentLine, 1),
-            options: {
-              isWholeLine: true,
-              className: 'diff-remove-line',
-              glyphMarginClassName: 'diff-remove-glyph',
-              glyphMarginHoverMessage: { value: 'Removed line' },
-              minimap: {
-                color: { id: 'diffEditor.removedLineBackground' },
-                position: 1
-              },
-              linesDecorationsClassName: 'diff-remove-line-number'
-            }
-          });
-          currentLine++;
-        } else if (!line.startsWith('@')) {
-          currentLine++;
-        }
-      });
-
-      // Add styles for the inline diff
-      if (!document.getElementById('monaco-inline-diff-styles')) {
-        const styleSheet = document.createElement('style');
-        styleSheet.id = 'monaco-inline-diff-styles';
-        styleSheet.textContent = `
-          .diff-add-line {
-            background-color: rgba(40, 167, 69, 0.1) !important;
-            border-left: 3px solid #28a745 !important;
-          }
-          .diff-add-glyph {
-            background-color: #28a745;
-            width: 3px !important;
-            margin-left: 3px;
-          }
-          .diff-add-line-number {
-            color: #28a745 !important;
-          }
-          .diff-remove-line {
-            background-color: rgba(220, 53, 69, 0.1) !important;
-            border-left: 3px solid #dc3545 !important;
-            text-decoration: line-through;
-            opacity: 0.7;
-          }
-          .diff-remove-glyph {
-            background-color: #dc3545;
-            width: 3px !important;
-            margin-left: 3px;
-          }
-          .diff-remove-line-number {
-            color: #dc3545 !important;
-          }
-          .inline-fix-widget {
-            position: absolute;
-            top: 0;
-            right: 0;
-            background-color: #252526;
-            border: 1px solid #454545;
-            border-radius: 3px;
-            padding: 8px;
-            margin: 4px;
-            z-index: 100;
-          }
-          .inline-fix-actions {
-            display: flex;
-            gap: 8px;
-            margin-top: 8px;
-            justify-content: flex-end;
-          }
-          .inline-fix-button {
-            padding: 4px 12px;
-            border-radius: 3px;
-            cursor: pointer;
-            border: none;
-            font-size: 12px;
-            font-weight: 500;
-            transition: all 150ms ease;
-          }
-          .inline-fix-apply {
-            background-color: #28a745;
-            color: white;
-          }
-          .inline-fix-apply:hover {
-            background-color: #218838;
-          }
-          .inline-fix-dismiss {
-            background-color: #3c3c3c;
-            color: #d4d4d4;
-          }
-          .inline-fix-dismiss:hover {
-            background-color: #4a4a4a;
-          }
-        `;
-        document.head.appendChild(styleSheet);
-      }
-
-      // Clean up any existing widgets before adding new ones
-      if (currentWidget?.dispose) {
-        currentWidget.dispose();
-      }
-
-      // Add the inline widget with the fix buttons
-      const inlineWidget: IOverlayWidget = {
-        getId: () => 'inline-fix-widget',
-        getDomNode: () => {
-          const container = document.createElement('div');
-          container.className = 'inline-fix-widget';
-          container.innerHTML = `
-            <div class="inline-fix-actions">
-              <button class="inline-fix-button inline-fix-dismiss" onclick="window.dismissAiFix()">
-                Reject
-              </button>
-              <button class="inline-fix-button inline-fix-apply" onclick="window.applyAiFix('${message.id}')">
-                Apply Fix
-              </button>
-            </div>
-          `;
-          return container;
+      // Use the editor's showDiff method
+      editorRef.current.showDiff(
+        currentContent,
+        suggestion.suggestion,
+        () => {
+          // On apply
+          onApplyFix(suggestion.suggestion);
         },
-        getPosition: () => ({
-          preference: monaco.editor.OverlayWidgetPositionPreference.TOP_RIGHT_CORNER
-        })
-      };
-
-      // Apply new decorations and widget
-      const decorationIds = editorInstance.deltaDecorations([], decorations);
-      editorInstance.addOverlayWidget(inlineWidget);
-      
-      // Store references for cleanup
-      setCurrentWidget({
-        ...inlineWidget,
-        dispose: () => {
-          editorInstance.deltaDecorations(decorationIds, []);
-          editorInstance.removeOverlayWidget(inlineWidget);
-          // Restore original content
-          model.pushEditOperations(
-            [],
-            [
-              {
-                range: model.getFullModelRange(),
-                text: originalContent
-              }
-            ],
-            () => null
-          );
+        () => {
+          // On reject - nothing to do as the editor will handle restoring the content
         }
-      });
+      );
 
     } catch (error) {
       console.error('Failed to handle AI fix:', error);
@@ -269,56 +90,12 @@ const ValidationPanel: React.FC<ValidationPanelProps> = ({
       .replace(/'/g, "&#039;");
   };
 
-  // Set up global handlers for AI fix actions
-  useEffect(() => {
-    (window as any).applyAiFix = async (messageId: string) => {
-      if (!currentContent || !onApplyFix || !editorInstance) return;
-
-      try {
-        const message = messages.find(m => m.id === messageId);
-        if (!message) return;
-
-        const suggestion = await aiFixService.getSuggestion(currentContent, message);
-        if (!suggestion || suggestion.error) return;
-
-        // Get the current model
-        const model = editorInstance.getModel();
-        if (!model) return;
-
-        // Apply the suggestion
-        model.pushEditOperations(
-          [],
-          [
-            {
-              range: model.getFullModelRange(),
-              text: suggestion.suggestion
-            }
-          ],
-          () => null
-        );
-
-        // Notify parent about the change
-        onApplyFix(suggestion.suggestion);
-        
-        if (currentWidget?.dispose) {
-          currentWidget.dispose();
-        }
-      } catch (error) {
-        console.error('Failed to apply AI fix:', error);
-      }
-    };
-
-    (window as any).dismissAiFix = () => {
-      if (currentWidget?.dispose) {
-        currentWidget.dispose();
-      }
-    };
-
-    return () => {
-      delete (window as any).applyAiFix;
-      delete (window as any).dismissAiFix;
-    };
-  }, [messages, currentContent, onApplyFix, currentWidget, editorInstance]);
+  // Function to handle rejecting the fix
+  const handleRejectFix = React.useCallback(() => {
+    if (currentWidget?.dispose) {
+      currentWidget.dispose();
+    }
+  }, [currentWidget]);
 
   const togglePath = useCallback((path: string) => {
     setExpandedPaths(prev => {
@@ -350,6 +127,46 @@ const ValidationPanel: React.FC<ValidationPanelProps> = ({
       message.message.toLowerCase().includes('required')
     );
   };
+
+  // Set up global handlers for AI fix actions
+  React.useEffect(() => {
+    (window as any).applyAiFix = async (messageId: string) => {
+      if (!currentContent || !onApplyFix || !editorRef?.current) return;
+
+      try {
+        const message = messages.find(m => m.id === messageId);
+        if (!message) return;
+
+        const suggestion = await aiFixService.getSuggestion(currentContent, message);
+        if (!suggestion || suggestion.error) return;
+
+        // Apply the suggestion permanently
+        onApplyFix(suggestion.suggestion);
+        
+        // Clean up the widget and decorations
+        if (currentWidget?.dispose) {
+          // Just remove the widget and decorations without restoring original content
+          editorRef.current.deltaDecorations([], []);
+          editorRef.current.removeOverlayWidget(currentWidget);
+          setCurrentWidget(null);
+        }
+      } catch (error) {
+        console.error('Failed to apply AI fix:', error);
+      }
+    };
+
+    (window as any).dismissAiFix = () => {
+      if (currentWidget?.dispose) {
+        currentWidget.dispose();
+        setCurrentWidget(null);
+      }
+    };
+
+    return () => {
+      delete (window as any).applyAiFix;
+      delete (window as any).dismissAiFix;
+    };
+  }, [messages, currentContent, onApplyFix, currentWidget, editorRef]);
 
   return (
     <div className="flex flex-col h-full bg-background">

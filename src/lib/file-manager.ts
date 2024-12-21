@@ -18,6 +18,9 @@ export class FileManager {
 
   onChange(callback: (file: FileType) => void) {
     this.changeCallback = callback;
+    return () => {
+      this.changeCallback = null;
+    };
   }
 
   private notifyChange() {
@@ -60,6 +63,7 @@ export class FileManager {
       isDirty: false
     };
     this.notifyChange();
+    return this.currentFile;
   }
 
   async openFile() {
